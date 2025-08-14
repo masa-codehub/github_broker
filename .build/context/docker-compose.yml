@@ -1,0 +1,28 @@
+services:
+  service-name:
+    build:
+      context: ./${APP_NAME}/.build
+      dockerfile: Dockerfile
+    image: ${APP_NAME}_image
+    volumes:
+      - ./${APP_NAME}:${CONTAINER_VOLUME:-/app}
+      - ./messages:${AGENT_MESSAGE_DIR:-/app/messages}
+    working_dir: ${CONTAINER_VOLUME:-/app}
+    ports:
+      - "${PORT:-8080}:${PORT:-8080}"
+    environment:
+      - AGENT_ID=${AGENT_ID:-agent_id}
+      - AGENT_MESSAGE_DIR=${AGENT_MESSAGE_DIR:-/app/messages}
+      - GEMINI_LOG=${GEMINI_LOG:-/logs/gemini.log}
+      - GH_TOKEN=${GH_TOKEN:-my_github_token}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    # command: ["bash", "run.sh"]
+    stdin_open: true
+    tty: true
+
+  redis:
+    image: redis:latest
+    hostname: redis
+    ports:
+      - "6379:6379"
