@@ -41,3 +41,10 @@ class RedisClient:
         key = f"agent_assignment:{agent_id}"
         issue_id = self._client.get(key)
         return int(issue_id) if issue_id else None
+
+    def clear_assignment(self, agent_id: str):
+        """
+        Clears the assignment for a given agent.
+        """
+        key = f"agent_assignment:{agent_id}"
+        self._client.delete(key)

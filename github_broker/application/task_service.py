@@ -1,3 +1,4 @@
+from github import UnknownObjectException
 from ..infrastructure.github_client import GitHubClient
 from ..infrastructure.redis_client import RedisClient
 from ..infrastructure.gemini_client import GeminiClient
@@ -57,15 +58,21 @@ class TaskService:
     def _process_previous_task(self, agent_id: str):
         """
         Checks if the agent had a previous task and marks it as complete.
+        If the previous issue is not found on GitHub, it logs the error
+        and clears the assignment from Redis.
         """
         previous_issue_id = self._redis_client.get_assignment(agent_id)
         if previous_issue_id:
             print(f"Agent {agent_id} completed issue #{previous_issue_id}. Updating label.")
-            self._github_client.update_issue_label(
-                repo_name=self.repo_name,
-                issue_id=previous_issue_id,
-                new_label="needs-review"
-            )
+            try:
+                self._github_client.update_issue_label(
+                    repo_name=self.repo_name,
+                    issue_id=previous_issue_id,
+                    new_label="needs-review"
+                )
+            except UnknownObjectException:
+                print(f"Error: Previous issue #{previous_issue_id} not found on GitHub. Clearing assignment.")
+                self._redis_client.clear_assignment(agent_id)
 
     def _select_best_issue(self, capabilities: list[str]):
         """
@@ -94,4 +101,3 @@ class TaskService:
         )
 
         return issues_map.get(selected_issue_id)
-
