@@ -6,6 +6,8 @@ from github_broker.infrastructure.github_client import GitHubClient
 # @patchデコレータはpytestでもそのまま動作します。
 # 下から上に適用されるため、テスト関数の引数の順番は(mock_github, mock_getenv)ではなく
 # (mock_getenv, mock_github) となります。
+
+
 @patch('os.getenv')
 @patch('github_broker.infrastructure.github_client.Github')
 def test_get_open_issues_success(mock_github, mock_getenv):
@@ -24,7 +26,7 @@ def test_get_open_issues_success(mock_github, mock_getenv):
     mock_github_instance = MagicMock()
     mock_github_instance.get_repo.return_value = mock_repo
     mock_github.return_value = mock_github_instance
-    
+
     client = GitHubClient()
     repo_name = "test/repo"
 
@@ -36,6 +38,7 @@ def test_get_open_issues_success(mock_github, mock_getenv):
     mock_repo.get_issues.assert_called_once_with(state="open", assignee="none")
     assert len(issues) == 2
     assert issues[0].title == "Test Issue 1"
+
 
 @patch('os.getenv')
 @patch('github_broker.infrastructure.github_client.Github')
@@ -65,6 +68,7 @@ def test_update_issue_label_success(mock_github, mock_getenv):
     mock_repo.get_issue.assert_called_once_with(number=issue_id)
     mock_issue.add_to_labels.assert_called_once_with(new_label)
     assert result is True
+
 
 @patch('os.getenv')
 @patch('github_broker.infrastructure.github_client.Github')
