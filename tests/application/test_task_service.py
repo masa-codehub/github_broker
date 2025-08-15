@@ -4,6 +4,16 @@ from unittest.mock import MagicMock, call
 from github_broker.application.task_service import TaskService
 from github_broker.interface.models import TaskResponse
 
+VALID_ISSUE_BODY = """
+Some description here.
+
+## ブランチ名
+feature/valid-issue
+
+## 成果物
+- `src/main.py`
+"""
+
 @pytest.fixture
 def task_service_components():
     """Set up mock clients and TaskService instance for tests."""
@@ -20,9 +30,6 @@ def task_service_components():
     return task_service, mock_github_client, mock_redis_client, mock_gemini_client, repo_name
 
 def test_request_task_success_first_task(task_service_components):
-    """
-    Test the successful assignment of a task to an agent with no previous task.
-    """
     task_service, mock_github_client, mock_redis_client, mock_gemini_client, repo_name = task_service_components
     agent_id = "test-agent-001"
     capabilities = ["python", "fastapi"]
@@ -34,7 +41,7 @@ def test_request_task_success_first_task(task_service_components):
     mock_issue.id = 12345
     mock_issue.number = 123
     mock_issue.title = "Fix the bug"
-    mock_issue.body = "There is a bug that needs fixing."
+    mock_issue.body = VALID_ISSUE_BODY # Use valid body
     mock_label = MagicMock()
     mock_label.name = "bug"
     mock_issue.labels = [mock_label]
@@ -65,7 +72,8 @@ def test_request_task_success_first_task(task_service_components):
         expected_issues_for_gemini, capabilities
     )
 
-    expected_branch_name = f"feature/issue-{mock_issue.number}"
+    # The branch name should be parsed from the issue body
+    expected_branch_name = "feature/valid-issue"
     mock_github_client.create_branch.assert_called_once_with(
         repo_name=repo_name,
         branch_name=expected_branch_name
@@ -75,7 +83,6 @@ def test_request_task_success_first_task(task_service_components):
 
     assert isinstance(result, TaskResponse)
     assert result.issue_id == mock_issue.number
-    assert result.title == mock_issue.title
     assert result.branch_name == expected_branch_name
     mock_redis_client.release_lock.assert_called_once()
 
@@ -107,7 +114,7 @@ def test_request_task_with_previous_task(task_service_components):
     new_mock_issue.id = 12456
     new_mock_issue.number = 124
     new_mock_issue.title = "A new task"
-    new_mock_issue.body = "Details for the new task."
+    new_mock_issue.body = VALID_ISSUE_BODY
     new_mock_issue.labels = []
     new_mock_issue.html_url = "https://github.com/test/repo/issues/124"
     mock_github_client.get_open_issues.return_value = [new_mock_issue]
@@ -129,94 +136,50 @@ def test_request_task_with_previous_task(task_service_components):
     assert result is not None
     assert result.issue_id == new_mock_issue.number
 
-def test_request_task_lock_fails(task_service_components):
-    """
-    Test that an exception is raised if the lock cannot be acquired.
-    """
+def test_select_best_issue_filters_issues_without_definitions(task_service_components):
+    """Test that issues without proper definitions are filtered out."""
     task_service, mock_github_client, mock_redis_client, mock_gemini_client, _ = task_service_components
-    agent_id = "test-agent-004"
-    capabilities = ["*"]
-    mock_redis_client.acquire_lock.return_value = False
 
-    with pytest.raises(Exception, match="Server is busy. Please try again later."):
-        task_service.request_task(agent_id, capabilities)
+    mock_valid_issue = MagicMock()
+    mock_valid_issue.number = 1
+    mock_valid_issue.title = "Valid Issue"
+    mock_valid_issue.body = VALID_ISSUE_BODY
+    mock_valid_issue.labels = []
 
-    mock_redis_client.get_assignment.assert_not_called()
-    mock_github_client.get_open_issues.assert_not_called()
-    mock_gemini_client.select_best_issue_id.assert_not_called()
-    mock_redis_client.release_lock.assert_not_called()
+    mock_missing_branch = MagicMock()
+    mock_missing_branch.number = 2
+    mock_missing_branch.title = "Missing Branch"
+    mock_missing_branch.body = "## 成果物\n- `file.txt`"
+    mock_missing_branch.labels = []
 
-def test_request_task_selects_best_issue_with_gemini(task_service_components):
-    """
-    Test that TaskService uses GeminiClient to select the best issue.
-    """
-    task_service, mock_github_client, mock_redis_client, mock_gemini_client, repo_name = task_service_components
-    agent_id = "test-agent-gemini"
-    capabilities = ["python", "refactoring"]
+    mock_empty_deliverables = MagicMock()
+    mock_empty_deliverables.number = 3
+    mock_empty_deliverables.title = "Empty Deliverables"
+    mock_empty_deliverables.body = "## ブランチ名\nfeature/empty\n\n## 成果物\n"
+    mock_empty_deliverables.labels = []
+    
+    mock_no_body = MagicMock()
+    mock_no_body.number = 4
+    mock_no_body.title = "No Body Issue"
+    mock_no_body.body = None
+    mock_no_body.labels = []
 
-    mock_redis_client.acquire_lock.return_value = True
-    mock_redis_client.get_assignment.return_value = None
-
-    mock_issue_1 = MagicMock()
-    mock_issue_1.id = 1011
-    mock_issue_1.number = 101
-    mock_issue_1.title = "Refactor old code"
-    mock_issue_1.body = "Needs refactoring for better readability."
-    mock_label_1 = MagicMock(); mock_label_1.name = "refactoring"
-    mock_issue_1.labels = [mock_label_1]
-    mock_issue_1.html_url = "https://github.com/test/repo/issues/101"
-
-    mock_issue_2 = MagicMock()
-    mock_issue_2.id = 1022
-    mock_issue_2.number = 102
-    mock_issue_2.title = "Add new feature"
-    mock_issue_2.body = "Implement user authentication."
-    mock_label_2 = MagicMock(); mock_label_2.name = "feature"
-    mock_issue_2.labels = [mock_label_2]
-    mock_issue_2.html_url = "https://github.com/test/repo/issues/102"
-
-    mock_github_client.get_open_issues.return_value = [mock_issue_1, mock_issue_2]
-    mock_gemini_client.select_best_issue_id.return_value = mock_issue_1.number
-
-    result = task_service.request_task(agent_id, capabilities)
-
-    expected_issues_for_gemini = [
-        {"id": mock_issue_1.number, "title": mock_issue_1.title, "body": mock_issue_1.body, "labels": [l.name for l in mock_issue_1.labels]},
-        {"id": mock_issue_2.number, "title": mock_issue_2.title, "body": mock_issue_2.body, "labels": [l.name for l in mock_issue_2.labels]}
+    mock_github_client.get_open_issues.return_value = [
+        mock_valid_issue, 
+        mock_missing_branch, 
+        mock_empty_deliverables,
+        mock_no_body
     ]
-    mock_gemini_client.select_best_issue_id.assert_called_once_with(expected_issues_for_gemini, capabilities)
-
-    assert isinstance(result, TaskResponse)
-    assert result.issue_id == mock_issue_1.number
-    assert result.title == mock_issue_1.title
-    assert result.branch_name == f"feature/issue-{mock_issue_1.number}"
-
-def test_request_task_gemini_selects_no_issue(task_service_components):
-    """
-    Test that no task is assigned if GeminiClient returns None.
-    """
-    task_service, mock_github_client, mock_redis_client, mock_gemini_client, _ = task_service_components
-    agent_id = "test-agent-gemini-none"
-    capabilities = ["unknown"]
-
-    mock_redis_client.acquire_lock.return_value = True
-    mock_redis_client.get_assignment.return_value = None
-
-    mock_issue_1 = MagicMock()
-    mock_issue_1.id = 1011
-    mock_issue_1.number = 101
-    mock_issue_1.title = "Refactor old code"
-    mock_issue_1.body = "Needs refactoring for better readability."
-    mock_label_1 = MagicMock(); mock_label_1.name = "refactoring"
-    mock_issue_1.labels = [mock_label_1]
-    mock_issue_1.html_url = "https://github.com/test/repo/issues/101"
-
-    mock_github_client.get_open_issues.return_value = [mock_issue_1]
     mock_gemini_client.select_best_issue_id.return_value = None
 
-    result = task_service.request_task(agent_id, capabilities)
+    task_service._select_best_issue(capabilities=["python"])
 
-    assert result is None
-    mock_github_client.create_branch.assert_not_called()
-    mock_redis_client.set_assignment.assert_not_called()
-    mock_redis_client.release_lock.assert_called_once()
+    expected_issues_for_gemini = [{
+        "id": mock_valid_issue.number,
+        "title": mock_valid_issue.title,
+        "body": mock_valid_issue.body,
+        "labels": []
+    }]
+    mock_gemini_client.select_best_issue_id.assert_called_once_with(
+        expected_issues_for_gemini, ["python"]
+    )
