@@ -1,14 +1,16 @@
 from ..infrastructure.github_client import GitHubClient
 from ..infrastructure.redis_client import RedisClient
+from ..infrastructure.gemini_client import GeminiClient
 from ..interface.models import TaskResponse # Un-comment to use the response model
 
 class TaskService:
     """
     This service contains the core business logic for task assignment.
     """
-    def __init__(self, github_client: GitHubClient, redis_client: RedisClient, repo_name: str):
+    def __init__(self, github_client: GitHubClient, redis_client: RedisClient, gemini_client: GeminiClient, repo_name: str):
         self._github_client = github_client
         self._redis_client = redis_client
+        self._gemini_client = gemini_client
         self.repo_name = repo_name
 
     def request_task(self, agent_id: str, capabilities: list[str]) -> TaskResponse | None:
@@ -45,7 +47,7 @@ class TaskService:
                 issue_url=new_issue.html_url,
                 title=new_issue.title,
                 body=new_issue.body,
-                labels=[label.name for label in new_issue.labels],
+                labels=[str(label.name) for label in new_issue.labels],
                 branch_name=branch_name
             )
 
@@ -69,11 +71,23 @@ class TaskService:
         """
         Selects the most suitable issue for the agent based on their capabilities.
         """
-        # TODO: Use Gemini to select the best issue based on capabilities and issue details.
         open_issues = self._github_client.get_open_issues(repo_name=self.repo_name)
         
-        # For now, return the first available issue.
+        # Convert GitHub Issue objects to a list of dictionaries for GeminiClient
+        issues_for_gemini = []
         for issue in open_issues:
-            return issue
+            issues_for_gemini.append({
+                "id": issue.id,
+                "title": issue.title,
+                "body": issue.body,
+                "labels": [label.name for label in issue.labels]
+            })
+
+        selected_issue_id = self._gemini_client.select_best_issue_id(issues_for_gemini, capabilities)
+
+        if selected_issue_id:
+            for issue in open_issues:
+                if issue.id == selected_issue_id:
+                    return issue
         return None
 
