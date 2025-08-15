@@ -25,6 +25,7 @@ class GeminiClient:
     def select_best_issue_id(self, issues: list[dict], capabilities: list[str]) -> int | None:
         """
         Selects the best issue ID from a list based on agent capabilities using the Gemini API.
+        If the API call fails, it falls back to selecting the first issue in the list.
 
         Args:
             issues (list[dict]): A list of dictionaries, where each dictionary represents an issue.
@@ -45,19 +46,20 @@ class GeminiClient:
             if issue_id is None:
                 return None
             return int(issue_id)
-        except json.JSONDecodeError as e:
-            logging.error(f"Error parsing Gemini response JSON: {e}")
-            logging.error(f"Raw response text: {response.text if 'response' in locals() else 'N/A'}")
-            return None
         except Exception as e:
-            logging.error(f"An unexpected error occurred while calling Gemini API: {e}")
-            return None
+            logging.warning(f"Gemini API call failed: {e}. Falling back to basic selection.")
+            # Fallback to selecting the first issue
+            return issues[0].get('id')
 
     def _build_prompt(self, issues: list[dict], capabilities: list[str]) -> str:
         """
         Builds the prompt to be sent to the Gemini API.
         """
-        issues_str = "\n".join([f"- ID: {i['id']}, Title: {i['title']}, Body: {i['body']}, Labels: {i['labels']}" for i in issues])
+        # Use .get() for safety in case 'body' or 'labels' are missing
+        issues_str = "\n".join([
+            f"- ID: {i['id']}, Title: {i['title']}, Body: {i.get('body', '')}, Labels: {i.get('labels', [])}" 
+            for i in issues
+        ])
         capabilities_str = ", ".join(capabilities)
 
         prompt = f"""
