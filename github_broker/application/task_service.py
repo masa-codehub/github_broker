@@ -21,8 +21,8 @@ class TaskService:
             return None, None
 
         # Use non-capturing group (?:...) and lookahead (?=...) for robust parsing
-        branch_match = re.search(r"^##\s+ブランチ名\s*$\\n(.*?)(?=\\n^##|\\Z)", body, re.MULTILINE | re.DOTALL)
-        deliverables_match = re.search(r"^##\s+成果物\s*$\\n(.*?)(?=\\n^##|\\Z)", body, re.MULTILINE | re.DOTALL)
+        branch_match = re.search(r"^##\s+ブランチ名\s*$\n(.*?)(?=\n^##|\Z)", body, re.MULTILINE | re.DOTALL)
+        deliverables_match = re.search(r"^##\s+成果物\s*$\n(.*?)(?=\n^##|\Z)", body, re.MULTILINE | re.DOTALL)
 
         branch_name = branch_match.group(1).strip() if branch_match else None
         deliverables = deliverables_match.group(1).strip() if deliverables_match else None

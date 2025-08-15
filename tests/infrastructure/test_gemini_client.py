@@ -90,3 +90,32 @@ def test_select_best_issue_id_with_gemini_api_call(mock_generative_model, mock_g
 
     # Verify the result is correctly parsed
     assert selected_id == 101
+
+@patch('os.getenv')
+@patch('github_broker.infrastructure.gemini_client.genai.GenerativeModel')
+def test_select_best_issue_id_fallback_on_api_error(mock_generative_model, mock_getenv):
+    """
+    Test that select_best_issue_id falls back to the first issue if the API call fails.
+    """
+    # Arrange
+    mock_getenv.return_value = "fake_gemini_api_key"
+
+    # Mock the API call to raise an exception
+    mock_model_instance = MagicMock()
+    mock_model_instance.generate_content.side_effect = Exception("API Key Invalid")
+    mock_generative_model.return_value = mock_model_instance
+
+    client = GeminiClient()
+
+    issues = [
+        {"id": 201, "title": "First Issue"},
+        {"id": 202, "title": "Second Issue"},
+    ]
+    capabilities = ["*" ]
+
+    # Act
+    selected_id = client.select_best_issue_id(issues, capabilities)
+
+    # Assert
+    # Verify that the fallback mechanism returned the ID of the first issue
+    assert selected_id == 201
