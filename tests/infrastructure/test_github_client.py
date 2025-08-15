@@ -1,4 +1,3 @@
-
 from unittest.mock import patch, MagicMock
 import pytest
 
@@ -7,19 +6,32 @@ from github_broker.infrastructure.github_client import GitHubClient
 
 @patch('os.getenv')
 @patch('github_broker.infrastructure.github_client.Github')
-def test_get_open_issues_filters_labels(mock_github, mock_getenv):
+def test_get_open_issues_filters_in_progress(mock_github, mock_getenv):
     """
-    Test that get_open_issues constructs the correct search query.
+    Test that get_open_issues filters out issues that have an 'in-progress' label.
     """
     # Arrange
     mock_getenv.return_value = "fake_token"
     
-    mock_issue1 = MagicMock()
-    mock_issue2 = MagicMock()
+    mock_issue_in_progress = MagicMock()
+    mock_issue_in_progress.number = 1
+    mock_issue_in_progress.title = "In Progress Issue"
+    mock_label_in_progress = MagicMock()
+    mock_label_in_progress.name = "in-progress:agent-007"
+    mock_issue_in_progress.labels = [mock_label_in_progress]
+
+    mock_issue_open = MagicMock()
+    mock_issue_open.number = 2
+    mock_issue_open.title = "Open Issue"
+    mock_issue_open.labels = []
+
+    # Mock the PaginatedList object returned by search_issues
+    mock_search_result = MagicMock()
+    mock_search_result.totalCount = 2
+    mock_search_result.__iter__.return_value = [mock_issue_in_progress, mock_issue_open]
 
     mock_github_instance = MagicMock()
-    # search_issues is expected to return an iterable, a list is fine for mocking.
-    mock_github_instance.search_issues.return_value = [mock_issue1, mock_issue2]
+    mock_github_instance.search_issues.return_value = mock_search_result
     mock_github.return_value = mock_github_instance
 
     client = GitHubClient()
@@ -29,11 +41,11 @@ def test_get_open_issues_filters_labels(mock_github, mock_getenv):
     issues = client.get_open_issues(repo_name)
 
     # Assert
-    expected_query = f'repo:{repo_name} is:issue is:open no:assignee -label:"in-progress" -label:"needs-review"'
+    expected_query = f'repo:{repo_name} is:issue is:open no:assignee'
     mock_github_instance.search_issues.assert_called_once_with(query=expected_query)
     
-    # The client should return the listified result from the mock
-    assert len(issues) == 2
+    assert len(issues) == 1
+    assert issues[0].title == "Open Issue"
 
 
 @patch('os.getenv')
@@ -64,6 +76,7 @@ def test_add_label_success(mock_github, mock_getenv):
     mock_repo.get_issue.assert_called_once_with(number=issue_id)
     mock_issue.add_to_labels.assert_called_once_with(label_to_add)
     assert result is True
+
 
 @patch('os.getenv')
 @patch('github_broker.infrastructure.github_client.Github')

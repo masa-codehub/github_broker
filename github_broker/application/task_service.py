@@ -30,25 +30,27 @@ class TaskService:
                 return None
 
             try:
+                # Use issue.number for operations within the repository
                 issue_number = new_issue.number
 
+                # Add the in-progress label to mark the issue as assigned
                 in_progress_label = f"in-progress:{agent_id}"
                 self._github_client.add_label(
                     repo_name=self.repo_name,
-                    issue_id=issue_number,
+                    issue_id=issue_number, # Use number
                     label=in_progress_label
                 )
 
-                branch_name = f"feature/issue-{issue_number}"
+                branch_name = f"feature/issue-{issue_number}" # Use number
                 self._github_client.create_branch(
                     repo_name=self.repo_name,
                     branch_name=branch_name
                 )
 
-                self._redis_client.set_assignment(agent_id, issue_number)
+                self._redis_client.set_assignment(agent_id, issue_number) # Use number
 
                 return TaskResponse(
-                    issue_id=issue_number,
+                    issue_id=issue_number, # Use number
                     issue_url=new_issue.html_url,
                     title=new_issue.title,
                     body=new_issue.body,
@@ -94,11 +96,13 @@ class TaskService:
         if not open_issues:
             return None
 
+        # Use issue.number as the key for the map
         issues_map = {issue.number: issue for issue in open_issues}
 
+        # Pass the issue number to Gemini
         issues_for_gemini = [
             {
-                "id": issue.number,
+                "id": issue.number, # Pass number as the identifier
                 "title": issue.title,
                 "body": issue.body,
                 "labels": [label.name for label in issue.labels],
