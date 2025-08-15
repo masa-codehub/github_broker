@@ -78,5 +78,9 @@ class GitHubClient:
             repo.create_git_ref(ref=f"refs/heads/{branch_name}", sha=source.commit.sha)
             return True
         except GithubException as e:
+            # Check if the error is because the branch already exists
+            if e.status == 422 and "Reference already exists" in str(e.data):
+                logging.warning(f"Branch '{branch_name}' already exists in repo {repo_name}. Proceeding.")
+                return True
             logging.error(f"Error creating branch {branch_name} in repo {repo_name}: {e}")
             raise
