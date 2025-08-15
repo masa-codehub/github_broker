@@ -13,26 +13,39 @@ class GitHubClient:
 
     def get_open_issues(self, repo_name: str):
         """
-        Retrieves all open, unassigned issues from a given repository.
+        Retrieves all open, unassigned issues from a given repository that are not in progress.
         """
         try:
-            repo = self._client.get_repo(repo_name)
-            return repo.get_issues(state="open", assignee="none")
+            query = f'repo:{repo_name} is:issue is:open no:assignee -label:"in-progress"'
+            return self._client.search_issues(query=query)
         except GithubException as e:
-            print(f"Error fetching issues for repo {repo_name}: {e}")
+            print(f"Error searching issues for repo {repo_name}: {e}")
             raise
 
-    def update_issue_label(self, repo_name: str, issue_id: int, new_label: str):
+    def add_label(self, repo_name: str, issue_id: int, label: str):
         """
         Adds a label to a specific issue.
         """
         try:
             repo = self._client.get_repo(repo_name)
             issue = repo.get_issue(number=issue_id)
-            issue.add_to_labels(new_label)
+            issue.add_to_labels(label)
             return True
         except GithubException as e:
-            print(f"Error updating issue #{issue_id} in repo {repo_name}: {e}")
+            print(f"Error adding label to issue #{issue_id} in repo {repo_name}: {e}")
+            raise
+
+    def remove_label(self, repo_name: str, issue_id: int, label: str):
+        """
+        Removes a label from a specific issue.
+        """
+        try:
+            repo = self._client.get_repo(repo_name)
+            issue = repo.get_issue(number=issue_id)
+            issue.remove_from_labels(label)
+            return True
+        except GithubException as e:
+            print(f"Error removing label from issue #{issue_id} in repo {repo_name}: {e}")
             raise
 
     def create_branch(self, repo_name: str, branch_name: str, base_branch: str = "main"):

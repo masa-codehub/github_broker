@@ -1,3 +1,4 @@
+from github import UnknownObjectException
 from ..infrastructure.github_client import GitHubClient
 from ..infrastructure.redis_client import RedisClient
 from ..infrastructure.gemini_client import GeminiClient
@@ -34,6 +35,14 @@ class TaskService:
             if not new_issue:
                 return None
 
+            # Add the in-progress label to mark the issue as assigned
+            in_progress_label = f"in-progress:{agent_id}"
+            self._github_client.add_label(
+                repo_name=self.repo_name,
+                issue_id=new_issue.id,
+                label=in_progress_label
+            )
+
             branch_name = f"feature/issue-{new_issue.id}"
             self._github_client.create_branch(
                 repo_name=self.repo_name,
@@ -57,37 +66,53 @@ class TaskService:
     def _process_previous_task(self, agent_id: str):
         """
         Checks if the agent had a previous task and marks it as complete.
+        If the previous issue is not found on GitHub, it logs the error
+        and clears the assignment from Redis.
         """
         previous_issue_id = self._redis_client.get_assignment(agent_id)
         if previous_issue_id:
-            print(f"Agent {agent_id} completed issue #{previous_issue_id}. Updating label.")
-            self._github_client.update_issue_label(
-                repo_name=self.repo_name,
-                issue_id=previous_issue_id,
-                new_label="needs-review"
-            )
+            print(f"Agent {agent_id} completed issue #{previous_issue_id}. Updating labels.")
+            try:
+                # Remove the in-progress label and add the needs-review label
+                in_progress_label = f"in-progress:{agent_id}"
+                self._github_client.remove_label(
+                    repo_name=self.repo_name,
+                    issue_id=previous_issue_id,
+                    label=in_progress_label
+                )
+                self._github_client.add_label(
+                    repo_name=self.repo_name,
+                    issue_id=previous_issue_id,
+                    label="needs-review"
+                )
+            except UnknownObjectException:
+                print(f"Error: Previous issue #{previous_issue_id} not found on GitHub. Clearing assignment.")
+                self._redis_client.clear_assignment(agent_id)
 
     def _select_best_issue(self, capabilities: list[str]):
         """
         Selects the most suitable issue for the agent based on their capabilities.
         """
         open_issues = self._github_client.get_open_issues(repo_name=self.repo_name)
-        
-        # Convert GitHub Issue objects to a list of dictionaries for GeminiClient
-        issues_for_gemini = []
-        for issue in open_issues:
-            issues_for_gemini.append({
+        if not open_issues:
+            return None
+
+        # Use a dictionary for efficient O(1) lookup later
+        issues_map = {issue.id: issue for issue in open_issues}
+
+        # Use a list comprehension for conciseness
+        issues_for_gemini = [
+            {
                 "id": issue.id,
                 "title": issue.title,
                 "body": issue.body,
-                "labels": [label.name for label in issue.labels]
-            })
+                "labels": [label.name for label in issue.labels],
+            }
+            for issue in issues_map.values()
+        ]
 
-        selected_issue_id = self._gemini_client.select_best_issue_id(issues_for_gemini, capabilities)
+        selected_issue_id = self._gemini_client.select_best_issue_id(
+            issues_for_gemini, capabilities
+        )
 
-        if selected_issue_id:
-            for issue in open_issues:
-                if issue.id == selected_issue_id:
-                    return issue
-        return None
-
+        return issues_map.get(selected_issue_id)
