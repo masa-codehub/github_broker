@@ -1,29 +1,37 @@
-
 from unittest.mock import patch, MagicMock
+import pytest
 
 from github_broker.infrastructure.github_client import GitHubClient
-
-# @patchデコレータはpytestでもそのまま動作します。
-# 下から上に適用されるため、テスト関数の引数の順番は(mock_github, mock_getenv)ではなく
-# (mock_getenv, mock_github) となります。
 
 
 @patch('os.getenv')
 @patch('github_broker.infrastructure.github_client.Github')
-def test_get_open_issues_success(mock_github, mock_getenv):
+def test_get_open_issues_filters_in_progress(mock_github, mock_getenv):
     """
-    Test that get_open_issues uses the search API to find open, unassigned issues
-    that are not in progress.
+    Test that get_open_issues filters out issues that have an 'in-progress' label.
     """
     # Arrange
     mock_getenv.return_value = "fake_token"
-    mock_issue1 = MagicMock()
-    mock_issue1.title = "Test Issue 1"
-    mock_issue2 = MagicMock()
-    mock_issue2.title = "Test Issue 2"
     
+    mock_issue_in_progress = MagicMock()
+    mock_issue_in_progress.number = 1
+    mock_issue_in_progress.title = "In Progress Issue"
+    mock_label_in_progress = MagicMock()
+    mock_label_in_progress.name = "in-progress:agent-007"
+    mock_issue_in_progress.labels = [mock_label_in_progress]
+
+    mock_issue_open = MagicMock()
+    mock_issue_open.number = 2
+    mock_issue_open.title = "Open Issue"
+    mock_issue_open.labels = []
+
+    # Mock the PaginatedList object returned by search_issues
+    mock_search_result = MagicMock()
+    mock_search_result.totalCount = 2
+    mock_search_result.__iter__.return_value = [mock_issue_in_progress, mock_issue_open]
+
     mock_github_instance = MagicMock()
-    mock_github_instance.search_issues.return_value = [mock_issue1, mock_issue2]
+    mock_github_instance.search_issues.return_value = mock_search_result
     mock_github.return_value = mock_github_instance
 
     client = GitHubClient()
@@ -33,10 +41,11 @@ def test_get_open_issues_success(mock_github, mock_getenv):
     issues = client.get_open_issues(repo_name)
 
     # Assert
-    expected_query = f'repo:{repo_name} is:issue is:open no:assignee -label:"in-progress"'
+    expected_query = f'repo:{repo_name} is:issue is:open no:assignee'
     mock_github_instance.search_issues.assert_called_once_with(query=expected_query)
-    assert len(issues) == 2
-    assert issues[0].title == "Test Issue 1"
+    
+    assert len(issues) == 1
+    assert issues[0].title == "Open Issue"
 
 
 @patch('os.getenv')
