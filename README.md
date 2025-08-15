@@ -1,52 +1,84 @@
-# GitHubタスクブローカー
+# GitHub Task Broker
 
 このシステムは、複数の自律型ワーカーエージェントに対し、GitHubのIssueを知的かつ排他的に割り当てるための中央集権型サーバーです。エージェント間の競合を防ぎ、開発ワークフローの自動化と効率化を実現します。
 
-このシステムは、クリーンアーキテクチャとテスト駆動開発の原則に基づいて構築されています。
+## 設計思想
 
-## 前提条件
+このシステムは、クリーンアーキテクチャとテスト駆動開発(TDD)の原則に基づいて構築されています。
 
-*   Docker
-*   Docker Compose
+### クリーンアーキテクチャ
 
-## 設定
+ソフトウェアを関心事によってレイヤーに分割することで、ビジネスロジックをフレームワークや外部サービスから独立させ、保守性、適応性、テスト容易性の高い構造を目指します。
 
-1.  **環境ファイルの作成**:
-    サンプルファイル `.build/context/.env.sample` をコピーして `.env` ファイルを作成します。このファイルにローカル環境変数を設定します。
-    ```bash
-    cp .build/context/.env.sample .env
-    ```
+-   `domain`: プロジェクト全体で共通のビジネスルール。最も安定した層。
+-   `application`: ユースケース層。アプリケーション固有のビジネスロジックを実装。
+-   `interface`: 外部との境界。API定義(FastAPI)やデータモデル(Pydantic)など。
+-   `infrastructure`: 外部サービスとの連携。GitHub、Redis、Gemini APIクライアントなど。
 
-2.  **環境変数の設定**:
-    `.env` ファイルを開き、以下の変数を設定してください。
+## 1. 設定
 
-    *   `GH_TOKEN`: GitHub APIと連携するための、`repo`スコープを持つ個人のGitHubアクセストークン。
-    *   `GITHUB_REPOSITORY`: ブローカーが管理するリポジトリ名 (例: `your-username/your-repo`)。
+### 1.1. 環境ファイルの作成
 
-    `.env` ファイルの例:
-    ```
-    GH_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-    GITHUB_REPOSITORY=your_github_account/your_github_repository
-    ```
+サンプルファイル `.build/context/.env.sample` をコピーして `.env` ファイルを作成します。このファイルにローカル環境変数を設定します。
 
-## 実行方法
+```bash
+cp .build/context/.env.sample .env
+```
+
+### 1.2. 環境変数の設定
+
+`.env` ファイルを開き、以下の変数を設定してください。
+
+-   `GH_TOKEN`: GitHub APIと連携するための、`repo`スコープを持つ個人のGitHubアクセストークン。
+-   `GITHUB_REPOSITORY`: ブローカーが管理するリポジトリ名 (例: `your-username/your-repo`)。
+-   `GEMINI_API_KEY`: (任意) Google AI Studioで発行したAPIキー。これを設定すると、Geminiによる知的タスク選択が有効になります。設定しない場合、単純な先着順のロジックにフォールバックします。
+
+**.env ファイルの例:**
+```
+GH_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+GITHUB_REPOSITORY=your_github_account/your_github_repository
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+## 2. 実行方法
+
+### 2.1. Dockerでの実行 (推奨)
 
 設定が完了したら、以下のコマンドでAPIサーバーとRedisを含むシステム全体をDocker Composeを使って起動します。
 
 ```bash
-docker-compose -f /docker-compose.yaml up --build
+docker-compose -f .build/context/docker-compose.yml up --build
 ```
 
-APIサーバーは `http://localhost:8000` で利用可能になります。
+APIサーバーは `http://localhost:8080` で利用可能になります。
 
-## APIの使用方法
+### 2.2. ローカルでの実行 (開発用)
+
+1.  **仮想環境の作成と有効化:**
+    ```bash
+    python -m venv .venv
+    source .venv/bin/activate
+    ```
+
+2.  **依存関係のインストール:**
+    ```bash
+    pip install -e .[test,dev]
+    ```
+
+3.  **サーバーの起動:**
+    `.env` ファイルが読み込まれるようにして、uvicornでサーバーを起動します。
+    ```bash
+    uvicorn github_broker.interface.api:app --reload --port 8080
+    ```
+
+## 3. APIの使用方法
 
 `POST`リクエストを`/api/v1/request-task`エンドポイントに送信することで、新しいタスクを要求できます。
 
 **`curl`を使用した例:**
 
 ```bash
-curl -X POST "http://localhost:8000/api/v1/request-task" \
+curl -X POST "http://localhost:8080/api/v1/request-task" \
 -H "Content-Type: application/json" \
 -d '{
   "agent_id": "my-test-agent-1",
@@ -56,16 +88,13 @@ curl -X POST "http://localhost:8000/api/v1/request-task" \
 
 ### レスポンス
 
-*   **200 OK**: 適切なタスクが見つかり、割り当てられました。レスポンスボディにはIssueの詳細と新しいブランチ名が含まれます。
-    ```json
-    {
-      "issue_id": 123,
-      "issue_url": "https://github.com/owner/repo/issues/123",
-      "title": "ログインボタンの色を修正",
-      "body": "ログインボタンは赤ではなく青であるべきです...",
-      "labels": ["bug", "ui"],
-      "branch_name": "feature/issue-123"
-    }
-    ```
-*   **204 No Content**: 現時点で、エージェントの能力に合った適切なタスクが見つかりませんでした。
-*   **503 Service Unavailable**: サーバーが他のエージェントのリクエストを処理中でビジー状態です。後でもう一度お試しください。
+-   **200 OK**: 適切なタスクが見つかり、割り当てられました。レスポンスボディにはIssueの詳細と新しいブランチ名が含まれます。
+-   **204 No Content**: 現時点で、エージェントの能力に合った適切なタスクが見つかりませんでした。
+-   **503 Service Unavailable**: サーバーが他のエージェントのリクエストを処理中でビジー状態です。後でもう一度お試しください。
+
+## 4. カンバンシステム (タスク状態管理)
+
+本システムは、GitHubのラベルを利用してタスクの進行状況を管理します。
+
+-   `in-progress:<agent_id>`: あるエージェントにタスクが割り当てられると、このラベルが自動的にIssueに付与されます。これにより、他のエージェントに同じタスクが割り当てられるのを防ぎます。
+-   `needs-review`: エージェントが次のタスクをリクエストすると、前回割り当てられていたIssueから`in-progress`ラベルが削除され、代わりにこのラベルが付与されます。これにより、人間によるレビュー待ちの状態であることを示します。

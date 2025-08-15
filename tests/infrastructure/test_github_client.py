@@ -1,28 +1,24 @@
 
 from unittest.mock import patch, MagicMock
+import pytest
 
 from github_broker.infrastructure.github_client import GitHubClient
-
-# @patchデコレータはpytestでもそのまま動作します。
-# 下から上に適用されるため、テスト関数の引数の順番は(mock_github, mock_getenv)ではなく
-# (mock_getenv, mock_github) となります。
 
 
 @patch('os.getenv')
 @patch('github_broker.infrastructure.github_client.Github')
-def test_get_open_issues_success(mock_github, mock_getenv):
+def test_get_open_issues_filters_labels(mock_github, mock_getenv):
     """
-    Test that get_open_issues uses the search API to find open, unassigned issues
-    that are not in progress.
+    Test that get_open_issues constructs the correct search query.
     """
     # Arrange
     mock_getenv.return_value = "fake_token"
-    mock_issue1 = MagicMock()
-    mock_issue1.title = "Test Issue 1"
-    mock_issue2 = MagicMock()
-    mock_issue2.title = "Test Issue 2"
     
+    mock_issue1 = MagicMock()
+    mock_issue2 = MagicMock()
+
     mock_github_instance = MagicMock()
+    # search_issues is expected to return an iterable, a list is fine for mocking.
     mock_github_instance.search_issues.return_value = [mock_issue1, mock_issue2]
     mock_github.return_value = mock_github_instance
 
@@ -33,10 +29,11 @@ def test_get_open_issues_success(mock_github, mock_getenv):
     issues = client.get_open_issues(repo_name)
 
     # Assert
-    expected_query = f'repo:{repo_name} is:issue is:open no:assignee -label:"in-progress"'
+    expected_query = f'repo:{repo_name} is:issue is:open no:assignee -label:"in-progress" -label:"needs-review"'
     mock_github_instance.search_issues.assert_called_once_with(query=expected_query)
+    
+    # The client should return the listified result from the mock
     assert len(issues) == 2
-    assert issues[0].title == "Test Issue 1"
 
 
 @patch('os.getenv')

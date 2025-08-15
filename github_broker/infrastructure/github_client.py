@@ -1,5 +1,6 @@
 import os
 from github import Github, GithubException
+import logging
 
 class GitHubClient:
     """
@@ -13,13 +14,16 @@ class GitHubClient:
 
     def get_open_issues(self, repo_name: str):
         """
-        Retrieves all open, unassigned issues from a given repository that are not in progress.
+        Retrieves all open, unassigned issues from a given repository, 
+        filtering out any that are already in progress or need review.
         """
         try:
-            query = f'repo:{repo_name} is:issue is:open no:assignee -label:"in-progress"'
-            return self._client.search_issues(query=query)
+            query = f'repo:{repo_name} is:issue is:open no:assignee -label:"in-progress" -label:"needs-review"'
+            logging.info(f"Searching for issues with query: {query}")
+            # Convert PaginatedList to a list to make it easier to work with
+            return list(self._client.search_issues(query=query))
         except GithubException as e:
-            print(f"Error searching issues for repo {repo_name}: {e}")
+            logging.error(f"Error searching issues for repo {repo_name}: {e}")
             raise
 
     def add_label(self, repo_name: str, issue_id: int, label: str):
@@ -32,7 +36,7 @@ class GitHubClient:
             issue.add_to_labels(label)
             return True
         except GithubException as e:
-            print(f"Error adding label to issue #{issue_id} in repo {repo_name}: {e}")
+            logging.error(f"Error adding label to issue #{issue_id} in repo {repo_name}: {e}")
             raise
 
     def remove_label(self, repo_name: str, issue_id: int, label: str):
@@ -45,7 +49,7 @@ class GitHubClient:
             issue.remove_from_labels(label)
             return True
         except GithubException as e:
-            print(f"Error removing label from issue #{issue_id} in repo {repo_name}: {e}")
+            logging.error(f"Error removing label from issue #{issue_id} in repo {repo_name}: {e}")
             raise
 
     def create_branch(self, repo_name: str, branch_name: str, base_branch: str = "main"):
@@ -58,5 +62,8 @@ class GitHubClient:
             repo.create_git_ref(ref=f"refs/heads/{branch_name}", sha=source.commit.sha)
             return True
         except GithubException as e:
-            print(f"Error creating branch {branch_name} in repo {repo_name}: {e}")
-            raise
+            # Check if the error is because the branch already exists
+            if e.status == 422 and "Reference already exists" in str(e.data):
+                logging.warning(f"Branch '{branch_name}' already exists in repo {repo_name}. Proceeding.")
+                return True
+            logging.error(f"Error creating branch {branch_name} in repo {repo_name}: {e}")
