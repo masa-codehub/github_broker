@@ -17,12 +17,11 @@ def request_task(agent_id: str, capabilities: list[str]):
     Returns:
         dict or None: 割り当てられたタスク情報。タスクがない場合はNone。
     """
-    # --- コンテナ間通信のための設定 ---
-    # Docker Composeのネットワーク内では、サービス名をホスト名として使用します。
-    # この名前は、docker-compose.ymlで定義されたサーバーのサービス名と一致させる必要があります。
-    host = os.getenv("SERVER_HOST", "server")
-    # 環境変数 `APP_PORT` からポート番号を読み込む。指定がなければデフォルトで8000を使用。
-    port = int(os.getenv("APP_PORT", 8000))
+    # --- 接続先サーバーの設定 ---
+    # 同じコンテナ内でサーバーとエージェントを実行するため、ホスト名は'localhost'になります。
+    host = "localhost"
+    # 環境変数 `APP_PORT` からポート番号を読み込む。指定がなければデフォルトで8080を使用。
+    port = int(os.getenv("APP_PORT", 8080))
     # ------------------------------------
 
     endpoint = "/api/v1/request-task"
@@ -86,21 +85,13 @@ if __name__ == "__main__":
     print(f"能力: {my_capabilities}")
     print("-" * 30)
 
-    # 無限ループでタスクの要求を繰り返す
-    try:
-        while True:
-            print("\n新しいタスクをサーバーに要求します...")
-            assigned_task = request_task(my_agent_id, my_capabilities)
+    # 一度だけタスクを要求する
+    print("\n新しいタスクをサーバーに要求します...")
+    assigned_task = request_task(my_agent_id, my_capabilities)
 
-            if assigned_task:
-                print("\n割り当てられたタスクの処理をシミュレートします...")
-                time.sleep(10)
-                print("タスク処理のシミュレーションが完了しました。")
-            else:
-                print("\n今回はタスクがありませんでした。しばらく待ってから再試行します。")
-
-            print("次の要求まで60秒間待機します...")
-            time.sleep(60)
-    except KeyboardInterrupt:
-        print("\nエージェントを停止します。")
-        sys.exit(0)
+    if assigned_task:
+        print("\n割り当てられたタスクの処理をシミュレートします...")
+        # time.sleep(10) # シミュレーションなのでコメントアウト
+        print("タスク処理のシミュレーションが完了しました。")
+    else:
+        print("\n今回はタスクがありませんでした。")
