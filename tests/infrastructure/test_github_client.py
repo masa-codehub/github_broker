@@ -77,6 +77,7 @@ def test_add_label_success(mock_github, mock_getenv):
     mock_issue.add_to_labels.assert_called_once_with(label_to_add)
     assert result is True
 
+
 @patch('os.getenv')
 @patch('github_broker.infrastructure.github_client.Github')
 def test_remove_label_success(mock_github, mock_getenv):
