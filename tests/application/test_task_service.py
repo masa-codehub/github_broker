@@ -67,11 +67,16 @@ def test_request_task_success_first_task(task_service_components):
 
     # --- Verify previous task handling ---
     mock_redis_client.get_assignment.assert_called_once_with(agent_id)
-    # No previous task, so label should not be updated
-    mock_github_client.update_issue_label.assert_not_called()
+    # No previous task, so no labels should be removed or added for completion
+    mock_github_client.remove_label.assert_not_called()
 
     # --- Verify new task assignment ---
     mock_github_client.get_open_issues.assert_called_once()
+    mock_github_client.add_label.assert_called_once_with(
+        repo_name=repo_name,
+        issue_id=mock_issue.id,
+        label=f"in-progress:{agent_id}"
+    )
 
     # Verify Gemini client was called
     expected_issues_for_gemini = [{
@@ -123,8 +128,7 @@ def test_request_task_no_issues_available(task_service_components):
     assert result is None
     mock_redis_client.acquire_lock.assert_called_once()
     mock_github_client.get_open_issues.assert_called_once()
-    mock_gemini_client.select_best_issue_id.assert_called_once_with(
-        [], capabilities)  # Called with empty issues list
+    mock_gemini_client.select_best_issue_id.assert_not_called()
     # Should not proceed to create branch or assign task
     mock_github_client.create_branch.assert_not_called()
     mock_redis_client.set_assignment.assert_not_called()
@@ -164,10 +168,15 @@ def test_request_task_with_previous_task(task_service_components):
     # Assert
     # --- Verify previous task handling ---
     mock_redis_client.get_assignment.assert_called_once_with(agent_id)
-    mock_github_client.update_issue_label.assert_called_once_with(
+    mock_github_client.remove_label.assert_called_once_with(
         repo_name=repo_name,
         issue_id=previous_issue_id,
-        new_label="needs-review"
+        label=f"in-progress:{agent_id}"
+    )
+    mock_github_client.add_label.assert_any_call(
+        repo_name=repo_name,
+        issue_id=previous_issue_id,
+        label="needs-review"
     )
 
     # --- Verify new task assignment is still correct ---
@@ -271,6 +280,11 @@ def test_request_task_selects_best_issue_with_gemini(task_service_components):
     mock_redis_client.acquire_lock.assert_called_once()
     mock_redis_client.release_lock.assert_called_once()
     mock_redis_client.get_assignment.assert_called_once_with(agent_id)
+    mock_github_client.add_label.assert_called_once_with(
+        repo_name=repo_name,
+        issue_id=mock_issue_1.id,
+        label=f"in-progress:{agent_id}"
+    )
     mock_github_client.create_branch.assert_called_once_with(
         repo_name=repo_name,
         branch_name=f"feature/issue-{mock_issue_1.id}"
