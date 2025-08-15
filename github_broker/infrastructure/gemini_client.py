@@ -1,6 +1,7 @@
 import os
 import json
 import textwrap
+import logging
 import google.generativeai as genai
 
 class GeminiClient:
@@ -39,15 +40,17 @@ class GeminiClient:
 
         try:
             response = self._model.generate_content(prompt)
-            # Assuming the response.text contains a JSON string like '{"issue_id": 123}'
             response_json = json.loads(response.text)
-            return int(response_json.get("issue_id"))
-        except (json.JSONDecodeError, ValueError, TypeError) as e:
-            print(f"Error parsing Gemini response: {e}")
-            print(f"Raw response text: {response.text if 'response' in locals() else 'N/A'}")
+            issue_id = response_json.get("issue_id")
+            if issue_id is None:
+                return None
+            return int(issue_id)
+        except json.JSONDecodeError as e:
+            logging.error(f"Error parsing Gemini response JSON: {e}")
+            logging.error(f"Raw response text: {response.text if 'response' in locals() else 'N/A'}")
             return None
         except Exception as e:
-            print(f"An unexpected error occurred while calling Gemini API: {e}")
+            logging.error(f"An unexpected error occurred while calling Gemini API: {e}")
             return None
 
     def _build_prompt(self, issues: list[dict], capabilities: list[str]) -> str:

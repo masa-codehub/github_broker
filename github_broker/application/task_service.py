@@ -72,22 +72,26 @@ class TaskService:
         Selects the most suitable issue for the agent based on their capabilities.
         """
         open_issues = self._github_client.get_open_issues(repo_name=self.repo_name)
-        
-        # Convert GitHub Issue objects to a list of dictionaries for GeminiClient
-        issues_for_gemini = []
-        for issue in open_issues:
-            issues_for_gemini.append({
+        if not open_issues:
+            return None
+
+        # Use a dictionary for efficient O(1) lookup later
+        issues_map = {issue.id: issue for issue in open_issues}
+
+        # Use a list comprehension for conciseness
+        issues_for_gemini = [
+            {
                 "id": issue.id,
                 "title": issue.title,
                 "body": issue.body,
-                "labels": [label.name for label in issue.labels]
-            })
+                "labels": [label.name for label in issue.labels],
+            }
+            for issue in issues_map.values()
+        ]
 
-        selected_issue_id = self._gemini_client.select_best_issue_id(issues_for_gemini, capabilities)
+        selected_issue_id = self._gemini_client.select_best_issue_id(
+            issues_for_gemini, capabilities
+        )
 
-        if selected_issue_id:
-            for issue in open_issues:
-                if issue.id == selected_issue_id:
-                    return issue
-        return None
+        return issues_map.get(selected_issue_id)
 
