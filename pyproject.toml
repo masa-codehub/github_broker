@@ -26,9 +26,6 @@ classifiers = [
 ]
 # --- プロジェクトが動作するために必要なライブラリ ---
 dependencies = [
-    "numpy",
-    "pandas",
-    "joblib",
     "pydantic",
     "pyyaml",
     "fastapi",
