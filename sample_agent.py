@@ -3,6 +3,7 @@ import http.client
 import time
 import sys
 import os
+import subprocess
 
 
 def request_task(agent_id: str, capabilities: list[str]):
@@ -78,20 +79,70 @@ def request_task(agent_id: str, capabilities: list[str]):
 if __name__ == "__main__":
     # このエージェントのIDと能力を定義
     # コンテナ実行時に環境変数で上書きされることを想定
-    my_agent_id = os.getenv("AGENT_ID", "default-container-agent")
-    my_capabilities = ["python", "fastapi", "docker", "日本語"]
+    my_agent_id = os.getenv("AGENT_ID", "gemini-agent")
+    my_capabilities = [
+        "software-design",
+        "clean-architecture",
+        "tdd",
+        "refactoring",
+        "python",
+        "fastapi",
+        "docker",
+        "github-actions",
+        "technical-writing",
+        "日本語"
+    ]
 
-    print(f"コンテナ化されたエージェント '{my_agent_id}' を起動します。")
+    print(f"エージェント '{my_agent_id}' を起動します。")
     print(f"能力: {my_capabilities}")
     print("-" * 30)
 
-    # 一度だけタスクを要求する
-    print("\n新しいタスクをサーバーに要求します...")
-    assigned_task = request_task(my_agent_id, my_capabilities)
+    # タスクがなくなるまでループ処理を続ける
+    while True:
+        print("\n新しいタスクをサーバーに要求します...")
+        # 次のタスクを要求することで、前のタスクが完了したことをサーバーに通知します
+        assigned_task = request_task(my_agent_id, my_capabilities)
 
-    if assigned_task:
-        print("\n割り当てられたタスクの処理をシミュレートします...")
-        # time.sleep(10) # シミュレーションなのでコメントアウト
-        print("タスク処理のシミュレーションが完了しました。")
-    else:
-        print("\n今回はタスクがありませんでした。")
+        if assigned_task:
+            print("\n割り当てられたタスクを 'gemini cli' に渡して処理を開始します...")
+
+            # Issueの情報をプロンプトとして整形
+            issue_title = assigned_task.get("title", "")
+            issue_body = assigned_task.get("body", "")
+            branch_name = assigned_task.get("branch_name", "")
+
+            prompt = (
+                f"以下のGitHub Issueを解決してください。\n"
+                f"作業用のブランチは既に '{branch_name}' という名前で作成済みです。\n"
+                f"まず、そのブランチに切り替えてから、Issueの指示に従って実装を開始してください。\n\n"
+                f"# Issue: {issue_title}\n\n{issue_body}"
+            )
+
+            try:
+                # 'gemini' コマンドを非対話モードで実行
+                command = ["gemini", "--yolo", "-p", prompt]
+                print(f"実行コマンド: {" ".join(command)}")
+
+                # subprocess.runを使ってコマンドを実行し、出力をリアルタイムで表示
+                with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
+                    for line in proc.stdout:
+                        print(line, end='')
+
+                if proc.returncode == 0:
+                    print("\n'gemini cli' によるタスク処理が正常に完了しました。")
+                else:
+                    print(
+                        f"\n'gemini cli' の実行中にエラーが発生しました。(終了コード: {proc.returncode})")
+
+            except FileNotFoundError:
+                print(
+                    "\nエラー: 'gemini' コマンドが見つかりません。gemini-cliがインストールされ、PATHが通っているか確認してください。")
+            except Exception as e:
+                print(f"\n'gemini cli' の実行中に予期せぬエラーが発生しました: {e}")
+
+            print("\n次のタスクに進みます...")
+            time.sleep(5)  # サーバーへの連続リクエストを防ぐための短い待機
+
+        else:
+            print("\n割り当て可能なタスクがなくなったため、エージェントを終了します。")
+            break  # ループを抜ける
