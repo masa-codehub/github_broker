@@ -35,7 +35,8 @@ def test_request_task_success_first_task(task_service_components):
     capabilities = ["python", "fastapi"]
 
     mock_redis_client.acquire_lock.return_value = True
-    mock_redis_client.get_assignment.return_value = None
+    # This agent has no previous task, so find_issue_by_label returns None
+    mock_github_client.find_issue_by_label.return_value = None
 
     mock_issue = MagicMock()
     mock_issue.id = 12345
@@ -53,9 +54,14 @@ def test_request_task_success_first_task(task_service_components):
     result = task_service.request_task(agent_id, capabilities)
 
     mock_redis_client.acquire_lock.assert_called_once()
-    mock_redis_client.get_assignment.assert_called_once_with(agent_id)
+    # Verify that we checked for a previous task
+    mock_github_client.find_issue_by_label.assert_called_once_with(
+        repo_name=repo_name, label=f"in-progress:{agent_id}"
+    )
+    # Since there was no previous task, no labels should be removed or added for cleanup
     mock_github_client.remove_label.assert_not_called()
 
+    # Verify a new task is assigned
     mock_github_client.add_label.assert_called_once_with(
         repo_name=repo_name,
         issue_id=mock_issue.number,
@@ -79,8 +85,6 @@ def test_request_task_success_first_task(task_service_components):
         branch_name=expected_branch_name
     )
 
-    mock_redis_client.set_assignment.assert_called_once_with(agent_id, mock_issue.number)
-
     assert isinstance(result, TaskResponse)
     assert result.issue_id == mock_issue.number
     assert result.branch_name == expected_branch_name
@@ -91,7 +95,7 @@ def test_request_task_no_issues_available(task_service_components):
     agent_id = "test-agent-002"
     capabilities = ["react", "frontend"]
     mock_redis_client.acquire_lock.return_value = True
-    mock_redis_client.get_assignment.return_value = None
+    mock_github_client.find_issue_by_label.return_value = None # No previous task
     mock_github_client.get_open_issues.return_value = []
 
     result = task_service.request_task(agent_id, capabilities)
@@ -108,8 +112,13 @@ def test_request_task_with_previous_task(task_service_components):
     previous_issue_number = 999
 
     mock_redis_client.acquire_lock.return_value = True
-    mock_redis_client.get_assignment.return_value = previous_issue_number
+    
+    # Mock the previously assigned issue
+    mock_previous_issue = MagicMock()
+    mock_previous_issue.number = previous_issue_number
+    mock_github_client.find_issue_by_label.return_value = mock_previous_issue
 
+    # Mock the new issue to be assigned
     new_mock_issue = MagicMock()
     new_mock_issue.id = 12456
     new_mock_issue.number = 124
@@ -123,15 +132,17 @@ def test_request_task_with_previous_task(task_service_components):
 
     result = task_service.request_task(agent_id, capabilities)
 
+    # Verify the previous task was processed
     mock_github_client.remove_label.assert_called_once_with(
         repo_name=repo_name,
         issue_id=previous_issue_number,
         label=f"in-progress:{agent_id}"
     )
+    # Verify labels are updated correctly for both old and new tasks
     mock_github_client.add_label.assert_has_calls([
         call(repo_name=repo_name, issue_id=previous_issue_number, label="needs-review"),
         call(repo_name=repo_name, issue_id=new_mock_issue.number, label=f"in-progress:{agent_id}")
-    ])
+    ], any_order=False) # The order matters here
 
     assert result is not None
     assert result.issue_id == new_mock_issue.number
