@@ -11,6 +11,8 @@ BRANCH_PATTERN = re.compile(r"^##\s+ブランチ名\s*?\n(.*?)(?=\n##|\Z)", re.M
 DELIVERABLES_PATTERN = re.compile(r"^##\s+成果物\s*?\n(.*?)(?=\n##|\Z)", re.MULTILINE | re.DOTALL)
 
 class TaskService:
+    GITHUB_INDEX_WAIT_SECONDS = 15 # GitHub検索インデックスの更新を待つ秒数
+
     def __init__(self, github_client: GitHubClient, redis_client: RedisClient, gemini_client: GeminiClient, repo_name: str):
         self._github_client = github_client
         self._redis_client = redis_client
@@ -39,8 +41,8 @@ class TaskService:
             # --- 1. 前のタスクを処理 ---
             previous_task_processed = self._process_previous_task(agent_id)
             if previous_task_processed:
-                logging.info("Previous task processed. Waiting 15 seconds for GitHub search index to update...")
-                time.sleep(15)
+                logging.info(f"前回のタスクを処理しました。GitHub検索インデックスの更新を {self.GITHUB_INDEX_WAIT_SECONDS} 秒待ちます...")
+                time.sleep(self.GITHUB_INDEX_WAIT_SECONDS)
 
             # --- 2. 新しいIssueを選択 ---
             try:
