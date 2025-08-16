@@ -17,7 +17,7 @@ def test_get_open_issues_filters_in_progress(mock_github, mock_getenv):
     mock_issue_in_progress.number = 1
     mock_issue_in_progress.title = "In Progress Issue"
     mock_label_in_progress = MagicMock()
-    mock_label_in_progress.name = "in-progress:agent-007"
+    mock_label_in_progress.name = "in-progress"
     mock_issue_in_progress.labels = [mock_label_in_progress]
 
     mock_issue_open = MagicMock()
@@ -25,13 +25,22 @@ def test_get_open_issues_filters_in_progress(mock_github, mock_getenv):
     mock_issue_open.title = "Open Issue"
     mock_issue_open.labels = []
 
-    # Mock the PaginatedList object returned by search_issues
-    mock_search_result = MagicMock()
-    mock_search_result.totalCount = 2
-    mock_search_result.__iter__.return_value = [mock_issue_in_progress, mock_issue_open]
+    # Mock the PaginatedList object that would be returned if filtered
+    mock_search_result_filtered = MagicMock()
+    mock_search_result_filtered.totalCount = 1
+    mock_search_result_filtered.__iter__.return_value = [mock_issue_open]
+
+    # This mock simulates the behavior of the search_issues method
+    def search_issues_side_effect(query):
+        # If the query is filtering for 'in-progress', return the filtered list
+        if '-label:"in-progress"' in query:
+            return mock_search_result_filtered
+        # Otherwise, you could return an unfiltered list or raise an error
+        # For this test, we only expect the filtered call
+        return MagicMock()
 
     mock_github_instance = MagicMock()
-    mock_github_instance.search_issues.return_value = mock_search_result
+    mock_github_instance.search_issues.side_effect = search_issues_side_effect
     mock_github.return_value = mock_github_instance
 
     client = GitHubClient()
@@ -41,7 +50,7 @@ def test_get_open_issues_filters_in_progress(mock_github, mock_getenv):
     issues = client.get_open_issues(repo_name)
 
     # Assert
-    expected_query = f'repo:{repo_name} is:issue is:open -label:needs-review'
+    expected_query = f'repo:{repo_name} is:issue is:open -label:"in-progress" -label:"needs-review"'
     mock_github_instance.search_issues.assert_called_once_with(query=expected_query)
     
     assert len(issues) == 1
@@ -184,7 +193,7 @@ def test_integration_lifecycle(github_client, test_repo_name, raw_github_client)
     unique_id = int(time.time())
     issue_to_filter_title = f"Test Issue to be Filtered - {unique_id}"
     issue_to_keep_title = f"Test Issue to be Kept - {unique_id}"
-    label_in_progress = f"in-progress:test-agent-{unique_id}"
+    label_in_progress = "in-progress"
     label_to_add_remove = f"test-label-{unique_id}"
     branch_to_create = f"feature/test-branch-{unique_id}"
     
