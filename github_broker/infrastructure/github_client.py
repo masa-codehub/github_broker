@@ -18,7 +18,7 @@ class GitHubClient:
         filtering out any that are already in progress.
         """
         try:
-            query = f'repo:{repo_name} is:issue is:open no:assignee'
+            query = f'repo:{repo_name} is:issue is:open -label:needs-review'
             logging.info(f"Searching for issues with query: {query}")
             all_issues = self._client.search_issues(query=query)
             
@@ -58,13 +58,20 @@ class GitHubClient:
     def remove_label(self, repo_name: str, issue_id: int, label: str):
         """
         Removes a label from a specific issue.
+        If the label does not exist on the issue, it logs a warning but does not raise an error.
         """
         try:
             repo = self._client.get_repo(repo_name)
             issue = repo.get_issue(number=issue_id)
             issue.remove_from_labels(label)
+            logging.info(f"Successfully removed label '{label}' from issue #{issue_id}.")
             return True
         except GithubException as e:
+            # If the label doesn't exist, GitHub API returns a 404.
+            # This is not a critical error for us; the desired state (label is not present) is achieved.
+            if e.status == 404:
+                logging.warning(f"Label '{label}' not found on issue #{issue_id} during removal. Proceeding as this is not a critical error.")
+                return True
             logging.error(f"Error removing label from issue #{issue_id} in repo {repo_name}: {e}")
             raise
 
@@ -83,4 +90,27 @@ class GitHubClient:
                 logging.warning(f"Branch '{branch_name}' already exists in repo {repo_name}. Proceeding.")
                 return True
             logging.error(f"Error creating branch {branch_name} in repo {repo_name}: {e}")
+            raise
+
+    def find_issue_by_label(self, repo_name: str, label: str):
+        """
+        Finds the first open issue that has a specific label.
+
+        Args:
+            repo_name (str): The name of the repository.
+            label (str): The label to search for.
+
+        Returns:
+            The issue object if found, otherwise None.
+        """
+        try:
+            query = f'repo:{repo_name} is:issue label:"{label}"'
+            logging.info(f"Searching for issue with query: {query}")
+            issues = self._client.search_issues(query=query)
+            if issues.totalCount > 0:
+                logging.info(f"Found issue #{issues[0].number} with label '{label}'.")
+                return issues[0]
+            return None
+        except GithubException as e:
+            logging.error(f"Error searching for issue with label {label} in repo {repo_name}: {e}")
             raise

@@ -1,50 +1,39 @@
-import os
 import redis
+import os
+import logging
 
 class RedisClient:
     """
-    A client to interact with Redis for distributed locking and state management.
+    A client for Redis, used for distributed locking.
     """
-    def __init__(self, lock_timeout: int = 30):
-        host = os.getenv("REDIS_HOST", "localhost")
-        port = int(os.getenv("REDIS_PORT", 6379))
-        self._client = redis.Redis(host=host, port=port, db=0, decode_responses=True)
-        self.lock_key = "github_broker_lock"
-        self.lock_timeout = lock_timeout
+    def __init__(self, host='localhost', port=6379, db=0):
+        try:
+            redis_host = os.getenv("REDIS_HOST", host)
+            self.client = redis.Redis(host=redis_host, port=port, db=db)
+            self.client.ping()
+            logging.info(f"Successfully connected to Redis at {redis_host}:{port}")
+        except redis.exceptions.ConnectionError as e:
+            logging.error(f"Could not connect to Redis: {e}")
+            raise
 
-    def acquire_lock(self) -> bool:
+    def acquire_lock(self, lock_key="github_broker_lock", timeout=30) -> bool:
         """
-        Tries to acquire a global lock.
-        Returns True if the lock was acquired, False otherwise.
-        """
-        # SETNX (SET if Not eXists)
-        return self._client.set(self.lock_key, "locked", ex=self.lock_timeout, nx=True)
+        Acquires a distributed lock.
 
-    def release_lock(self) -> bool:
-        """
-        Releases the global lock.
-        """
-        self._client.delete(self.lock_key)
-        return True
+        Args:
+            lock_key (str): The key to use for the lock.
+            timeout (int): The lock's time-to-live in seconds.
 
-    def set_assignment(self, agent_id: str, issue_id: int):
+        Returns:
+            bool: True if the lock was acquired, False otherwise.
         """
-        Stores the assignment of an issue to an agent.
-        """
-        key = f"agent_assignment:{agent_id}"
-        self._client.set(key, issue_id)
+        # SETNX sets the key only if it does not already exist.
+        # It returns 1 if the lock was acquired, 0 otherwise.
+        # `ex=timeout` sets an expiration time on the key.
+        return self.client.set(lock_key, "locked", ex=timeout, nx=True)
 
-    def get_assignment(self, agent_id: str) -> int | None:
+    def release_lock(self, lock_key="github_broker_lock"):
         """
-        Retrieves the issue ID assigned to an agent.
+        Releases the distributed lock.
         """
-        key = f"agent_assignment:{agent_id}"
-        issue_id = self._client.get(key)
-        return int(issue_id) if issue_id else None
-
-    def clear_assignment(self, agent_id: str):
-        """
-        Clears the assignment for a given agent.
-        """
-        key = f"agent_assignment:{agent_id}"
-        self._client.delete(key)
+        self.client.delete(lock_key)

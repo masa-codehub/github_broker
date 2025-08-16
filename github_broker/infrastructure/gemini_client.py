@@ -20,7 +20,7 @@ class GeminiClient:
             raise ValueError("Gemini API key not found in GEMINI_API_KEY environment variable.")
         
         genai.configure(api_key=self._api_key)
-        self._model = genai.GenerativeModel('gemini-pro')
+        self._model = genai.GenerativeModel('gemini-2.5-flash')
 
     def select_best_issue_id(self, issues: list[dict], capabilities: list[str]) -> int | None:
         """

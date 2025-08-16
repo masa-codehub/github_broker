@@ -12,6 +12,7 @@ RUN apt-get update && \
     apt-get install -y wget && \
     apt-get install -y curl && \
     apt-get install -y gnupg && \
+    apt-get install -y procps && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -29,9 +30,6 @@ RUN apt-get update \
 
 # gcloud CLIのリポジトリを追加し、Google Cloud CLIをインストール
 RUN apt-get update
-# RUN apt-get install -y apt-transport-https ca-certificates
-# RUN curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
-# RUN apt-get update && apt-get install google-cloud-cli
 RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg && apt-get update -y && apt-get install google-cloud-cli -y
 # RUN gcloud init
 
@@ -42,7 +40,7 @@ RUN curl -sSL https://deb.nodesource.com/setup_24.x | bash - && \
     rm -rf /var/lib/apt/lists/*
 
 # gemini-cliをグローバルにインストール
-RUN npm install -g @google/gemini-cli
+RUN npm update && npm install -g @google/gemini-cli
 
 # 必要なPythonパッケージのインストール
 RUN pip install --upgrade pip
