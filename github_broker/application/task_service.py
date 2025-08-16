@@ -1,3 +1,4 @@
+import time
 from github import UnknownObjectException
 from ..infrastructure.github_client import GitHubClient
 from ..infrastructure.redis_client import RedisClient
@@ -36,7 +37,10 @@ class TaskService:
         
         try:
             # --- 1. 前のタスクを処理 ---
-            self._process_previous_task(agent_id)
+            previous_task_processed = self._process_previous_task(agent_id)
+            if previous_task_processed:
+                logging.info("Previous task processed. Waiting 15 seconds for GitHub search index to update...")
+                time.sleep(15)
 
             # --- 2. 新しいIssueを選択 ---
             try:
@@ -73,7 +77,8 @@ class TaskService:
         finally:
             self._redis_client.release_lock()
 
-    def _process_previous_task(self, agent_id: str):
+    def _process_previous_task(self, agent_id: str) -> bool:
+        """Processes the previous task, returns True if a task was updated."""
         previous_issue = self._github_client.find_issues_by_labels(
             repo_name=self.repo_name, 
             labels=["in-progress", agent_id]
@@ -85,10 +90,13 @@ class TaskService:
                 self._github_client.remove_label(repo_name=self.repo_name, issue_id=previous_issue_number, label="in-progress")
                 self._github_client.remove_label(repo_name=self.repo_name, issue_id=previous_issue_number, label=agent_id)
                 self._github_client.add_label(repo_name=self.repo_name, issue_id=previous_issue_number, label="needs-review")
+                return True # ラベル更新に成功
             except UnknownObjectException:
                 logging.warning(f"Error: Previous issue #{previous_issue_number} not found on GitHub during label update.")
+                return False # 更新中にエラー
         else:
             logging.info(f"No previous in-progress task found for agent {agent_id}.")
+            return False # 対象のタスクなし
 
     def _select_best_issue(self, capabilities: list[str]):
         open_issues = self._github_client.get_open_issues(repo_name=self.repo_name)
