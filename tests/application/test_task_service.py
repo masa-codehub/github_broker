@@ -332,3 +332,16 @@ def test_parse_issue_body_empty_or_none(task_service_components):
     branch, deliverables = task_service._parse_issue_body(None)
     assert branch is None
     assert deliverables is None
+
+def test_request_task_fails_on_issue_selection(task_service_components):
+    """Test that an exception during issue selection is handled gracefully."""
+    task_service, mock_github_client, mock_redis_client, _, _ = task_service_components
+    mock_redis_client.acquire_lock.return_value = True
+    mock_github_client.find_issues_by_labels.return_value = None
+    mock_github_client.get_open_issues.side_effect = UnknownObjectException(status=404, data={}, headers={})
+
+    # This call would previously have raised UnboundLocalError
+    result = task_service.request_task("any-agent", [])
+
+    assert result is None
+    mock_redis_client.release_lock.assert_called_once()

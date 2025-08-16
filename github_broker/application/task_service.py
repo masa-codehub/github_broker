@@ -33,29 +33,43 @@ class TaskService:
     def request_task(self, agent_id: str, capabilities: list[str]) -> TaskResponse | None:
         if not self._redis_client.acquire_lock():
             raise Exception("Server is busy. Please try again later.")
+        
         try:
+            # --- 1. 前のタスクを処理 ---
             self._process_previous_task(agent_id)
-            new_issue = self._select_best_issue(capabilities)
-            if not new_issue:
+
+            # --- 2. 新しいIssueを選択 ---
+            try:
+                new_issue = self._select_best_issue(capabilities)
+                if not new_issue:
+                    return None
+            except UnknownObjectException:
+                logging.warning("An error occurred while trying to select a new issue. It might have been deleted or there was a client error.")
                 return None
-            issue_number = new_issue.number
-            branch_name, _ = self._parse_issue_body(new_issue.body)
-            if not branch_name:
-                branch_name = f"feature/issue-{issue_number}"
-            self._github_client.add_label(repo_name=self.repo_name, issue_id=issue_number, label="in-progress")
-            self._github_client.add_label(repo_name=self.repo_name, issue_id=issue_number, label=agent_id)
-            self._github_client.create_branch(repo_name=self.repo_name, branch_name=branch_name)
-            return TaskResponse(
-                issue_id=issue_number,
-                issue_url=new_issue.html_url,
-                title=new_issue.title,
-                body=new_issue.body,
-                labels=[str(label.name) for label in new_issue.labels],
-                branch_name=branch_name
-            )
-        except UnknownObjectException:
-            logging.warning(f"Issue #{new_issue.number} not found on GitHub during assignment. It might have been deleted. Skipping.")
-            return None
+
+            # --- 3. 選択したIssueをタスクとして割り当て ---
+            try:
+                issue_number = new_issue.number
+                branch_name, _ = self._parse_issue_body(new_issue.body)
+                if not branch_name:
+                    branch_name = f"feature/issue-{issue_number}"
+                
+                self._github_client.add_label(repo_name=self.repo_name, issue_id=issue_number, label="in-progress")
+                self._github_client.add_label(repo_name=self.repo_name, issue_id=issue_number, label=agent_id)
+                self._github_client.create_branch(repo_name=self.repo_name, branch_name=branch_name)
+                
+                return TaskResponse(
+                    issue_id=issue_number,
+                    issue_url=new_issue.html_url,
+                    title=new_issue.title,
+                    body=new_issue.body,
+                    labels=[str(label.name) for label in new_issue.labels],
+                    branch_name=branch_name
+                )
+            except UnknownObjectException:
+                logging.warning(f"Issue #{new_issue.number} not found on GitHub during assignment. It might have been deleted. Skipping.")
+                return None
+
         finally:
             self._redis_client.release_lock()
 
