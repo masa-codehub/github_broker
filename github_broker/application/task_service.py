@@ -27,8 +27,8 @@ class TaskService:
         return branch_name, deliverables
 
     def _is_task_ready(self, issue) -> bool:
-        branch_name, deliverables = self._parse_issue_body(issue.body)
-        return bool(branch_name and deliverables)
+        _, deliverables = self._parse_issue_body(issue.body)
+        return bool(deliverables)
 
     def request_task(self, agent_id: str, capabilities: list[str]) -> TaskResponse | None:
         if not self._redis_client.acquire_lock():
