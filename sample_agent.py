@@ -1,15 +1,13 @@
-import json
-import time
-import sys
-import os
-import subprocess
 import logging
+import os
+import time
 
 from github_broker import AgentClient, GeminiExecutor
 
 # --- ロギング設定 ---
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 # --------------------
 
 
@@ -33,7 +31,7 @@ if __name__ == "__main__":
         "docker",
         "github-actions",
         "technical-writing",
-        "日本語"
+        "日本語",
     ]
     # --------------------------
 
@@ -45,7 +43,8 @@ if __name__ == "__main__":
 
     # AgentClientとExecutorを初期化
     client = AgentClient(
-        agent_id=agent_id, capabilities=capabilities, host=host, port=port)
+        agent_id=agent_id, capabilities=capabilities, host=host, port=port
+    )
     executor = GeminiExecutor(log_dir=gemini_log_dir, model=gemini_model)
 
     while True:
@@ -56,17 +55,19 @@ if __name__ == "__main__":
 
             if assigned_task:
                 logging.info(
-                    f"New task assigned: #{assigned_task.get('issue_id')} - {assigned_task.get('title')}")
+                    f"New task assigned: #{assigned_task.get('issue_id')} - {assigned_task.get('title')}"
+                )
 
                 # ログファイル名のためにagent_idをタスク辞書に追加
-                assigned_task['agent_id'] = agent_id
+                assigned_task["agent_id"] = agent_id
 
                 executor.execute(assigned_task)
                 logging.info("Task execution process finished.")
                 time.sleep(5)  # 短い待機時間
             else:
                 logging.info(
-                    "No task available. Waiting for 30 seconds before retrying.")
+                    "No task available. Waiting for 30 seconds before retrying."
+                )
                 time.sleep(30)
                 break
 

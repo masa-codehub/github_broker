@@ -1,8 +1,8 @@
-import subprocess
-import logging
-from typing import Dict, Any, Optional
-import os
 import datetime
+import logging
+import os
+import subprocess
+from typing import Any
 
 
 class GeminiExecutor:
@@ -11,7 +11,7 @@ class GeminiExecutor:
     品質向上のため、実行とレビューの2段階プロセスを実装しています。
     """
 
-    def __init__(self, log_dir: Optional[str] = None, model: str = "gemini-2.5-flash"):
+    def __init__(self, log_dir: str | None = None, model: str = "gemini-2.5-flash"):
         """
         Executorを初期化します。
 
@@ -24,7 +24,7 @@ class GeminiExecutor:
         if self.log_dir:
             os.makedirs(self.log_dir, exist_ok=True)
 
-    def execute(self, task: Dict[str, Any]):
+    def execute(self, task: dict[str, Any]):
         """タスクを初回実行と自己レビューの2段階プロセスで実行します。
 
         Args:
@@ -36,8 +36,7 @@ class GeminiExecutor:
         issue_body = task.get("body", "")
         branch_name = task.get("branch_name", "")
 
-        initial_prompt = self._build_prompt(
-            issue_title, issue_body, branch_name)
+        initial_prompt = self._build_prompt(issue_title, issue_body, branch_name)
         command = ["gemini", "--yolo", "-m", self.model, "-p", initial_prompt]
 
         log_filepath = self._get_log_filepath(task.get("agent_id"))
@@ -45,41 +44,51 @@ class GeminiExecutor:
         success = self._run_sub_process(command, log_filepath)
 
         if not success or not log_filepath:
-            logging.error("初回実行に失敗したか、ロギングが無効です。レビューステップをスキップします。")
+            logging.error(
+                "初回実行に失敗したか、ロギングが無効です。レビューステップをスキップします。"
+            )
             return
 
         # --- フェーズ2: レビューと修正 ---
         logging.info("フェーズ2: レビューと修正を開始します...")
         try:
-            with open(log_filepath, 'r', encoding='utf-8') as f:
+            with open(log_filepath, encoding="utf-8") as f:
                 initial_output = f.read()
         except Exception as e:
-            logging.error(f"レビューのためにログファイルを読み込めませんでした: {e}。レビューステップをスキップします。")
+            logging.error(
+                f"レビューのためにログファイルを読み込めませんでした: {e}。レビューステップをスキップします。"
+            )
             return
 
-        review_prompt = self._build_review_prompt(
-            initial_prompt, initial_output)
-        review_command = ["gemini", "--yolo",
-                          "-m", self.model, "-p", review_prompt]
+        review_prompt = self._build_review_prompt(initial_prompt, initial_output)
+        review_command = ["gemini", "--yolo", "-m", self.model, "-p", review_prompt]
 
         # レビューフェーズのヘッダーをログファイルに追記
-        with open(log_filepath, 'a', encoding='utf-8') as f:
+        with open(log_filepath, "a", encoding="utf-8") as f:
             f.write("\n\n---\n\n# フェーズ2: レビューと修正\n\n")
             f.write(
-                f"モデルに送信されたレビュープロンプト:\n```\n{review_prompt}\n```\n\n**最終成果物:**\n")
+                f"モデルに送信されたレビュープロンプト:\n```\n{review_prompt}\n```\n\n**最終成果物:**\n"
+            )
 
         self._run_sub_process(review_command, log_filepath)
         logging.info("レビューと修正フェーズが完了しました。")
 
-    def _run_sub_process(self, command: list[str], log_filepath: Optional[str]) -> bool:
+    def _run_sub_process(self, command: list[str], log_filepath: str | None) -> bool:
         """コマンドをサブプロセスとして実行し、その出力を指定されたファイルに記録します。"""
         try:
             logging.info(f"コマンドを実行します: {' '.join(command)}")
-            log_file = open(log_filepath, 'a',
-                            encoding='utf-8') if log_filepath else None
+            log_file = (
+                open(log_filepath, "a", encoding="utf-8") if log_filepath else None
+            )
 
             try:
-                with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
+                with subprocess.Popen(
+                    command,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                ) as proc:
                     for line in proc.stdout:
                         if log_file:
                             log_file.write(line)
@@ -90,18 +99,21 @@ class GeminiExecutor:
 
         except FileNotFoundError:
             logging.error(
-                f"エラー: 'gemini'コマンドが見つかりません。gemini-cliがインストールされ、PATHに含まれていることを確認してください。")
+                "エラー: 'gemini'コマンドが見つかりません。gemini-cliがインストールされ、PATHに含まれていることを確認してください。"
+            )
             return False
         except Exception as e:
             logging.error(f"'gemini cli'の実行中に予期せぬエラーが発生しました: {e}")
             return False
 
-    def _get_log_filepath(self, agent_id: Optional[str]) -> Optional[str]:
+    def _get_log_filepath(self, agent_id: str | None) -> str | None:
         """ロギングが有効でagent_idが存在する場合に、ログファイルのパスを構築します。"""
         if not self.log_dir:
             return None
         if not agent_id:
-            logging.warning("taskに'agent_id'が見つかりません。ログファイルを作成できません。")
+            logging.warning(
+                "taskに'agent_id'が見つかりません。ログファイルを作成できません。"
+            )
             return None
 
         timestamp = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")

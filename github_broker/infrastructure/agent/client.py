@@ -1,15 +1,23 @@
 import json
-import os
 import logging
-from typing import Dict, Any, Optional, List
+import os
+from typing import Any
+
 import requests
+
 
 class AgentClient:
     """
     A client for interacting with the GitHub Task Broker server.
     """
 
-    def __init__(self, agent_id: str, capabilities: List[str], host: str = "localhost", port: Optional[int] = None):
+    def __init__(
+        self,
+        agent_id: str,
+        capabilities: list[str],
+        host: str = "localhost",
+        port: int | None = None,
+    ):
         """
         Initializes the AgentClient.
 
@@ -26,7 +34,7 @@ class AgentClient:
         self.endpoint = "/api/v1/request-task"
         self.headers = {"Content-Type": "application/json"}
 
-    def request_task(self) -> Optional[Dict[str, Any]]:
+    def request_task(self) -> dict[str, Any] | None:
         """
         Requests a new task from the GitHub Task Broker server.
         This also implicitly notifies the server that the previous task is complete.
@@ -34,14 +42,13 @@ class AgentClient:
         Returns:
             Optional[Dict[str, Any]]: The assigned task information, or None if no task is available.
         """
-        payload = {
-            "agent_id": self.agent_id,
-            "capabilities": self.capabilities
-        }
+        payload = {"agent_id": self.agent_id, "capabilities": self.capabilities}
         url = f"http://{self.host}:{self.port}{self.endpoint}"
         try:
             # `requests`ライブラリは、接続プールやタイムアウト管理などを自動で行います。
-            response = requests.post(url, json=payload, headers=self.headers, timeout=30)
+            response = requests.post(
+                url, json=payload, headers=self.headers, timeout=30
+            )
 
             logging.info(f"Server response: {response.status_code} {response.reason}")
 

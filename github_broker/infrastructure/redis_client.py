@@ -1,6 +1,6 @@
-import redis
-import os
 import logging
+
+import redis
 
 
 class RedisClient:
@@ -8,12 +8,11 @@ class RedisClient:
     A client for Redis, used for distributed locking.
     """
 
-    def __init__(self, host: str = 'localhost', port: int = 6379, db: int = 0):
+    def __init__(self, host: str = "localhost", port: int = 6379, db: int = 0):
         try:
             self.client = redis.Redis(host=host, port=port, db=db)
             self.client.ping()
-            logging.info(
-                f"Successfully connected to Redis at {host}:{port}")
+            logging.info(f"Successfully connected to Redis at {host}:{port}")
         except redis.exceptions.ConnectionError as e:
             logging.error(f"Could not connect to Redis: {e}")
             raise

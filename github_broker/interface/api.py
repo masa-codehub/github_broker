@@ -1,6 +1,7 @@
 """
 FastAPI application entry point.
 """
+
 import logging
 from contextlib import asynccontextmanager
 
@@ -9,11 +10,14 @@ from fastapi.responses import JSONResponse
 
 from github_broker.application.exceptions import LockAcquisitionError
 from github_broker.application.task_service import TaskService
-from github_broker.infrastructure.di_container import (build_di_container,
-                                                     shutdown_di_container)
+from github_broker.infrastructure.di_container import (
+    build_di_container,
+    shutdown_di_container,
+)
 from github_broker.interface.models import TaskRequest, TaskResponse
 
 logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -26,10 +30,14 @@ async def lifespan(app: FastAPI):
     logger.info("Application shutdown: Tearing down DI container.")
     await shutdown_di_container()
 
+
 app = FastAPI(lifespan=lifespan)
 
+
 @app.exception_handler(LockAcquisitionError)
-async def lock_acquisition_exception_handler(request: Request, exc: LockAcquisitionError):
+async def lock_acquisition_exception_handler(
+    request: Request, exc: LockAcquisitionError
+):
     """
     Handles LockAcquisitionError by returning a 503 Service Unavailable response.
     """
@@ -38,6 +46,7 @@ async def lock_acquisition_exception_handler(request: Request, exc: LockAcquisit
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         content={"message": str(exc)},
     )
+
 
 @app.post("/request-task", response_model=TaskResponse)
 async def request_task_endpoint(task_request: TaskRequest):

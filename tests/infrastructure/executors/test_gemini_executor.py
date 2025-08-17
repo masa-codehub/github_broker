@@ -1,14 +1,17 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from github_broker.infrastructure.executors.gemini_executor import GeminiCliExecutor
+
 
 @pytest.fixture
 def executor():
     """Provides a GeminiCliExecutor instance for tests."""
     return GeminiCliExecutor()
 
-@patch('subprocess.Popen')
+
+@patch("subprocess.Popen")
 def test_execute_success(mock_popen, executor):
     """
     Test the successful execution of a task.
@@ -19,11 +22,7 @@ def test_execute_success(mock_popen, executor):
     mock_proc.stdout = ["line 1", "line 2"]
     mock_popen.return_value.__enter__.return_value = mock_proc
 
-    task = {
-        "title": "Test Title",
-        "body": "Test Body",
-        "branch_name": "feature/test"
-    }
+    task = {"title": "Test Title", "body": "Test Body", "branch_name": "feature/test"}
 
     # Act
     executor.execute(task)
@@ -38,7 +37,8 @@ def test_execute_success(mock_popen, executor):
     assert "Test Body" in command[3]
     assert "feature/test" in command[3]
 
-@patch('subprocess.Popen')
+
+@patch("subprocess.Popen")
 def test_execute_command_fails(mock_popen, executor):
     """
     Test when the gemini cli command returns a non-zero exit code.
@@ -56,7 +56,8 @@ def test_execute_command_fails(mock_popen, executor):
     # Assert
     mock_popen.assert_called_once()
 
-@patch('subprocess.Popen', side_effect=FileNotFoundError("Command not found"))
+
+@patch("subprocess.Popen", side_effect=FileNotFoundError("Command not found"))
 def test_execute_file_not_found(mock_popen, executor):
     """
     Test when the gemini cli command is not found.

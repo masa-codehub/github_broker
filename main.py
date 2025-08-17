@@ -1,6 +1,8 @@
-import uvicorn
-import os
 import logging
+import os
+
+import uvicorn
+
 from github_broker.interface.api import app
 
 if __name__ == "__main__":
