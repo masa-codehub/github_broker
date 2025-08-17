@@ -19,7 +19,7 @@ if __name__ == "__main__":
     port = int(os.getenv("APP_PORT", 8080))
 
     gemini_log_dir = os.getenv("GEMINI_LOG_DIR", "/app/logs")
-    gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.5-pro")
+    gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
     capabilities = [
         "software-design",
