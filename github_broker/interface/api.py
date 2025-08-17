@@ -36,7 +36,7 @@ async def request_task_endpoint(
     task_service: TaskService = Depends(get_task_service),
 ):
     logger.info(f"Received task request from agent: {task_request.agent_id}")
-    task = task_service.request_task()
+    task = task_service.request_task(agent_id=task_request.agent_id)
     if task:
         return task
     else:
