@@ -110,6 +110,7 @@ graph TD
       * GitHub APIとの通信をカプセル化する内部ライブラリ。
       * `get_open_issues()`: **`in-progress`と`needs-review`ラベルを持つIssueを除外**して検索する。
       * **`find_issues_by_labels()`: GitHub検索APIの不安定性を回避するため、リポジトリの全Issueを取得してからアプリケーション側でラベルによるフィルタリングを行うロジックを持つ。**
+      * **スケーラビリティに関する注意点:** この全件取得アプローチは、リポジトリのIssueが数万件規模に増加した場合、パフォーマンスの低下やAPIレート制限のリスクを伴います。将来的な対策として、ETagを利用したキャッシュ戦略や、定期的な全件取得とWebhookによる差分更新を組み合わせるなどの検討が必要です。
       * `update_issue(issue_id, ...)`
       * `create_branch(branch_name, base_branch)` などのメソッドを提供する。
 

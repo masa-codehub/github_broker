@@ -40,7 +40,20 @@ class GeminiCliExecutor:
             logging.error(f"An unexpected error occurred while executing 'gemini cli': {e}")
 
     def _build_prompt(self, title: str, body: str, branch_name: str) -> str:
-        """Builds the prompt for the gemini cli."""
+        """
+        gemini CLI用のプロンプトを構築します。
+        
+        プロンプトは、GitHub Issueの解決を依頼する内容となっており、作業用ブランチ名、Issueタイトル、Issue本文を含めて構成されます。
+        まず指定されたブランチに切り替え、その後Issueの指示に従って実装を開始するよう促します。
+        
+        Args:
+            title (str): GitHub Issueのタイトル。
+            body (str): GitHub Issueの本文。
+            branch_name (str): 既に作成済みの作業用ブランチ名。
+        
+        Returns:
+            str: gemini CLIに渡すためのプロンプト文字列。
+        """
         return (
             f"Please resolve the following GitHub Issue.\n"
             f"A working branch named '{branch_name}' has already been created for you.\n"

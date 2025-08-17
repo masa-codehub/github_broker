@@ -1,8 +1,8 @@
 import json
-import http.client
 import os
 import logging
 from typing import Dict, Any, Optional, List
+import requests
 
 class AgentClient:
     """
@@ -38,31 +38,26 @@ class AgentClient:
             "agent_id": self.agent_id,
             "capabilities": self.capabilities
         }
-        conn = None
+        url = f"http://{self.host}:{self.port}{self.endpoint}"
         try:
-            conn = http.client.HTTPConnection(self.host, self.port)
-            conn.request("POST", self.endpoint, body=json.dumps(payload), headers=self.headers)
-            response = conn.getresponse()
+            # `requests`ライブラリは、接続プールやタイムアウト管理などを自動で行います。
+            response = requests.post(url, json=payload, headers=self.headers, timeout=30)
 
-            logging.info(f"Server response: {response.status} {response.reason}")
+            logging.info(f"Server response: {response.status_code} {response.reason}")
 
-            if response.status == 200:
-                response_data = response.read().decode('utf-8')
-                task = json.loads(response_data)
-                logging.info("New task assigned:")
-                logging.info(json.dumps(task, indent=2, ensure_ascii=False))
-                return task
-            elif response.status == 204:
+            if response.status_code == 204:
                 logging.info("No assignable tasks available at the moment.")
                 return None
-            else:
-                error_data = response.read().decode('utf-8')
-                logging.error(f"An error occurred: {error_data}")
-                return None
 
-        except Exception as e:
-            logging.error(f"Error connecting to the server at {self.host}:{self.port}: {e}")
+            # 200番台以外のステータスコードの場合に例外を発生させ、一括でエラーハンドリングします。
+            response.raise_for_status()
+
+            # 200 OKの場合
+            task = response.json()
+            logging.info("New task assigned:")
+            logging.info(json.dumps(task, indent=2, ensure_ascii=False))
+            return task
+
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error connecting to the server at {url}: {e}")
             return None
-        finally:
-            if conn:
-                conn.close()

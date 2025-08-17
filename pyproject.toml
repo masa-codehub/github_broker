@@ -33,6 +33,7 @@ dependencies = [
     "redis",
     "PyGithub",
     "google-generativeai",
+    "requests",
 ]
 
 # ===================================================================
