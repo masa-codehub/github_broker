@@ -9,6 +9,11 @@ from ..infrastructure.github_client import GitHubClient
 from ..infrastructure.redis_client import RedisClient
 from ..interface.models import TaskResponse
 
+
+BRANCH_PATTERN = re.compile(r'## ブランチ名\s*(.+?)\s*(?:##|$)', re.IGNORECASE | re.DOTALL)
+DELIVERABLES_PATTERN = re.compile(r'## 成果物\s*(.+?)\s*(?:##|$)', re.IGNORECASE | re.DOTALL)
+
+
 class TaskService:
     GITHUB_INDEX_WAIT_SECONDS = 15 # GitHub検索インデックスの更新を待つ秒数
 
@@ -102,21 +107,22 @@ class TaskService:
     def _select_best_issue(self, capabilities: list[str], agent_id: str):
         open_issues = self._github_client.get_open_issues(repo_name=self.repo_name)
         if not open_issues:
+            logging.info("No open issues found.")
             return None
+        
+        logging.info(f"Found {len(open_issues)} open issues. Checking for ready tasks...")
         ready_issues = [issue for issue in open_issues if self._is_task_ready(issue)]
+        
         if not ready_issues:
+            logging.warning(f"No ready issues found. All {len(open_issues)} open issues are missing the '## 成果物' section or it is empty.")
+            for issue in open_issues:
+                _, deliverables = self._parse_issue_body(issue.body)
+                branch, _ = self._parse_issue_body(issue.body)
+                logging.info(f"  - Issue #{issue.number} ('{issue.title}') is not ready. Branch: {branch}, Deliverables: {deliverables}")
             return None
-        issues_map = {issue.number: issue for issue in ready_issues}
-        issues_for_gemini = [
-            {
-                "id": issue.number,
-                "title": issue.title,
-                "body": issue.body,
-                "labels": [label.name for label in issue.labels],
-            }
-            for issue in issues_map.values()
-        ]
-        selected_issue_number = self._gemini_executor.select_best_issue(
-            issues_for_gemini, capabilities, agent_id
-        )
-        return issues_map.get(selected_issue_number)
+        
+        # --- 案Aの実装 ---
+        logging.info(f"Found {len(ready_issues)} ready issues. Selecting the first one.")
+        selected_issue = ready_issues[0]
+        logging.info(f"Selected issue #{selected_issue.number} ('{selected_issue.title}').")
+        return selected_issue
