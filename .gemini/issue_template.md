@@ -31,7 +31,7 @@ assignees: ''
 
 ## ブランチ名
 <!-- エージェントが作業するためのブランチ名を指定してください -->
-<!-- 例: feature/issue-xx-add-automation-script -->
+<!-- 例: feature/add-automation-script -->
 
 
 ## 成果物
