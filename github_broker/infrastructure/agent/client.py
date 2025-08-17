@@ -8,7 +8,7 @@ import requests
 
 class AgentClient:
     """
-    A client for interacting with the GitHub Task Broker server.
+    GitHubタスクブローカーサーバーと対話するためのクライアント。
     """
 
     def __init__(
@@ -19,28 +19,28 @@ class AgentClient:
         port: int | None = None,
     ):
         """
-        Initializes the AgentClient.
+        AgentClientを初期化します。
 
         Args:
-            agent_id (str): The unique identifier for the agent.
-            capabilities (List[str]): The list of capabilities of the agent.
-            host (str): The hostname of the server. Defaults to "localhost".
-            port (Optional[int]): The port of the server. Defaults to APP_PORT env var or 8080.
+            agent_id (str): エージェントの一意な識別子。
+            capabilities (List[str]): エージェントの機能リスト。
+            host (str): サーバーのホスト名。デフォルトは"localhost"。
+            port (Optional[int]): サーバーのポート。デフォルトはAPP_PORT環境変数または8080。
         """
         self.agent_id = agent_id
         self.capabilities = capabilities
         self.host = host
         self.port = port if port is not None else int(os.getenv("APP_PORT", 8080))
-        self.endpoint = "/api/v1/request-task"
+        self.endpoint = "/request-task"
         self.headers = {"Content-Type": "application/json"}
 
     def request_task(self) -> dict[str, Any] | None:
         """
-        Requests a new task from the GitHub Task Broker server.
-        This also implicitly notifies the server that the previous task is complete.
+        GitHubタスクブローカーサーバーに新しいタスクをリクエストします。
+        これは、以前のタスクが完了したことをサーバーに暗黙的に通知します。
 
         Returns:
-            Optional[Dict[str, Any]]: The assigned task information, or None if no task is available.
+            Optional[Dict[str, Any]]: 割り当てられたタスク情報、または利用可能なタスクがない場合はNone。
         """
         payload = {"agent_id": self.agent_id, "capabilities": self.capabilities}
         url = f"http://{self.host}:{self.port}{self.endpoint}"

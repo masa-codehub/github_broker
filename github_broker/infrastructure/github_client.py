@@ -6,34 +6,38 @@ from github import Github, GithubException
 
 class GitHubClient:
     """
-    A client to interact with the GitHub API.
+    GitHub APIと対話するためのクライアント。
     """
 
     def __init__(self):
         token = os.getenv("GH_TOKEN")
         if not token:
-            raise ValueError("GitHub token not found in GH_TOKEN environment variable.")
+            raise ValueError("GH_TOKEN環境変数にGitHubトークンが見つかりません。")
         self._client = Github(token)
 
     def get_open_issues(self, repo_name: str):
         """
-        Retrieves all open issues that are not in-progress and do not need review.
-        The query is now simple and relies on the presence/absence of state labels.
+        進行中でなく、レビューを必要としないすべてのオープンなIssueを取得します。
+        クエリはシンプルで、状態ラベルの有無に依存しています。
         """
         try:
             query = f'repo:{repo_name} is:issue is:open -label:"in-progress" -label:"needs-review"'
-            logging.info(f"Searching for assignable issues with query: {query}")
+            logging.info(f"クエリ: {query} でアサイン可能なIssueを検索中")
             issues = self._client.search_issues(query=query)
-            logging.info(f"Found {issues.totalCount} issues available for assignment.")
+            logging.info(
+                f"アサイン可能なIssueが {issues.totalCount} 件見つかりました。"
+            )
             return list(issues)
         except GithubException as e:
-            logging.error(f"Error searching issues for repo {repo_name}: {e}")
+            logging.error(
+                f"リポジトリ {repo_name} のIssue検索中にエラーが発生しました: {e}"
+            )
             raise
 
     def find_issues_by_labels(self, repo_name: str, labels: list[str]):
         """
-        Finds issues (open or closed) that have all the specified labels.
-        This implementation fetches all issues and filters them manually to avoid search index delays.
+        指定されたすべてのラベルを持つIssue（オープンまたはクローズ済み）を検索します。
+        この実装は、検索インデックスの遅延を避けるために、すべてのIssueを取得し手動でフィルタリングします。
         """
         try:
             repo = self._client.get_repo(repo_name)
@@ -49,20 +53,22 @@ class GitHubClient:
                 # Check if all required labels are present in the issue's labels
                 if required_labels.issubset(issue_labels):
                     logging.info(
-                        f"Found matching issue #{issue.number} with labels {issue_labels}."
+                        f"ラベル {issue_labels} を持つ一致するIssue #{issue.number} が見つかりました。"
                     )
                     return issue
 
-            logging.info(f"No issue found with the required labels: {labels}")
+            logging.info(f"必要なラベルを持つIssueは見つかりませんでした: {labels}")
             return None
 
         except GithubException as e:
-            logging.error(f"Error finding issues by labels in repo {repo_name}: {e}")
+            logging.error(
+                f"リポジトリ {repo_name} でラベルによるIssue検索中にエラーが発生しました: {e}"
+            )
             raise
 
     def add_label(self, repo_name: str, issue_id: int, label: str):
         """
-        Adds a label to a specific issue.
+        特定のIssueにラベルを追加します。
         """
         try:
             repo = self._client.get_repo(repo_name)
@@ -71,31 +77,31 @@ class GitHubClient:
             return True
         except GithubException as e:
             logging.error(
-                f"Error adding label to issue #{issue_id} in repo {repo_name}: {e}"
+                f"リポジトリ {repo_name} のIssue #{issue_id} にラベルを追加中にエラーが発生しました: {e}"
             )
             raise
 
     def remove_label(self, repo_name: str, issue_id: int, label: str):
         """
-        Removes a label from a specific issue.
-        If the label does not exist on the issue, it logs a warning but does not raise an error.
+        特定のIssueからラベルを削除します。
+        Issueにラベルが存在しない場合、警告をログに記録しますが、エラーは発生させません。
         """
         try:
             repo = self._client.get_repo(repo_name)
             issue = repo.get_issue(number=issue_id)
             issue.remove_from_labels(label)
             logging.info(
-                f"Successfully removed label '{label}' from issue #{issue_id}."
+                f"Issue #{issue_id} からラベル '{label}' を正常に削除しました。"
             )
             return True
         except GithubException as e:
             if e.status == 404:
                 logging.warning(
-                    f"Label '{label}' not found on issue #{issue_id} during removal. Proceeding as this is not a critical error."
+                    f"削除中にIssue #{issue_id} にラベル '{label}' が見つかりませんでした。これは致命的なエラーではないため、続行します。"
                 )
                 return True
             logging.error(
-                f"Error removing label from issue #{issue_id} in repo {repo_name}: {e}"
+                f"リポジトリ {repo_name} のIssue #{issue_id} からラベルを削除中にエラーが発生しました: {e}"
             )
             raise
 
@@ -103,7 +109,7 @@ class GitHubClient:
         self, repo_name: str, branch_name: str, base_branch: str = "main"
     ):
         """
-        Creates a new branch from a base branch.
+        ベースブランチから新しいブランチを作成します。
         """
         try:
             repo = self._client.get_repo(repo_name)
@@ -113,10 +119,10 @@ class GitHubClient:
         except GithubException as e:
             if e.status == 422 and "Reference already exists" in str(e.data):
                 logging.warning(
-                    f"Branch '{branch_name}' already exists in repo {repo_name}. Proceeding."
+                    f"リポジトリ {repo_name} にブランチ '{branch_name}' は既に存在します。続行します。"
                 )
                 return True
             logging.error(
-                f"Error creating branch {branch_name} in repo {repo_name}: {e}"
+                f"リポジトリ {repo_name} にブランチ {branch_name} を作成中にエラーが発生しました: {e}"
             )
             raise

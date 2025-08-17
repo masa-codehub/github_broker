@@ -12,7 +12,7 @@ from github_broker.infrastructure.github_client import GitHubClient
 @patch("github_broker.infrastructure.github_client.Github")
 def test_get_open_issues_filters_in_progress(mock_github, mock_getenv):
     """
-    Test that get_open_issues filters out issues that have an 'in-progress' label.
+    get_open_issuesが'in-progress'ラベルを持つIssueを除外することを確認するテスト。
     """
     # Arrange
     mock_getenv.return_value = "fake_token"
@@ -29,18 +29,18 @@ def test_get_open_issues_filters_in_progress(mock_github, mock_getenv):
     mock_issue_open.title = "Open Issue"
     mock_issue_open.labels = []
 
-    # Mock the PaginatedList object that would be returned if filtered
+    # フィルタリングされた場合に返されるPaginatedListオブジェクトをモック
     mock_search_result_filtered = MagicMock()
     mock_search_result_filtered.totalCount = 1
     mock_search_result_filtered.__iter__.return_value = [mock_issue_open]
 
-    # This mock simulates the behavior of the search_issues method
+    # このモックはsearch_issuesメソッドの動作をシミュレートします
     def search_issues_side_effect(query):
-        # If the query is filtering for 'in-progress', return the filtered list
+        # クエリが'in-progress'でフィルタリングされている場合、フィルタリングされたリストを返す
         if '-label:"in-progress"' in query:
             return mock_search_result_filtered
-        # Otherwise, you could return an unfiltered list or raise an error
-        # For this test, we only expect the filtered call
+        # それ以外の場合は、フィルタリングされていないリストを返すか、エラーを発生させることができます
+        # このテストでは、フィルタリングされた呼び出しのみを期待します
         return MagicMock()
 
     mock_github_instance = MagicMock()
@@ -67,7 +67,7 @@ def test_get_open_issues_filters_in_progress(mock_github, mock_getenv):
 @patch("github_broker.infrastructure.github_client.Github")
 def test_add_label_success(mock_github, mock_getenv):
     """
-    Test that add_label calls the github library with correct parameters.
+    add_labelが正しいパラメータでGitHubライブラリを呼び出すことを確認するテスト。
     """
     # Arrange
     mock_getenv.return_value = "fake_token"
@@ -97,7 +97,7 @@ def test_add_label_success(mock_github, mock_getenv):
 @patch("github_broker.infrastructure.github_client.Github")
 def test_remove_label_success(mock_github, mock_getenv):
     """
-    Test that remove_label calls the github library with correct parameters.
+    remove_labelが正しいパラメータでGitHubライブラリを呼び出すことを確認するテスト。
     """
     # Arrange
     mock_getenv.return_value = "fake_token"
@@ -127,7 +127,7 @@ def test_remove_label_success(mock_github, mock_getenv):
 @patch("github_broker.infrastructure.github_client.Github")
 def test_create_branch_success(mock_github, mock_getenv):
     """
-    Test that create_branch calls the github library with correct parameters.
+    create_branchが正しいパラメータでGitHubライブラリを呼び出すことを確認するテスト。
     """
     # Arrange
     mock_getenv.return_value = "fake_token"
@@ -161,25 +161,25 @@ def test_create_branch_success(mock_github, mock_getenv):
 # Marker to skip tests if environment variables are not set
 requires_github_token = pytest.mark.skipif(
     not os.getenv("GH_TOKEN") or not os.getenv("GITHUB_REPOSITORY"),
-    reason="GH_TOKEN and GITHUB_REPOSITORY environment variables required for integration tests",
+    reason="統合テストにはGH_TOKENおよびGITHUB_REPOSITORY環境変数が必要です",
 )
 
 
 @pytest.fixture(scope="module")
 def github_client():
-    """Provides a GitHubClient instance for integration tests."""
+    """統合テスト用のGitHubClientインスタンスを提供します。"""
     return GitHubClient()
 
 
 @pytest.fixture(scope="module")
 def test_repo_name():
-    """Provides the repository name from environment variables."""
+    """環境変数からリポジリ名を提供します。"""
     return os.getenv("GITHUB_REPOSITORY")
 
 
 @pytest.fixture(scope="module")
 def raw_github_client():
-    """Provides a raw PyGithub instance for test setup and teardown."""
+    """テストのセットアップとティアダウンのために生のPyGithubインスタンスを提供します。"""
     token = os.getenv("GH_TOKEN")
     if not token:
         pytest.skip("GH_TOKEN is not set.")
@@ -189,9 +189,9 @@ def raw_github_client():
 @requires_github_token
 def test_integration_lifecycle(github_client, test_repo_name, raw_github_client):
     """
-    Tests the full lifecycle of issue and branch management.
-    This single test combines setup, execution, and cleanup to ensure atomicity
-    and prevent orphaned test data in the repository.
+    Issueとブランチ管理の完全なライフサイクルをテストします。
+    この単一のテストは、アトミック性を確保し、リポジトリ内の孤立したテストデータを防ぐために、
+    セットアップ、実行、クリーンアップを組み合わせています。
     """
     repo = raw_github_client.get_repo(test_repo_name)
 
@@ -222,14 +222,14 @@ def test_integration_lifecycle(github_client, test_repo_name, raw_github_client)
         time.sleep(5)
 
         # 2. --- TEST get_open_issues ---
-        print("--- Running: TEST get_open_issues ---")
+        print("--- 実行中: TEST get_open_issues ---")
         open_issues = github_client.get_open_issues(test_repo_name)
 
         # Assert that the filtered issue is not present and the kept issue is
         issue_numbers = [issue.number for issue in open_issues]
-        print(f"Found open issue numbers: {issue_numbers}")
+        print(f"見つかったオープンなIssue番号: {issue_numbers}")
         print(
-            f"Expecting to find issue #{issue_to_keep.number}, and not find issue #{issue_to_filter.number}"
+            f"Issue #{issue_to_keep.number} が見つかり、Issue #{issue_to_filter.number} が見つからないことを期待しています"
         )
 
         assert issue_to_keep.number in issue_numbers

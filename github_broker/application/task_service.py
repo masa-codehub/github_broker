@@ -1,64 +1,77 @@
-"""
-Task Service to handle business logic related to tasks.
-"""
-
 import logging
-from uuid import uuid4
+import os
+import re
 
-from github_broker.application.exceptions import LockAcquisitionError
-from github_broker.infrastructure.github_client import GitHubAppClient
+from github_broker.infrastructure.github_client import GitHubClient
 from github_broker.infrastructure.redis_client import RedisClient
+from github_broker.interface.models import TaskResponse
 
 logger = logging.getLogger(__name__)
 
 
 class TaskService:
-    """
-    A service class for handling business logic related to tasks.
-    """
-
-    def __init__(self, redis_client: RedisClient, github_client: GitHubAppClient):
+    def __init__(self, redis_client: RedisClient, github_client: GitHubClient):
         self.redis_client = redis_client
         self.github_client = github_client
-        self.lock_key = "task_lock"
-        self.task_id_key = "task_id"
+        self.repo_name = os.getenv("GITHUB_REPOSITORY")
+        if not self.repo_name:
+            raise ValueError("GITHUB_REPOSITORY environment variable is not set.")
 
-    def request_task(self) -> str:
+    def _generate_branch_name(self, issue_id: int, issue_title: str) -> str:
+        """Issueタイトルからブランチ名を生成します。"""
+        # タイトルを小文字に変換
+        title = issue_title.lower()
+        # 英数字以外の文字をハイフンに置換
+        title = re.sub(r"[^a-z0-9]+", "-", title).strip("-")
+        # 複数のハイフンを1つにまとめる
+        title = re.sub(r"-+", "-", title)
+        # 50文字に切り詰める
+        title = title[:50].strip("-")
+        return f"feature/issue-{issue_id}-{title}"
+
+    def request_task(self) -> TaskResponse | None:
         """
-        Requests a task. If a task is already running, raises an exception.
-        Otherwise, it acquires a lock and returns a new task ID.
+        GitHubからアサイン可能なIssueを探し、ロックして、タスク情報を返します。
         """
-        logger.info("Attempting to acquire lock for a new task.")
-        if not self.redis_client.acquire_lock(self.lock_key, str(uuid4())):
-            logger.warning("Failed to acquire lock. A task may already be in progress.")
-            raise LockAcquisitionError(
-                "Failed to acquire lock. Another task is likely running."
+        logger.info(f"Searching for open issues in repository: {self.repo_name}")
+        open_issues = self.github_client.get_open_issues(self.repo_name)
+
+        if not open_issues:
+            logger.info("No assignable issues found.")
+            return None
+
+        # 最初のオープンなIssueを選択
+        issue = open_issues[0]
+        lock_key = f"issue_lock_{issue.id}"
+
+        logger.info(f"Attempting to acquire lock for issue #{issue.number}")
+        if not self.redis_client.acquire_lock(lock_key, "locked", timeout=600):
+            logger.warning(
+                f"Issue #{issue.number} のロック取得に失敗しました。他のエージェントによってロックされている可能性があります。"
             )
+            return None
 
-        task_id = str(uuid4())
-        self.redis_client.set_value(self.task_id_key, task_id)
-        logger.info(f"Lock acquired. New task created with ID: {task_id}")
-        return task_id
+        try:
+            logger.info(f"Lock acquired for issue #{issue.number}. Assigning task.")
+            # Issueに"in-progress"ラベルを追加
+            self.github_client.add_label(self.repo_name, issue.number, "in-progress")
 
-    def get_running_task(self) -> str | None:
-        """
-        Retrieves the ID of the currently running task.
-        """
-        task_id = self.redis_client.get_value(self.task_id_key)
-        logger.info(f"Retrieved running task ID: {task_id}")
-        return task_id
+            # ブランチ名を作成
+            branch_name = self._generate_branch_name(issue.number, issue.title)
+            self.github_client.create_branch(self.repo_name, branch_name)
 
-    def release_task(self):
-        """
-        Releases the lock for the current task.
-        """
-        logger.info("Releasing task lock.")
-        if not self.redis_client.release_lock(self.lock_key):
+            return TaskResponse(
+                issue_id=issue.number,
+                issue_url=issue.html_url,
+                title=issue.title,
+                body=issue.body or "",
+                labels=[label.name for label in issue.labels],
+                branch_name=branch_name,
+            )
+        except Exception as e:
             logger.error(
-                "Failed to release lock. It may have expired or been released by another process."
+                f"Failed to process issue #{issue.number} after acquiring lock: {e}"
             )
-            # Depending on requirements, we might want to raise an exception here.
-            # For now, we just log the error.
-        else:
-            logger.info("Lock released successfully.")
-        self.redis_client.delete_key(self.task_id_key)
+            # エラーが発生した場合はロックを解放
+            self.redis_client.release_lock(lock_key)
+            raise
