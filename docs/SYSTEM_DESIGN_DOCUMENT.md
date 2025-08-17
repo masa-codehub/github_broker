@@ -1,9 +1,11 @@
 ### **設計書：AIエージェント協調システム**
 
-#### 1. 概要
+#### 1\. 概要
+
 本システムは、複数の自律的なワーカー・エージェントからの要求に応じて、GitHub上のIssueを知的かつ排他的に割り当てる中央集権型サーバーである。システムの目的は、エージェント間の競合を防ぎ、開発ワークフローを自動化・効率化することにある。
 
-#### 2. システム構成図
+
+#### 2\. システム構成図
 
 ```mermaid
 graph TD
@@ -26,20 +28,21 @@ graph TD
     Server -- "Lock / Unlock" --> Redis
 ```
 
-#### 3. API仕様
+#### 3\. API仕様
+
 ワーカー・エージェントがタスクを要求するための唯一のAPIエンドポイントを定義する。
 
-*   **エンドポイント:** `POST /api/v1/request-task`
-*   **説明:** 新しいタスクの割り当てをサーバーに要求する。
-*   **リクエストボディ (JSON):**
+  * **エンドポイント:** `POST /api/v1/request-task`
+  * **説明:** 新しいタスクの割り当てをサーバーに要求する。
+  * **リクエストボディ (JSON):**
     ```json
     {
       "agent_id": "string", // ワーカーを一位に識別するID
       "capabilities": ["string"] // ワーカーの能力を示す文字列の配列 (例: ["python", "bugfix", "frontend"])
     }
     ```
-*   **レスポンス:**
-    *   **成功 (200 OK):** 新しいタスクが割り当てられた場合。
+  * **レスポンス:**
+      * **成功 (200 OK):** 新しいタスクが割り当てられた場合。
         ```json
         {
           "issue_id": 123,
@@ -50,54 +53,70 @@ graph TD
           "branch_name": "bugfix/issue-123"
         }
         ```
-    *   **成功 (204 No Content):** 割り当てるべき適切なタスクが見つからなかった場合。ボディは空。
-    *   **サーバービジー (503 Service Unavailable):** 他のワーカーの処理中でロックが取得できなかった場合。
+      * **成功 (204 No Content):** 割り当てるべき適切なタスクが見つからなかった場合。ボディは空。
+      * **サーバービジー (503 Service Unavailable):** 他のワーカーの処理中でロックが取得できなかった場合。
         ```json
         {
           "error": "Server is busy. Please try again later."
         }
         ```
 
-#### 4. データモデル
 
-*   **割り当て台帳 (State Management):**
-    *   サーバーが内部で保持する、ワーカーとIssueの割り当て情報。
-    *   **形式:** Key-Valueストア (Redis or インメモリDB)
-    *   **Key:** `agent_id` (例: `worker-007`)
-    *   **Value:** `issue_id` (例: `123`)
+#### 4\. データモデル
 
-#### 5. コンポーネント別 詳細設計（サーバー内部）
+  * **割り当て台帳 (State Management):**
+      * サーバーはワーカーとIssueの割り当て状態を**GitHub Issueのラベル**を利用して管理する。これにより、状態管理をGitHubに一元化する。
+      * **`in-progress` ラベル:** タスクが進行中であることを示す**状態ラベル**。
+      * **`[agent_id]` ラベル:** タスクの**担当エージェント**を示すラベル (例: `gemini-agent`)。
+      * **`needs-review` ラベル:** タスクが完了し、人間によるレビュー待ちであることを示す状態ラベル。
+
+
+#### 5\. コンポーネント別 詳細設計（サーバー内部）
 
 1.  **APIハンドラ (`/api/v1/request-task`):**
-    *   リクエストを受け付け、Bodyをパースする。
-    *   **分散ロックマネージャー**を呼び出し、ロックの取得を試みる。
-    *   ロック取得に失敗した場合、`503`エラーを返す。
-    *   ロック取得に成功した場合、以下の処理を順番に呼び出し、最後に必ずロックを解放する。
-        1. 前タスクの完了処理
-        2. 最適なIssueの選択
-        3. **Issue用ブランチの作成**
-        4. ワーカーへの応答準備と台帳更新
+
+      * リクエストを受け付け、Bodyをパースする。
+      * **分散ロックマネージャー**を呼び出し、ロックの取得を試みる。
+      * ロック取得に失敗した場合、`503`エラーを返す。
+      * ロック取得に成功した場合、以下の処理を順番に呼び出し、最後に必ずロックを解放する。
+        1.  前タスクの完了処理
+        2.  最適なIssueの選択
+        3.  **Issue用ブランチの作成**
+        4.  ワーカーへの応答準備と台帳更新
 
 2.  **分散ロックマネージャー:**
-    *   **`acquire_lock()`:** Redisの`SETNX`コマンドを利用して、グローバルロックキーのセットを試みる。ロックには有効期限（例: 30秒）を設定し、サーバークラッシュ時のデッドロックを防ぐ。
-    *   **`release_lock()`:** Redisの`DEL`コマンドでロックキーを削除する。
+
+      * **`acquire_lock()`:** Redisの`SETNX`コマンドを利用して、グローバルロックキーのセットを試みる。ロックには有効期限（例: 30秒）を設定し、サーバークラッシュ時のデッドロックを防ぐ。
+      * **`release_lock()`:** Redisの`DEL`コマンドでロックキーを削除する。
 
 3.  **状態管理 & 前タスク完了処理:**
-    *   リクエスト元の`agent_id`をキーに「割り当て台帳」を検索する。
-    *   もし、前回の`issue_id`が存在すれば、そのIssueは完了したとみなし、**GitHubクライアント**を介して、該当Issueのラベルを`needs-review`に変更する。
+
+      * リクエスト元の`agent_id`をキーに、**`in-progress`と`[agent_id]`の両方のラベルを持つIssue**をGitHubから検索する。
+      * もし、前回のIssueが存在すれば、そのIssueは完了したとみなし、**GitHubクライアント**を介して、該当Issueから`in-progress`と`[agent_id]`のラベルを削除し、代わりに`needs-review`ラベルを付与する。
+      * **GitHubの検索インデックス遅延を考慮し、ラベルを更新した場合は後続処理の前に一定時間（例: 15秒）待機する。**
 
 4.  **タスク選択とブランチ作成ロジック:**
-    *   **GitHubクライアント**を介して、オープンかつ未割り当てのIssueを全て取得する。
-    *   取得したIssueリストとワーカーの`capabilities`を基に、Geminiの能力を使って最適なIssueを1つ選択する。
-    *   選択後、そのIssueに対応するブランチを**GitHubクライアント**経由で作成する。命名規則は `(feature|bugfix)/issue-{issue_id}` とする。
+
+    1.  **Issueの事前フィルタリング:** GitHubクライアントを介して、オープンかつ未割り当てのIssue（`in-progress`と`needs-review`ラベルを持たない）を全て取得する。
+    2.  **タスクの前提条件チェック：取得したIssueの中から、本文に「成果物」セクションが正しく定義されているものだけを候補として絞り込む。**
+    3.  **知的選択:** 絞り込んだIssue候補リストとワーカーの`capabilities`を基に、Geminiの能力を使って最適なIssueを1つ選択する。
+    4.  **ブランチ作成：**
+          * 選択したIssueに対応するブランチを**GitHubクライアント**経由で作成する。
+          * **Issue本文にブランチ名の指定がない場合は、`feature/issue-{issue_id}`という形式でデフォルト名を生成する。**
+    5.  **タスク割り当て:** 選択したIssueに`in-progress`と`[agent_id]`のラベルを付与する。
 
 5.  **GitHubクライアント:**
-    *   GitHub APIとの通信をカプセル化する内部ライブラリ。
-    *   `get_open_issues()`
-    *   `update_issue(issue_id, ...)`
-    *   `create_branch(branch_name, base_branch)` などのメソッドを提供する。
 
-#### 6. シーケンス図（主要フロー）
+      * GitHub APIとの通信をカプセル化する内部ライブラリ。
+      * `get_open_issues()`: **`in-progress`と`needs-review`ラベルを持つIssueを除外**して検索する。
+      * **`find_issues_by_labels()`: GitHub検索APIの不安定性を回避するため、リポジトリの全Issueを取得してからアプリケーション側でラベルによるフィルタリングを行うロジックを持つ。**
+      * **スケーラビリティに関する注意点:** この全件取得アプローチは、リポジトリのIssueが数万件規模に増加した場合、パフォーマンスの低下やAPIレート制限のリスクを伴います。将来的な対策として、ETagを利用したキャッシュ戦略や、定期的な全件取得とWebhookによる差分更新を組み合わせるなどの検討が必要です。
+      * `update_issue(issue_id, ...)`
+      * `create_branch(branch_name, base_branch)` などのメソッドを提供する。
+
+
+
+#### 6\. シーケンス図（主要フロー）
 
 ```mermaid
 sequenceDiagram
@@ -111,41 +130,64 @@ sequenceDiagram
 
     alt ロック成功
         Redis-->>Server: OK
-        Note over Server, GitHub: 前タスクの完了処理
-        Server->>GitHub: PATCH /issues/{prev_id} (状態をレビュー待ちに)
-        GitHub-->>Server: Response
+        Note over Server, GitHub: 前タスクの完了処理 (in-progress, agent_id ラベルを検索)
+        Server->>GitHub: GET /issues (ラベル検索)
+        alt 前タスクあり
+            GitHub-->>Server: Previous Issue
+            Server->>GitHub: PATCH /issues/{prev_id} (ラベルを needs-review に変更)
+            GitHub-->>Server: Response
+            Server->>Server: **Wait 15s (インデックス更新待ち)**
+        end
 
         Note over Server, GitHub: 新タスクの選択
         Server->>GitHub: GET /issues (オープンなIssue取得)
         GitHub-->>Server: Issue List
+        Server->>Server: **Filter Issues (前提条件チェック)**
         Note right of Server: Geminiの能力で最適なIssueを選択
         
-        Note over Server, GitHub: 新タスクの割り当てとブランチ作成
-        Server->>GitHub: PATCH /issues/{new_id} (新Issueをワーカーに割り当て)
-        GitHub-->>Server: Response
-        Server->>GitHub: POST /git/refs (Issue対応ブランチ作成)
-        GitHub-->>Server: Response
-
-        Note right of Server: 内部の「割り当て台帳」を更新
-        Server-->>-Worker: 200 OK (新タスク情報 + ブランチ名)
-
+        alt 最適なIssueあり
+            Note over Server, GitHub: 新タスクの割り当てとブランチ作成
+            Server->>GitHub: POST /git/refs (Issue対応ブランチ作成)
+            GitHub-->>Server: Response
+            Server->>GitHub: PATCH /issues/{new_id} (in-progress, agent_id ラベル付与)
+            GitHub-->>Server: Response
+            Server-->>-Worker: 200 OK (新タスク情報)
+        else 最適なIssueなし
+            Server-->>-Worker: 204 No Content
+        end
+        
     else ロック失敗
         Redis-->>Server: FAILED
-        Server-->>-Worker: 503 Service Unavailable (ビジー応答)
+        Server-->>-Worker: 503 Service Unavailable
     end
 
-    Note left of Redis: 処理完了後、必ずロックを解放
     Server->>Redis: DEL lock (ロック解放)
     Redis-->>Server: OK
 ```
 
-#### 7. 技術スタック（推奨）
-*   **言語:** Python 3.x
-*   **Webフレームワーク:** FastAPI (非同期処理に強く、高速) or Flask (シンプル)
-*   **分散ロック/状態管理:** Redis
-*   **GitHub APIクライアント:** PyGithubライブラリ
+-----
 
-#### 8. 実行環境・デプロイ構成（推奨）
+#### 7\. 堅牢性のための設計
+
+  * **Gemini API障害時のフォールバック:**
+      * **Gemini APIとの通信に失敗した場合、システムは停止せず、Issue候補リストの先頭にあるものを選択する、というシンプルなロジックにフォールバックする。**
+  * **GitHub APIの特性への対応:**
+      * **ブランチが既に存在する場合 (`422 Reference already exists`) はエラーとせず、処理を続行する。**
+      * **Issueのラベル更新直後の検索反映遅延を考慮し、明示的な待機時間を設ける。**
+
+-----
+
+#### 8\. 技術スタック（推奨）
+
+  * **言語:** Python 3.x
+  * **Webフレームワーク:** FastAPI (非同期処理に強く、高速) or Flask (シンプル)
+  * **分散ロック/状態管理:** Redis
+  * **GitHub APIクライアント:** PyGithubライブラリ
+
+-----
+
+#### 9\. 実行環境・デプロイ構成（推奨）
+
 本システムは、各コンポーネントをDockerコンテナとして実行する、現代的なコンテナベースのアーキテクチャを推奨します。これにより、開発・テスト・本番環境の一貫性が保たれ、デプロイが容易になります。
 
 複数のコンテナを連携させるためには `docker-compose` を利用するのが標準的です。
@@ -181,6 +223,7 @@ services:
 ```
 
 **ポイント:**
-*   `docker-compose` は、`server`, `redis`, `worker-python` といった各サービス間の仮想ネットワークを自動で構築します。
-*   各コンテナは、他のコンテナにサービス名（例: `server`, `redis`）でアクセスできます。
-*   この構成により、各コンポーネントは独立して開発・更新が可能になり、システム全体の保守性とスケーラビリティが向上します。
+
+  * `docker-compose` は、`server`, `redis`, `worker-python` といった各サービス間の仮想ネットワークを自動で構築します。
+  * 各コンテナは、他のコンテナにサービス名（例: `server`, `redis`）でアクセスできます。
+  * この構成により、各コンポーネントは独立して開発・更新が可能になり、システム全体の保守性とスケーラビリティが向上します。
