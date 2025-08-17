@@ -1,2 +1,2 @@
-from .executors import GeminiCliExecutor
+from .executors import GeminiExecutor
 from .agent import AgentClient

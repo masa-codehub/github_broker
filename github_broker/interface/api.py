@@ -6,14 +6,23 @@ from .models import TaskRequest, TaskResponse
 from ..application.task_service import TaskService
 from ..infrastructure.github_client import GitHubClient
 from ..infrastructure.redis_client import RedisClient
-from ..infrastructure.gemini_client import GeminiClient
+from ..infrastructure.executors.gemini_executor import GeminiExecutor
 
 # --- Dependency Injection Setup ---
 # Create instances of our clients and service.
 # In a real-world scenario, you might use a more sophisticated DI framework.
 github_client = GitHubClient()
-redis_client = RedisClient()
-gemini_client = GeminiClient()
+
+# Setup Redis client from environment variables
+redis_host = os.getenv("REDIS_HOST", "localhost")
+redis_port = int(os.getenv("REDIS_PORT", 6379))
+redis_client = RedisClient(host=redis_host, port=redis_port)
+
+# Get log_dir from environment variable for the executor
+gemini_log_dir = os.getenv("GEMINI_LOG_DIR")
+gemini_executor = GeminiExecutor(log_dir=gemini_log_dir)
+
+
 
 # Get repository name from environment variable
 repo_name = os.getenv("GITHUB_REPOSITORY")
@@ -21,7 +30,7 @@ if not repo_name:
     raise ValueError("GITHUB_REPOSITORY environment variable not set.")
 
 task_service = TaskService(github_client=github_client, redis_client=redis_client,
-                           gemini_client=gemini_client, repo_name=repo_name)
+                           gemini_executor=gemini_executor, repo_name=repo_name)
 # --- --- --- --- --- --- --- --- ---
 
 app = FastAPI(
