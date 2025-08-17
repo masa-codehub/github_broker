@@ -1,1 +1,1 @@
-from .gemini_executor import GeminiCliExecutor
+from .gemini_executor import GeminiExecutor

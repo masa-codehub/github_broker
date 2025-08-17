@@ -1,2 +1,2 @@
-from .infrastructure import GeminiCliExecutor, AgentClient
+from .infrastructure import GeminiExecutor, AgentClient
 
