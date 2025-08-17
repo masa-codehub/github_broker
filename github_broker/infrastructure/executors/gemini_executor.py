@@ -127,7 +127,7 @@ class GeminiExecutor:
     def _build_prompt(self, title: str, body: str, branch_name: str) -> str:
         """タスク実行のための初回プロンプトを構築します。"""
         return (
-            f"以下のGitHub Issueを解決してください。\n"
+            f"以下のGitHub Issueを解決してください。必ず行動を宣言をしながらタスクを進めること。\n"
             f"作業用のブランチ '{branch_name}' は既に作成済みです。\n"
             f"まずそのブランチに切り替えてから、Issueの指示に従って実装を開始してください。\n\n"
             f"# Issue: {title}\n\n{body}"

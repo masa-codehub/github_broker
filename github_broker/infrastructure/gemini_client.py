@@ -14,14 +14,12 @@ class GeminiClient:
     def __init__(self):
         """
         GeminiClientを初期化し、APIキーを設定し、モデルをセットアップします。
-        Raises:
+        # 例外:
             ValueError: GEMINI_API_KEY環境変数が設定されていない場合。
         """
         self._api_key = os.getenv("GEMINI_API_KEY")
         if not self._api_key:
-            raise ValueError(
-                "Gemini API key not found in GEMINI_API_KEY environment variable."
-            )
+            raise ValueError("GEMINI_API_KEY環境変数にGemini APIキーが見つかりません。")
 
         genai.configure(api_key=self._api_key)
         self._model = genai.GenerativeModel("gemini-2.5-flash")
@@ -54,7 +52,7 @@ class GeminiClient:
             return int(issue_id)
         except Exception as e:
             logging.warning(
-                f"Gemini API call failed: {e}. Falling back to basic selection."
+                f"Gemini API呼び出しが失敗しました: {e}。基本的な選択にフォールバックします。"
             )
             # 最初のIssueを選択するフォールバック
             return issues[0].get("id")

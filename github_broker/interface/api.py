@@ -29,10 +29,13 @@ async def lock_acquisition_exception_handler(
     )
 
 
-@app.post("/request-task", response_model=TaskResponse)
+@app.post(
+    "/request-task",
+    response_model=TaskResponse,
+    responses={204: {"description": "No task available"}},
+)
 async def request_task_endpoint(
     task_request: AgentTaskRequest,
-    response: Response,
     task_service: TaskService = Depends(get_task_service),
 ):
     logger.info(f"Received task request from agent: {task_request.agent_id}")
@@ -40,5 +43,4 @@ async def request_task_endpoint(
     if task:
         return task
     else:
-        response.status_code = status.HTTP_204_NO_CONTENT
-        return None
+        return Response(status_code=status.HTTP_204_NO_CONTENT)

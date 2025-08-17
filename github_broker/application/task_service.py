@@ -15,7 +15,7 @@ class TaskService:
         self.github_client = github_client
         self.repo_name = os.getenv("GITHUB_REPOSITORY")
         if not self.repo_name:
-            raise ValueError("GITHUB_REPOSITORY environment variable is not set.")
+            raise ValueError("GITHUB_REPOSITORY環境変数が設定されていません。")
 
     def _generate_branch_name(self, issue_id: int, issue_title: str) -> str:
         """Issueタイトルからブランチ名を生成します（フォールバック用）。"""
@@ -37,11 +37,11 @@ class TaskService:
             if match:
                 branch_name = match.group(1).strip()
                 branch_name = branch_name.replace("issue-xx", f"issue-{issue_id}")
-                logger.info(f"Extracted branch name from issue body: {branch_name}")
+                logger.info(f"Issue本文からブランチ名を抽出しました: {branch_name}")
                 return branch_name
 
         logger.warning(
-            "Branch name not found in issue body. Generating one dynamically."
+            "Issue本文にブランチ名が見つかりませんでした。動的に生成します。"
         )
         return self._generate_branch_name(issue_id, issue_title)
 
@@ -91,7 +91,7 @@ class TaskService:
             )
         except Exception as e:
             logger.error(
-                f"Failed to process issue #{issue.number} after acquiring lock: {e}"
+                f"ロック取得後にIssue #{issue.number} の処理に失敗しました: {e}"
             )
             self.redis_client.release_lock(lock_key)
             raise
