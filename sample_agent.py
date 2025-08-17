@@ -5,8 +5,7 @@ import os
 import subprocess
 import logging
 
-from github_broker.infrastructure.agent.client import AgentClient
-from github_broker.infrastructure.executors.gemini_executor import GeminiCliExecutor
+from github_broker import AgentClient, GeminiCliExecutor
 
 # --- ロギング設定 ---
 logging.basicConfig(level=logging.INFO,
