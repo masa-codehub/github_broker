@@ -1,8 +1,10 @@
 import os
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Response, Request
+from fastapi.responses import JSONResponse
 from starlette.status import HTTP_204_NO_CONTENT, HTTP_503_SERVICE_UNAVAILABLE
 
 from .models import TaskRequest, TaskResponse
+from ..application.exceptions import LockAcquisitionError
 from ..application.task_service import TaskService
 from ..infrastructure.github_client import GitHubClient
 from ..infrastructure.redis_client import RedisClient
@@ -40,22 +42,27 @@ app = FastAPI(
 )
 
 
+
+
+
+@app.exception_handler(LockAcquisitionError)
+async def lock_acquisition_error_handler(request: Request, exc: LockAcquisitionError):
+    return JSONResponse(
+        status_code=HTTP_503_SERVICE_UNAVAILABLE,
+        content={"detail": str(exc)},
+    )
+
+
 @app.post("/api/v1/request-task", response_model=TaskResponse)
 async def request_task(req: TaskRequest):
     """
     Handles a request from a worker agent for a new task.
     """
-    try:
-        new_task = task_service.request_task(
-            agent_id=req.agent_id, capabilities=req.capabilities)
+    new_task = task_service.request_task(
+        agent_id=req.agent_id, capabilities=req.capabilities)
 
-        if new_task:
-            return new_task
-        else:
-            # No suitable task was found
-            return Response(status_code=HTTP_204_NO_CONTENT)
-
-    except Exception as e:
-        # Specific exception handling could be better, but for now, this catches the "Server Busy" case.
-        raise HTTPException(
-            status_code=HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
+    if new_task:
+        return new_task
+    else:
+        # No suitable task was found
+        return Response(status_code=HTTP_204_NO_CONTENT)

@@ -4,6 +4,7 @@ from typing import Dict, Any, Optional
 import os
 import datetime
 
+
 class GeminiExecutor:
     """
     'gemini'コマンドラインツールを使用してタスクを実行するExecutor。
@@ -35,7 +36,8 @@ class GeminiExecutor:
         issue_body = task.get("body", "")
         branch_name = task.get("branch_name", "")
 
-        initial_prompt = self._build_prompt(issue_title, issue_body, branch_name)
+        initial_prompt = self._build_prompt(
+            issue_title, issue_body, branch_name)
         command = ["gemini", "--yolo", "-m", self.model, "-p", initial_prompt]
 
         log_filepath = self._get_log_filepath(task.get("agent_id"))
@@ -55,13 +57,16 @@ class GeminiExecutor:
             logging.error(f"レビューのためにログファイルを読み込めませんでした: {e}。レビューステップをスキップします。")
             return
 
-        review_prompt = self._build_review_prompt(initial_prompt, initial_output)
-        review_command = ["gemini", "--yolo", "-m", self.model, "-p", review_prompt]
+        review_prompt = self._build_review_prompt(
+            initial_prompt, initial_output)
+        review_command = ["gemini", "--yolo",
+                          "-m", self.model, "-p", review_prompt]
 
         # レビューフェーズのヘッダーをログファイルに追記
         with open(log_filepath, 'a', encoding='utf-8') as f:
             f.write("\n\n---\n\n# フェーズ2: レビューと修正\n\n")
-            f.write(f"モデルに送信されたレビュープロンプト:\n```\n{review_prompt}\n```\n\n**最終成果物:**\n")
+            f.write(
+                f"モデルに送信されたレビュープロンプト:\n```\n{review_prompt}\n```\n\n**最終成果物:**\n")
 
         self._run_sub_process(review_command, log_filepath)
         logging.info("レビューと修正フェーズが完了しました。")
@@ -70,7 +75,8 @@ class GeminiExecutor:
         """コマンドをサブプロセスとして実行し、その出力を指定されたファイルに記録します。"""
         try:
             logging.info(f"コマンドを実行します: {' '.join(command)}")
-            log_file = open(log_filepath, 'a', encoding='utf-8') if log_filepath else None
+            log_file = open(log_filepath, 'a',
+                            encoding='utf-8') if log_filepath else None
 
             try:
                 with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
@@ -83,7 +89,8 @@ class GeminiExecutor:
                     log_file.close()
 
         except FileNotFoundError:
-            logging.error(f"エラー: 'gemini'コマンドが見つかりません。gemini-cliがインストールされ、PATHに含まれていることを確認してください。")
+            logging.error(
+                f"エラー: 'gemini'コマンドが見つかりません。gemini-cliがインストールされ、PATHに含まれていることを確認してください。")
             return False
         except Exception as e:
             logging.error(f"'gemini cli'の実行中に予期せぬエラーが発生しました: {e}")
@@ -96,7 +103,7 @@ class GeminiExecutor:
         if not agent_id:
             logging.warning("taskに'agent_id'が見つかりません。ログファイルを作成できません。")
             return None
-        
+
         timestamp = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
         filename = f"{agent_id}_{timestamp}.md"
         filepath = os.path.join(self.log_dir, filename)
@@ -122,4 +129,3 @@ class GeminiExecutor:
             f"--- 元の指示 ---\n{original_prompt}\n\n"
             f"--- エージェントの初回出力 ---\n{execution_output}"
         )
-
