@@ -1,4 +1,7 @@
-"""application/exceptions.py"""
+class ApplicationError(Exception):
+    """Base class for application-specific errors."""
+    pass
 
-class LockAcquisitionError(Exception):
-    """Raised when a lock cannot be acquired."""
+class LockAcquisitionError(ApplicationError):
+    """Raised when a lock for a task cannot be acquired."""
+    pass
