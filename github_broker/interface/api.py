@@ -20,7 +20,8 @@ repo_name = os.getenv("GITHUB_REPOSITORY")
 if not repo_name:
     raise ValueError("GITHUB_REPOSITORY environment variable not set.")
 
-task_service = TaskService(github_client=github_client, redis_client=redis_client, gemini_client=gemini_client, repo_name=repo_name)
+task_service = TaskService(github_client=github_client, redis_client=redis_client,
+                           gemini_client=gemini_client, repo_name=repo_name)
 # --- --- --- --- --- --- --- --- ---
 
 app = FastAPI(
@@ -29,14 +30,16 @@ app = FastAPI(
     version="0.1.0",
 )
 
+
 @app.post("/api/v1/request-task", response_model=TaskResponse)
 async def request_task(req: TaskRequest):
     """
     Handles a request from a worker agent for a new task.
     """
     try:
-        new_task = task_service.request_task(agent_id=req.agent_id, capabilities=req.capabilities)
-        
+        new_task = task_service.request_task(
+            agent_id=req.agent_id, capabilities=req.capabilities)
+
         if new_task:
             return new_task
         else:
@@ -45,4 +48,5 @@ async def request_task(req: TaskRequest):
 
     except Exception as e:
         # Specific exception handling could be better, but for now, this catches the "Server Busy" case.
-        raise HTTPException(status_code=HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
+        raise HTTPException(
+            status_code=HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
