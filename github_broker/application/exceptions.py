@@ -1,7 +1,7 @@
-class ApplicationError(Exception):
-    """Base class for application-specific errors."""
-    pass
+"""
+Application-specific exceptions.
+"""
 
-class LockAcquisitionError(ApplicationError):
-    """Raised when a lock for a task cannot be acquired."""
+class LockAcquisitionError(Exception):
+    """Raised when acquiring a lock for a task fails."""
     pass
