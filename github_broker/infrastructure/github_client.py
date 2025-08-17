@@ -41,16 +41,16 @@ class GitHubClient:
         """
         try:
             repo = self._client.get_repo(repo_name)
-            # Get all issues (open and closed)
+            # すべてのIssue（オープンおよびクローズ済み）を取得
             all_issues = repo.get_issues(state="all")
 
             required_labels = set(labels)
 
             for issue in all_issues:
-                # Get the set of labels for the current issue
+                # 現在のIssueのラベルセットを取得
                 issue_labels = {label.name for label in issue.labels}
 
-                # Check if all required labels are present in the issue's labels
+                # 必要なすべてのラベルがIssueのラベルに存在するかを確認
                 if required_labels.issubset(issue_labels):
                     logging.info(
                         f"ラベル {issue_labels} を持つ一致するIssue #{issue.number} が見つかりました。"
