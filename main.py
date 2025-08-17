@@ -3,6 +3,7 @@ import os
 
 import uvicorn
 
+# `di_container`モジュールをインポートして、コンテナが初期化されるようにします。
 from github_broker.interface.api import app
 
 if __name__ == "__main__":

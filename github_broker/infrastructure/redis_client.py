@@ -1,40 +1,43 @@
-import logging
-
 import redis
 
 
 class RedisClient:
     """
-    A client for Redis, used for distributed locking.
+    Redisクライアント。分散ロックに使用されます。
     """
 
-    def __init__(self, host: str = "localhost", port: int = 6379, db: int = 0):
-        try:
-            self.client = redis.Redis(host=host, port=port, db=db)
-            self.client.ping()
-            logging.info(f"Successfully connected to Redis at {host}:{port}")
-        except redis.exceptions.ConnectionError as e:
-            logging.error(f"Could not connect to Redis: {e}")
-            raise
+    def __init__(self, redis_instance: redis.Redis):
+        self.client = redis_instance
 
-    def acquire_lock(self, lock_key="github_broker_lock", timeout=30) -> bool:
+    def acquire_lock(self, lock_key, value, timeout=600) -> bool:
         """
-        Acquires a distributed lock.
+        ロックを取得します。
+        """
+        # nx=Trueは、キーがまだ存在しない場合にのみ設定されることを保証します。
+        return self.client.set(lock_key, value, ex=timeout, nx=True)
 
-        Args:
-            lock_key (str): The key to use for the lock.
-            timeout (int): The lock's time-to-live in seconds.
+    def release_lock(self, lock_key) -> bool:
+        """
+        ロックを解放します。
+        """
+        # キーを削除することでロックが解放されます。
+        return self.client.delete(lock_key) > 0
 
-        Returns:
-            bool: True if the lock was acquired, False otherwise.
+    def get_value(self, key) -> str | None:
         """
-        # SETNX sets the key only if it does not already exist.
-        # It returns 1 if the lock was acquired, 0 otherwise.
-        # `ex=timeout` sets an expiration time on the key.
-        return self.client.set(lock_key, "locked", ex=timeout, nx=True)
+        Redisから値を取得します。
+        """
+        value = self.client.get(key)
+        return value.decode("utf-8") if value else None
 
-    def release_lock(self, lock_key="github_broker_lock"):
+    def set_value(self, key, value, timeout=600):
         """
-        Releases the distributed lock.
+        Redisに値を設定します。
         """
-        self.client.delete(lock_key)
+        self.client.set(key, value, ex=timeout)
+
+    def delete_key(self, key):
+        """
+        Redisからキーを削除します。
+        """
+        self.client.delete(key)

@@ -1,9 +1,9 @@
 """
-Application-specific exceptions.
+アプリケーション固有の例外。
 """
 
 
 class LockAcquisitionError(Exception):
-    """Raised when acquiring a lock for a task fails."""
+    """タスクのロック取得に失敗した場合に発生します。"""
 
     pass

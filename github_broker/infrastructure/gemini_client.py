@@ -8,14 +8,14 @@ import google.generativeai as genai
 
 class GeminiClient:
     """
-    A client to interact with the Google Gemini API for selecting the best issue.
+    最適なIssueを選択するためにGoogle Gemini APIと対話するクライアント。
     """
 
     def __init__(self):
         """
-        Initializes the GeminiClient, configures the API key, and sets up the model.
+        GeminiClientを初期化し、APIキーを設定し、モデルをセットアップします。
         Raises:
-            ValueError: If the GEMINI_API_KEY environment variable is not set.
+            ValueError: GEMINI_API_KEY環境変数が設定されていない場合。
         """
         self._api_key = os.getenv("GEMINI_API_KEY")
         if not self._api_key:
@@ -30,15 +30,15 @@ class GeminiClient:
         self, issues: list[dict], capabilities: list[str]
     ) -> int | None:
         """
-        Selects the best issue ID from a list based on agent capabilities using the Gemini API.
-        If the API call fails, it falls back to selecting the first issue in the list.
+        Gemini APIを使用して、エージェントの機能に基づいてリストから最適なIssue IDを選択します。
+        API呼び出しが失敗した場合、リストの最初のIssueを選択するフォールバックを行います。
 
         Args:
-            issues (list[dict]): A list of dictionaries, where each dictionary represents an issue.
-            capabilities (list[str]): A list of strings representing the agent's capabilities.
+            issues (list[dict]): 各辞書がIssueを表す辞書のリスト。
+            capabilities (list[str]): エージェントの機能を表す文字列のリスト。
 
         Returns:
-            int or None: The ID of the selected issue, or None if no suitable issue is found.
+            int or None: 選択されたIssueのID、または適切なIssueが見つからない場合はNone。
         """
         if not issues:
             return None
@@ -56,14 +56,14 @@ class GeminiClient:
             logging.warning(
                 f"Gemini API call failed: {e}. Falling back to basic selection."
             )
-            # Fallback to selecting the first issue
+            # 最初のIssueを選択するフォールバック
             return issues[0].get("id")
 
     def _build_prompt(self, issues: list[dict], capabilities: list[str]) -> str:
         """
-        Builds the prompt to be sent to the Gemini API.
+        Gemini APIに送信するプロンプトを構築します。
         """
-        # Use .get() for safety in case 'body' or 'labels' are missing
+        # 'body'または'labels'が欠落している場合に備えて.get()を使用
         issues_str = "\n".join(
             [
                 f"- ID: {i['id']}, Title: {i['title']}, Body: {i.get('body', '')}, Labels: {i.get('labels', [])}"
@@ -73,18 +73,18 @@ class GeminiClient:
         capabilities_str = ", ".join(capabilities)
 
         prompt = f"""
-        You are an expert software development project manager. Your task is to choose the most suitable issue for a developer agent to work on next.
+        あなたは熟練したソフトウェア開発プロジェクトマネージャーです。あなたのタスクは、開発者エージェントが次に作業するのに最も適したIssueを選択することです。
 
-        Here are the available issues:
+        利用可能なIssueは以下の通りです:
         {issues_str}
 
-        Here are the capabilities of the developer agent:
+        開発者エージェントの機能は以下の通りです:
         {capabilities_str}
 
-        Based on the agent's capabilities and the information for each issue (title, body, labels), which issue is the most appropriate for the agent to tackle?
-        Please consider the technical skills required, the context of the issue, and the agent's stated capabilities.
+        エージェントの機能と各Issueの情報（タイトル、本文、ラベル）に基づいて、エージェントが取り組むのに最も適切なIssueはどれですか？
+        必要な技術スキル、Issueのコンテキスト、およびエージェントの明示された機能を考慮してください。
 
-        Respond with ONLY a JSON object in the format: {{'issue_id': <id>}}, where <id> is the integer ID of the chosen issue. Do not include any other text, explanation, or markdown formatting.
-        If no issue is suitable, respond with {{'issue_id': null}}.
+        {{'issue_id': <id>}}の形式のJSONオブジェクトのみで応答してください。<id>は選択されたIssueの整数IDです。他のテキスト、説明、またはマークダウン形式を含めないでください。
+        適切なIssueがない場合は、{{'issue_id': null}}で応答してください。
         """
         return textwrap.dedent(prompt)

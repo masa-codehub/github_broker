@@ -90,6 +90,8 @@ class GeminiExecutor:
                     bufsize=1,
                 ) as proc:
                     for line in proc.stdout:
+                        # コンソールにリアルタイムで出力
+                        print(line, end="", flush=True)
                         if log_file:
                             log_file.write(line)
                 return proc.returncode == 0
