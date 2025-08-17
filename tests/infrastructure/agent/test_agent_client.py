@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 import os
 import requests
 
-from github_broker.infrastructure.agent.client import AgentClient
+from github_broker import AgentClient
 
 @pytest.fixture
 def agent_client():
