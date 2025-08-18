@@ -1,19 +1,18 @@
 services:
   service-name:
     build:
-      context: ./${APP_NAME}/.build
+      context: ./${BROKER_NAME}/.build
       dockerfile: Dockerfile
-    image: ${APP_NAME}_image
+    image: ${BROKER_NAME}_image
     volumes:
-      - ./${APP_NAME}:${CONTAINER_VOLUME:-/app}
-      - ./messages:${AGENT_MESSAGE_DIR:-/app/messages}
+      - ./${BROKER_NAME}:${CONTAINER_VOLUME:-/app}
     working_dir: ${CONTAINER_VOLUME:-/app}
     ports:
-      - "${APP_PORT:-8080}:${APP_PORT:-8080}"
+      - "${BROKER_PORT:-8080}:${BROKER_PORT:-8080}"
     environment:
       - AGENT_ID=${AGENT_ID:-agent_id}
       - AGENT_MESSAGE_DIR=${AGENT_MESSAGE_DIR:-/app/messages}
-      - APP_PORT=${APP_PORT:-8080}
+      - BROKER_PORT=${BROKER_PORT:-8080}
       - GITHUB_REPOSITORY=${GITHUB_REPOSITORY:-your_github_repo}
       - GH_TOKEN=${GH_TOKEN:-my_github_token}
       - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT:-your_gcp_project}
