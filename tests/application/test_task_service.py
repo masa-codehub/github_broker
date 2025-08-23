@@ -139,8 +139,9 @@ def test_request_task_skips_locked_issue(
     )
 
 
+@patch("time.sleep", return_value=None)
 def test_request_task_success(
-    task_service, mock_redis_client, mock_github_client, issue_with_branch
+    mock_sleep, task_service, mock_redis_client, mock_github_client, issue_with_branch
 ):
     """タスクの割り当てが成功するケースをテストします。"""
     mock_redis_client.acquire_lock.return_value = True
@@ -160,6 +161,7 @@ def test_request_task_success(
     mock_github_client.create_branch.assert_called_once_with(
         "test/repo", "feature/issue-123-test"
     )
+    mock_sleep.assert_called_once_with(15)
 
 
 def test_request_task_exception_after_lock(
@@ -210,8 +212,7 @@ def test_extract_branch_name_with_issue_xx_replacement():
     assert branch_name == "feature/issue-99-cool-feature"
 
 
-@patch("time.sleep", return_value=None)
-def test_complete_previous_task_success(mock_sleep, task_service, mock_github_client):
+def test_complete_previous_task_success(task_service, mock_github_client):
     """前タスクの完了処理が成功するケースをテストします。"""
     mock_issue = MagicMock(spec=Issue)
     mock_issue.number = 100
@@ -234,7 +235,6 @@ def test_complete_previous_task_success(mock_sleep, task_service, mock_github_cl
         remove_labels=["in-progress", "test-agent"],
         add_labels=["needs-review"],
     )
-    mock_sleep.assert_called_once_with(15)
 
 
 @patch("time.sleep", return_value=None)

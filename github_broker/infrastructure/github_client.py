@@ -81,6 +81,48 @@ class GitHubClient:
             )
             raise
 
+    def update_issue(
+        self,
+        repo_name: str,
+        issue_id: int,
+        remove_labels: list[str] | None = None,
+        add_labels: list[str] | None = None,
+    ):
+        """
+        特定のIssueのラベルを更新します。
+        """
+        try:
+            repo = self._client.get_repo(repo_name)
+            issue = repo.get_issue(number=issue_id)
+
+            if remove_labels:
+                for label_name in remove_labels:
+                    try:
+                        issue.remove_from_labels(label_name)
+                        logging.info(
+                            f"Issue #{issue_id} からラベル '{label_name}' を削除しました。"
+                        )
+                    except GithubException as e:
+                        if e.status == 404:
+                            logging.warning(
+                                f"削除中にIssue #{issue_id} にラベル '{label_name}' が見つかりませんでした。スキップします。"
+                            )
+                        else:
+                            raise
+
+            if add_labels:
+                for label_name in add_labels:
+                    issue.add_to_labels(label_name)
+                    logging.info(
+                        f"Issue #{issue_id} にラベル '{label_name}' を追加しました。"
+                    )
+            return True
+        except GithubException as e:
+            logging.error(
+                f"リポジトリ {repo_name} のIssue #{issue_id} のラベル更新中にエラーが発生しました: {e}"
+            )
+            raise
+
     def remove_label(self, repo_name: str, issue_id: int, label: str):
         """
         特定のIssueからラベルを削除します。
