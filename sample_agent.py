@@ -35,10 +35,10 @@ if __name__ == "__main__":
     ]
     # --------------------------
 
-    logging.info(f"Starting agent '{agent_id}'.")
-    logging.info(f"Connecting to server at {host}:{port}")
-    logging.info(f"Log Directory: {gemini_log_dir}")
-    logging.info(f"Capabilities: {capabilities}")
+    logging.info(f"エージェント '{agent_id}' を開始します。")
+    logging.info(f"サーバー {host}:{port} に接続しています。")
+    logging.info(f"ログディレクトリ: {gemini_log_dir}")
+    logging.info(f"機能: {capabilities}")
     print("-" * 30)
 
     # AgentClientとExecutorを初期化
@@ -49,28 +49,26 @@ if __name__ == "__main__":
 
     while True:
         try:
-            logging.info("Requesting a new task from the server...")
+            logging.info("サーバーに新しいタスクをリクエストしています...")
             # agent_idとcapabilitiesは初期化時に渡しているため、引数は不要
             assigned_task = client.request_task()
 
             if assigned_task:
                 logging.info(
-                    f"New task assigned: #{assigned_task.get('issue_id')} - {assigned_task.get('title')}"
+                    f"新しいタスクが割り当てられました: #{assigned_task.get('issue_id')} - {assigned_task.get('title')}"
                 )
 
                 # ログファイル名のためにagent_idをタスク辞書に追加
                 assigned_task["agent_id"] = agent_id
 
                 executor.execute(assigned_task)
-                logging.info("Task execution process finished.")
+                logging.info("タスクの実行プロセスが完了しました。")
                 time.sleep(5)  # 短い待機時間
             else:
-                logging.info(
-                    "No task available. Waiting for 30 seconds before retrying."
-                )
+                logging.info("利用可能なタスクがありません。30秒後に再試行します。")
                 time.sleep(30)
                 break
 
         except Exception as e:
-            logging.error(f"An error occurred: {e}. Retrying in 60 seconds...")
+            logging.error(f"エラーが発生しました: {e}。60秒後に再試行します...")
             time.sleep(60)
