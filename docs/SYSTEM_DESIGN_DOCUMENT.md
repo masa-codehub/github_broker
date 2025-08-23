@@ -183,6 +183,7 @@ sequenceDiagram
   * **Webフレームワーク:** FastAPI (非同期処理に強く、高速) or Flask (シンプル)
   * **分散ロック/状態管理:** Redis
   * **GitHub APIクライアント:** PyGithubライブラリ
+  * **DIコンテナ:** punq
 
 -----
 
@@ -227,3 +228,41 @@ services:
   * `docker-compose` は、`server`, `redis`, `worker-python` といった各サービス間の仮想ネットワークを自動で構築します。
   * 各コンテナは、他のコンテナにサービス名（例: `server`, `redis`）でアクセスできます。
   * この構成により、各コンポーネントは独立して開発・更新が可能になり、システム全体の保守性とスケーラビリティが向上します。
+
+-----
+
+#### 10\. 依存性注入 (Dependency Injection)
+
+本プロジェクトでは、コンポーネント間の依存関係を管理し、テスト容易性を向上させるために、依存性注入（DI）の原則を採用しています。
+
+*   **採用ライブラリ:** 軽量なDIコンテナである `punq` を利用します。
+*   **設定:** 依存関係の定義は `github_broker/infrastructure/di_container.py` に一元管理されます。各コンポーネント（`TaskService`, `GitHubClient`等）は、アプリケーション起動時にDIコンテナに`singleton`として登録されます。
+
+    ```python
+    # github_broker/infrastructure/di_container.py (excerpt)
+    import punq
+    # ...
+    container = punq.Container()
+    # ...
+    container.register(GitHubClient, scope=punq.Scope.singleton)
+    container.register(TaskService, scope=punq.Scope.singleton)
+    ```
+
+*   **利用方法:** API層では、FastAPIのDIシステムと連携してコンテナを利用します。`Depends` を使うことで、エンドポイントが必要とするサービス（例: `TaskService`）をコンテナから自動的に受け取ることができます。
+
+    ```python
+    # github_broker/interface/api.py (excerpt)
+    from fastapi import Depends
+    from github_broker.infrastructure.di_container import container
+    # ...
+    def get_task_service() -> TaskService:
+        return container.resolve(TaskService)
+
+    @app.post("/request-task")
+    async def request_task_endpoint(
+        task_service: TaskService = Depends(get_task_service),
+    ):
+        # ...
+    ```
+
+この設計により、各コンポーネントは自身が必要とする依存関係を意識することなく、その生成をDIコンテナに一任できます。結果として、コードの結合度が下がり、単体テストにおけるモックの差し替えなどが容易になります。
