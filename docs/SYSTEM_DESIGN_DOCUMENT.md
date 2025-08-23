@@ -239,7 +239,7 @@ services:
 *   **設定:** 依存関係の定義は `github_broker/infrastructure/di_container.py` に一元管理されます。各コンポーネント（`TaskService`, `GitHubClient`等）は、アプリケーション起動時にDIコンテナに`singleton`として登録されます。
 
     ```python
-    # github_broker/infrastructure/di_container.py (抜粋)
+    # github_broker/infrastructure/di_container.py (excerpt)
     import punq
     # ...
     container = punq.Container()
@@ -251,7 +251,7 @@ services:
 *   **利用方法:** API層では、FastAPIのDIシステムと連携してコンテナを利用します。`Depends` を使うことで、エンドポイントが必要とするサービス（例: `TaskService`）をコンテナから自動的に受け取ることができます。
 
     ```python
-    # github_broker/interface/api.py (抜粋)
+    # github_broker/interface/api.py (excerpt)
     from fastapi import Depends
     from github_broker.infrastructure.di_container import container
     # ...
