@@ -11,6 +11,7 @@ fastapi
 uvicorn[standard]
 redis
 PyGithub
+punq
 google-generativeai
 
 # --- Development Dependencies ---
