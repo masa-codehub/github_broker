@@ -29,19 +29,14 @@ class TaskService:
             logger.info("No open issues found.")
             return None
 
-        # GitHubのIssueオブジェクトをドメインのTaskエンティティに変換
-        tasks = [
-            Task(
+        for issue in github_issues:
+            task = Task(
                 issue_id=issue.number,
                 title=issue.title,
                 body=issue.body or "",
                 html_url=issue.html_url,
                 labels=[label.name for label in issue.labels],
             )
-            for issue in github_issues
-        ]
-
-        for task in tasks:
             branch_name = task.extract_branch_name()
 
             if not branch_name:
