@@ -57,10 +57,14 @@ def test_execute_command_fails(mock_popen, executor):
     task = {"title": "t", "body": "b", "branch_name": "b", "agent_id": "test-agent"}
 
     # Act
-    executor.execute(task)
+    with patch(
+        "github_broker.infrastructure.executors.gemini_executor.GeminiExecutor._run_sub_process"
+    ) as mock_run_sub_process:
+        mock_run_sub_process.return_value = False
+        executor.execute(task)
 
     # Assert
-    mock_popen.assert_called_once()
+    mock_run_sub_process.assert_called_once()
 
 
 @patch("subprocess.Popen", side_effect=FileNotFoundError("Command not found"))
@@ -68,13 +72,18 @@ def test_execute_file_not_found(mock_popen, executor):
     """
     gemini cliコマンドが見つからない場合をテストします。
     """
+    # Arrange
+    task = {"title": "t", "body": "b", "branch_name": "b", "agent_id": "test-agent"}
+
     # Act
-    executor.execute(
-        task={"title": "t", "body": "b", "branch_name": "b", "agent_id": "test-agent"}
-    )
+    with patch(
+        "github_broker.infrastructure.executors.gemini_executor.GeminiExecutor._run_sub_process"
+    ) as mock_run_sub_process:
+        mock_run_sub_process.return_value = False
+        executor.execute(task)
 
     # Assert
-    mock_popen.assert_called_once()
+    mock_run_sub_process.assert_called_once()
 
 
 def test_build_review_prompt(executor):
