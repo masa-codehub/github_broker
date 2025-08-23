@@ -4,6 +4,7 @@
 
 本システムは、複数の自律的なワーカー・エージェントからの要求に応じて、GitHub上のIssueを知的かつ排他的に割り当てる中央集権型サーバーである。システムの目的は、エージェント間の競合を防ぎ、開発ワークフローを自動化・効率化することにある。
 
+-----
 
 #### 2\. システム構成図
 
@@ -27,6 +28,8 @@ graph TD
     Server -- "GitHub API Call (Read/Write)" --> GitHub
     Server -- "Lock / Unlock" --> Redis
 ```
+
+-----
 
 #### 3\. API仕様
 
@@ -61,6 +64,7 @@ graph TD
         }
         ```
 
+-----
 
 #### 4\. データモデル
 
@@ -70,6 +74,7 @@ graph TD
       * **`[agent_id]` ラベル:** タスクの**担当エージェント**を示すラベル (例: `gemini-agent`)。
       * **`needs-review` ラベル:** タスクが完了し、人間によるレビュー待ちであることを示す状態ラベル。
 
+-----
 
 #### 5\. コンポーネント別 詳細設計（サーバー内部）
 
@@ -114,7 +119,7 @@ graph TD
       * `update_issue(issue_id, ...)`
       * `create_branch(branch_name, base_branch)` などのメソッドを提供する。
 
-
+-----
 
 #### 6\. シーケンス図（主要フロー）
 
@@ -235,11 +240,12 @@ services:
 
 本プロジェクトでは、コンポーネント間の依存関係を管理し、テスト容易性を向上させるために、依存性注入（DI）の原則を採用しています。
 
-*   **採用ライブラリ:** 軽量なDIコンテナである `punq` を利用します。
-*   **設定:** 依存関係の定義は `github_broker/infrastructure/di_container.py` に一元管理されます。各コンポーネント（`TaskService`, `GitHubClient`等）は、アプリケーション起動時にDIコンテナに`singleton`として登録されます。
+  * **採用ライブラリ:** 軽量なDIコンテナである `punq` を利用します。
+
+  * **設定:** 依存関係の定義は `github_broker/infrastructure/di_container.py` に一元管理されます。各コンポーネント（`TaskService`, `GitHubClient`等）は、アプリケーション起動時にDIコンテナに`singleton`として登録されます。
 
     ```python
-    # github_broker/infrastructure/di_container.py (excerpt)
+    # github_broker/infrastructure/di_container.py (抜粋)
     import punq
     # ...
     container = punq.Container()
@@ -248,10 +254,10 @@ services:
     container.register(TaskService, scope=punq.Scope.singleton)
     ```
 
-*   **利用方法:** API層では、FastAPIのDIシステムと連携してコンテナを利用します。`Depends` を使うことで、エンドポイントが必要とするサービス（例: `TaskService`）をコンテナから自動的に受け取ることができます。
+  * **利用方法:** API層では、FastAPIのDIシステムと連携してコンテナを利用します。`Depends` を使うことで、エンドポイントが必要とするサービス（例: `TaskService`）をコンテナから自動的に受け取ることができます。
 
     ```python
-    # github_broker/interface/api.py (excerpt)
+    # github_broker/interface/api.py (抜粋)
     from fastapi import Depends
     from github_broker.infrastructure.di_container import container
     # ...
@@ -266,3 +272,19 @@ services:
     ```
 
 この設計により、各コンポーネントは自身が必要とする依存関係を意識することなく、その生成をDIコンテナに一任できます。結果として、コードの結合度が下がり、単体テストにおけるモックの差し替えなどが容易になります。
+
+-----
+
+#### 11\. 環境変数
+
+本システムは、以下の環境変数を通じて設定を外部から注入します。
+
+| 環境変数名          | 説明                                           | デフォルト値 |
+| ------------------- | ---------------------------------------------- | ------------ |
+| `BROKER_PORT`       | サーバーがリッスンするポート番号。             | `8080`       |
+| `GITHUB_TOKEN`      | GitHub API認証用のパーソナルアクセストークン。 | `None`       |
+| `GITHUB_REPOSITORY` | 操作対象のリポジトリ (例: `owner/repo`)。      | `None`       |
+| `GEMINI_API_KEY`    | Gemini API認証用のキー。                       | `None`       |
+| `REDIS_HOST`        | Redisサーバーのホスト名。                      | `localhost`  |
+| `REDIS_PORT`        | Redisサーバーのポート番号。                    | `6379`       |
+| `REDIS_DB`          | Redisのデータベース番号。                        | `0`          |
