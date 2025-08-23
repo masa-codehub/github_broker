@@ -4,6 +4,7 @@
 
 本システムは、複数の自律的なワーカー・エージェントからの要求に応じて、GitHub上のIssueを知的かつ排他的に割り当てる中央集権型サーバーである。システムの目的は、エージェント間の競合を防ぎ、開発ワークフローを自動化・効率化することにある。
 
+-----
 
 #### 2\. システム構成図
 
@@ -27,6 +28,8 @@ graph TD
     Server -- "GitHub API Call (Read/Write)" --> GitHub
     Server -- "Lock / Unlock" --> Redis
 ```
+
+-----
 
 #### 3\. API仕様
 
@@ -61,6 +64,7 @@ graph TD
         }
         ```
 
+-----
 
 #### 4\. データモデル
 
@@ -70,6 +74,7 @@ graph TD
       * **`[agent_id]` ラベル:** タスクの**担当エージェント**を示すラベル (例: `gemini-agent`)。
       * **`needs-review` ラベル:** タスクが完了し、人間によるレビュー待ちであることを示す状態ラベル。
 
+-----
 
 #### 5\. コンポーネント別 詳細設計（サーバー内部）
 
@@ -103,7 +108,7 @@ graph TD
     4.  **ブランチ作成：**
           * 選択したIssueに対応するブランチを**GitHubクライアント**経由で作成する。
           * **Issue本文にブランチ名の指定がない場合は、`feature/issue-{issue_id}`という形式でデフォルト名を生成する。**
-    5.  **タスク割り当て:** 選択したIssueに`in-progress`と`[agent_id]`のラベルを付я与する。
+    5.  **タスク割り当て:** 選択したIssueに`in-progress`と`[agent_id]`のラベルを付与する。
 
 5.  **GitHubクライアント:**
 
@@ -114,7 +119,7 @@ graph TD
       * `update_issue(issue_id, ...)`
       * `create_branch(branch_name, base_branch)` などのメソッドを提供する。
 
-
+-----
 
 #### 6\. シーケンス図（主要フロー）
 
@@ -183,6 +188,7 @@ sequenceDiagram
   * **Webフレームワーク:** FastAPI (非同期処理に強く、高速) or Flask (シンプル)
   * **分散ロック/状態管理:** Redis
   * **GitHub APIクライアント:** PyGithubライブラリ
+  * **DIコンテナ:** punq
 
 -----
 
@@ -234,8 +240,9 @@ services:
 
 本プロジェクトでは、コンポーネント間の依存関係を管理し、テスト容易性を向上させるために、依存性注入（DI）の原則を採用しています。
 
-*   **採用ライブラリ:** 軽量なDIコンテナである `punq` を利用します。
-*   **設定:** 依存関係の定義は `github_broker/infrastructure/di_container.py` に一元管理されます。各コンポーネント（`TaskService`, `GitHubClient`等）は、アプリケーション起動時にDIコンテナに`singleton`として登録されます。
+  * **採用ライブラリ:** 軽量なDIコンテナである `punq` を利用します。
+
+  * **設定:** 依存関係の定義は `github_broker/infrastructure/di_container.py` に一元管理されます。各コンポーネント（`TaskService`, `GitHubClient`等）は、アプリケーション起動時にDIコンテナに`singleton`として登録されます。
 
     ```python
     # github_broker/infrastructure/di_container.py (抜粋)
@@ -247,7 +254,7 @@ services:
     container.register(TaskService, scope=punq.Scope.singleton)
     ```
 
-*   **利用方法:** API層では、FastAPIのDIシステムと連携してコンテナを利用します。`Depends` を使うことで、エンドポイントが必要とするサービス（例: `TaskService`）をコンテナから自動的に受け取ることができます。
+  * **利用方法:** API層では、FastAPIのDIシステムと連携してコンテナを利用します。`Depends` を使うことで、エンドポイントが必要とするサービス（例: `TaskService`）をコンテナから自動的に受け取ることができます。
 
     ```python
     # github_broker/interface/api.py (抜粋)
@@ -279,5 +286,5 @@ services:
 | `GITHUB_REPOSITORY` | 操作対象のリポジトリ (例: `owner/repo`)。      | `None`       |
 | `GEMINI_API_KEY`    | Gemini API認証用のキー。                       | `None`       |
 | `REDIS_HOST`        | Redisサーバーのホスト名。                      | `localhost`  |
-| `REDIS_PORT`        | Redisサーバーのポート番号。                      | `6379`       |
+| `REDIS_PORT`        | Redisサーバーのポート番号。                    | `6379`       |
 | `REDIS_DB`          | Redisのデータベース番号。                        | `0`          |
