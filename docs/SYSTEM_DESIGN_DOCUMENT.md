@@ -103,7 +103,7 @@ graph TD
     4.  **ブランチ作成：**
           * 選択したIssueに対応するブランチを**GitHubクライアント**経由で作成する。
           * **Issue本文にブランチ名の指定がない場合は、`feature/issue-{issue_id}`という形式でデフォルト名を生成する。**
-    5.  **タスク割り当て:** 選択したIssueに`in-progress`と`[agent_id]`のラベルを付я与する。
+    5.  **タスク割り当て:** 選択したIssueに`in-progress`と`[agent_id]`のラベルを付与する。
 
 5.  **GitHubクライアント:**
 
