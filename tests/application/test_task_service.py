@@ -1,4 +1,5 @@
 import os
+import textwrap
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -39,10 +40,11 @@ def issue_with_branch():
     issue.id = 1
     issue.number = 123
     issue.title = "ブランチ名付きのテストIssue"
-    issue.body = """これはテストIssueです。
+    issue.body = textwrap.dedent("""
+        これはテストIssueです。
 
-## ブランチ名
-`feature/issue-123-test`"""
+        ## ブランチ名
+        `feature/issue-123-test`""")
     issue.html_url = "https://github.com/test/repo/issues/123"
     label = MagicMock(spec=Label)
     label.name = "bug"
@@ -110,8 +112,9 @@ def test_request_task_skips_locked_issue(
     issue2_with_branch.id = 3
     issue2_with_branch.number = 789
     issue2_with_branch.title = "2番目のテストIssue"
-    issue2_with_branch.body = """## ブランチ名
-`feature/issue-789-another`"""
+    issue2_with_branch.body = textwrap.dedent("""
+        ## ブランチ名
+        `feature/issue-789-another`""")
     issue2_with_branch.html_url = "https://github.com/test/repo/issues/789"
     issue2_with_branch.labels = []
 
@@ -176,10 +179,11 @@ def test_request_task_exception_after_lock(
 
 def test_extract_branch_name_from_issue_found(task_service):
     """Issue本文からブランチ名が正しく抽出されることをテストします。"""
-    body = """いくつかのテキスト
-## ブランチ名
-`feature/issue-42-new-feature`
-追加のテキスト"""
+    body = textwrap.dedent("""
+        いくつかのテキスト
+        ## ブランチ名
+        `feature/issue-42-new-feature`
+        追加のテキスト""")
     branch_name = task_service._extract_branch_name_from_issue(body, 42)
     assert branch_name == "feature/issue-42-new-feature"
 
@@ -193,7 +197,8 @@ def test_extract_branch_name_from_issue_not_found(task_service):
 
 def test_extract_branch_name_with_issue_xx_replacement(task_service):
     """'issue-xx'が実際のIssue番号に正しく置換されることをテストします。"""
-    body = """## ブランチ名
-`feature/issue-xx-cool-feature`"""
+    body = textwrap.dedent("""
+        ## ブランチ名
+        `feature/issue-xx-cool-feature`""")
     branch_name = task_service._extract_branch_name_from_issue(body, 99)
     assert branch_name == "feature/issue-99-cool-feature"
