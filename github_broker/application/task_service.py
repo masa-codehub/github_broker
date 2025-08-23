@@ -24,7 +24,7 @@ class TaskService:
     ) -> str | None:
         """Issue本文からブランチ名を抽出します。見つからない場合はNoneを返します。"""
         if issue_body:
-            match = re.search(r"## ブランチ名\s*\n\s*`?([^`\n]+)`?", issue_body)
+            match = re.search(r"## ブランチ名\s*\n\s*`?(\S+)`?", issue_body)
             if match:
                 branch_name = match.group(1).strip()
                 branch_name = branch_name.replace("issue-xx", f"issue-{issue_id}")
