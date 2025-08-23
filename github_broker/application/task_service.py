@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 
 from github_broker.domain.task import Task
 from github_broker.infrastructure.github_client import GitHubClient
@@ -17,11 +18,52 @@ class TaskService:
         if not self.repo_name:
             raise ValueError("GITHUB_REPOSITORY環境変数が設定されていません。")
 
+    def complete_previous_task(self, agent_id: str):
+        """
+        前タスクの完了処理を行います。
+        in-progressとagent_idラベルを持つIssueを検索し、それらのラベルを削除し、needs-reviewラベルを付与します。
+        """
+        logger.info(f"Completing previous task for agent: {agent_id}")
+        previous_issues = self.github_client.search_issues(
+            repo_name=self.repo_name, labels=["in-progress", agent_id]
+        )
+
+        for issue in previous_issues:
+            logger.info(
+                f"Found previous in-progress issue #{issue.number} for agent {agent_id}."
+            )
+            current_labels = [label.name for label in issue.labels]
+            remove_labels = ["in-progress", agent_id]
+            add_labels = ["needs-review"]
+
+            # 既存のラベルから削除対象のラベルを除外
+            updated_labels = [
+                label for label in current_labels if label not in remove_labels
+            ]
+            # 新しいラベルを追加
+            updated_labels.extend(add_labels)
+
+            self.github_client.update_issue(
+                repo_name=self.repo_name,
+                issue_id=issue.number,
+                remove_labels=remove_labels,
+                add_labels=add_labels,
+            )
+            logger.info(
+                f"Updated labels for issue #{issue.number}: removed {remove_labels}, added {add_labels}."
+            )
+            # GitHubの検索インデックス遅延を考慮し、一定時間待機
+            time.sleep(15)
+            logger.info(
+                f"Waited 15 seconds for GitHub index update after updating issue #{issue.number}."
+            )
+
     def request_task(self, agent_id: str) -> TaskResponse | None:
         """
         GitHubからアサイン可能なIssueを探し、ロックして、タスク情報を返します。
         アサイン可能なIssueとは、オープンであり、かつ本文にブランチ名が指定されているものです。
         """
+        self.complete_previous_task(agent_id)
         logger.info(f"Searching for open issues in repository: {self.repo_name}")
         github_issues = self.github_client.get_open_issues(self.repo_name)
 

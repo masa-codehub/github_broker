@@ -208,3 +208,47 @@ def test_extract_branch_name_with_issue_xx_replacement():
     task = Task(issue_id=99, title="", body=body, html_url="", labels=[])
     branch_name = task.extract_branch_name()
     assert branch_name == "feature/issue-99-cool-feature"
+
+
+@patch("time.sleep", return_value=None)
+def test_complete_previous_task_success(mock_sleep, task_service, mock_github_client):
+    """前タスクの完了処理が成功するケースをテストします。"""
+    mock_issue = MagicMock(spec=Issue)
+    mock_issue.number = 100
+    mock_issue.labels = [
+        MagicMock(name="in-progress", spec=Label),
+        MagicMock(name="test-agent", spec=Label),
+        MagicMock(name="bug", spec=Label),
+    ]
+    mock_github_client.search_issues.return_value = [mock_issue]
+
+    agent_id = "test-agent"
+    task_service.complete_previous_task(agent_id)
+
+    mock_github_client.search_issues.assert_called_once_with(
+        repo_name="test/repo", labels=["in-progress", agent_id]
+    )
+    mock_github_client.update_issue.assert_called_once_with(
+        repo_name="test/repo",
+        issue_id=100,
+        remove_labels=["in-progress", "test-agent"],
+        add_labels=["needs-review"],
+    )
+    mock_sleep.assert_called_once_with(15)
+
+
+@patch("time.sleep", return_value=None)
+def test_complete_previous_task_no_previous_task(
+    mock_sleep, task_service, mock_github_client
+):
+    """前タスクがない場合に何も処理されないことをテストします。"""
+    mock_github_client.search_issues.return_value = []
+
+    agent_id = "test-agent"
+    task_service.complete_previous_task(agent_id)
+
+    mock_github_client.search_issues.assert_called_once_with(
+        repo_name="test/repo", labels=["in-progress", agent_id]
+    )
+    mock_github_client.update_issue.assert_not_called()
+    mock_sleep.assert_not_called()
