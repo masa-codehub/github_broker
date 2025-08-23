@@ -8,6 +8,7 @@ from github.Issue import Issue
 from github.Label import Label
 
 from github_broker.application.task_service import TaskService
+from github_broker.domain.task import Task
 from github_broker.interface.models import TaskResponse
 
 
@@ -100,7 +101,7 @@ def test_request_task_skips_issue_without_branch_name(
     assert isinstance(result, TaskResponse)
     assert result.issue_id == 123  # 2番目のIssue
     mock_redis_client.acquire_lock.assert_called_once_with(
-        "issue_lock_1", "locked", timeout=600
+        f"issue_lock_{issue_with_branch.number}", "locked", timeout=600
     )
 
 
@@ -131,10 +132,10 @@ def test_request_task_skips_locked_issue(
     assert result.issue_id == 789  # 2番目のIssue
     assert mock_redis_client.acquire_lock.call_count == 2
     mock_redis_client.acquire_lock.assert_any_call(
-        "issue_lock_1", "locked", timeout=600
+        f"issue_lock_{issue_with_branch.number}", "locked", timeout=600
     )
     mock_redis_client.acquire_lock.assert_any_call(
-        "issue_lock_3", "locked", timeout=600
+        f"issue_lock_{issue2_with_branch.number}", "locked", timeout=600
     )
 
 
@@ -152,7 +153,7 @@ def test_request_task_success(
     assert result.title == "ブランチ名付きのテストIssue"
     assert result.branch_name == "feature/issue-123-test"
     mock_redis_client.acquire_lock.assert_called_once_with(
-        "issue_lock_1", "locked", timeout=600
+        f"issue_lock_{issue_with_branch.number}", "locked", timeout=600
     )
     mock_github_client.add_label.assert_any_call("test/repo", 123, "in-progress")
     mock_github_client.add_label.assert_any_call("test/repo", 123, "test-agent")
@@ -174,31 +175,36 @@ def test_request_task_exception_after_lock(
     with pytest.raises(GithubException):
         task_service.request_task("test-agent")
 
-    mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
+    mock_redis_client.release_lock.assert_called_once_with(
+        f"issue_lock_{issue_with_branch.number}"
+    )
 
 
-def test_extract_branch_name_from_issue_found(task_service):
+def test_extract_branch_name_from_issue_found():
     """Issue本文からブランチ名が正しく抽出されることをテストします。"""
     body = textwrap.dedent("""
         いくつかのテキスト
         ## ブランチ名
         `feature/issue-42-new-feature`
         追加のテキスト""")
-    branch_name = task_service._extract_branch_name_from_issue(body, 42)
+    task = Task(issue_id=42, title="", body=body, html_url="", labels=[])
+    branch_name = task.extract_branch_name()
     assert branch_name == "feature/issue-42-new-feature"
 
 
-def test_extract_branch_name_from_issue_not_found(task_service):
+def test_extract_branch_name_from_issue_not_found():
     """本文にブランチ名が見つからない場合にNoneが返されることをテストします。"""
     body = "ブランチ名のないテキスト"
-    branch_name = task_service._extract_branch_name_from_issue(body, 42)
+    task = Task(issue_id=42, title="", body=body, html_url="", labels=[])
+    branch_name = task.extract_branch_name()
     assert branch_name is None
 
 
-def test_extract_branch_name_with_issue_xx_replacement(task_service):
+def test_extract_branch_name_with_issue_xx_replacement():
     """'issue-xx'が実際のIssue番号に正しく置換されることをテストします。"""
     body = textwrap.dedent("""
         ## ブランチ名
         `feature/issue-xx-cool-feature`""")
-    branch_name = task_service._extract_branch_name_from_issue(body, 99)
+    task = Task(issue_id=99, title="", body=body, html_url="", labels=[])
+    branch_name = task.extract_branch_name()
     assert branch_name == "feature/issue-99-cool-feature"
