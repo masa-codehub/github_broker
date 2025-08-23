@@ -26,14 +26,15 @@ classifiers = [
 ]
 # --- プロジェクトが動作するために必要なライブラリ ---
 dependencies = [
-    "pydantic",
-    "pyyaml",
     "fastapi",
-    "uvicorn[standard]",
-    "redis",
-    "PyGithub",
     "google-generativeai",
+    "punq",
+    "pydantic",
+    "PyGithub",
+    "pyyaml",
+    "redis",
     "requests",
+    "uvicorn[standard]",
 ]
 
 # ===================================================================

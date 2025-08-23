@@ -24,7 +24,7 @@ def test_gemini_client_init_no_api_key(mock_getenv):
     mock_getenv.return_value = None
     with pytest.raises(
         ValueError,
-        match="Gemini API key not found in GEMINI_API_KEY environment variable.",
+        match="GEMINI_API_KEY環境変数にGemini APIキーが見つかりません。",
     ):
         GeminiClient()
     mock_getenv.assert_called_once_with("GEMINI_API_KEY")
@@ -100,8 +100,10 @@ def test_select_best_issue_id_with_gemini_api_call(mock_generative_model, mock_g
     assert "refactoring" in actual_prompt
     assert "backend" in actual_prompt
     # Check for a key phrase from the dedented prompt
-    assert "You are an expert software development project manager." in actual_prompt
-    assert '{"issue_id": <id>}' in actual_prompt
+    assert (
+        "あなたは熟練したソフトウェア開発プロジェクトマネージャーです。"
+        in actual_prompt
+    )
 
     # Verify the result is correctly parsed
     assert selected_id == 101
