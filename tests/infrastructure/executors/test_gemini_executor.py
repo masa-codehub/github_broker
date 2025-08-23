@@ -2,13 +2,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from github_broker.infrastructure.executors.gemini_executor import GeminiCliExecutor
+from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
 
 
 @pytest.fixture
 def executor():
-    """Provides a GeminiCliExecutor instance for tests."""
-    return GeminiCliExecutor()
+    """Provides a GeminiExecutor instance for tests."""
+    return GeminiExecutor()
 
 
 @patch("subprocess.Popen")
@@ -33,9 +33,9 @@ def test_execute_success(mock_popen, executor):
     command = args[0]
     assert command[0] == "gemini"
     assert command[1] == "--yolo"
-    assert "# Issue: Test Title" in command[3]
-    assert "Test Body" in command[3]
-    assert "feature/test" in command[3]
+    assert "# Issue: Test Title" in command[5]
+    assert "Test Body" in command[5]
+    assert "feature/test" in command[5]
 
 
 @patch("subprocess.Popen")
