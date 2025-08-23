@@ -30,7 +30,7 @@ class AgentClient:
         self.agent_id = agent_id
         self.capabilities = capabilities
         self.host = host
-        self.port = port if port is not None else int(os.getenv("APP_PORT", 8080))
+        self.port = port if port is not None else int(os.getenv("BROKER_PORT", 8080))
         self.endpoint = "/request-task"
         self.headers = {"Content-Type": "application/json"}
 

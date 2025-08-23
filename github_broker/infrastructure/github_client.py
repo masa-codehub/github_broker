@@ -10,9 +10,9 @@ class GitHubClient:
     """
 
     def __init__(self):
-        token = os.getenv("GH_TOKEN")
+        token = os.getenv("GITHUB_TOKEN")
         if not token:
-            raise ValueError("GH_TOKEN環境変数にGitHubトークンが見つかりません。")
+            raise ValueError("GITHUB_TOKEN環境変数にGitHubトークンが見つかりません。")
         self._client = Github(token)
 
     def get_open_issues(self, repo_name: str):

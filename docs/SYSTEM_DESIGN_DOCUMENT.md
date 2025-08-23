@@ -103,7 +103,7 @@ graph TD
     4.  **ブランチ作成：**
           * 選択したIssueに対応するブランチを**GitHubクライアント**経由で作成する。
           * **Issue本文にブランチ名の指定がない場合は、`feature/issue-{issue_id}`という形式でデフォルト名を生成する。**
-    5.  **タスク割り当て:** 選択したIssueに`in-progress`と`[agent_id]`のラベルを付与する。
+    5.  **タスク割り当て:** 選択したIssueに`in-progress`と`[agent_id]`のラベルを付я与する。
 
 5.  **GitHubクライアント:**
 
@@ -227,3 +227,57 @@ services:
   * `docker-compose` は、`server`, `redis`, `worker-python` といった各サービス間の仮想ネットワークを自動で構築します。
   * 各コンテナは、他のコンテナにサービス名（例: `server`, `redis`）でアクセスできます。
   * この構成により、各コンポーネントは独立して開発・更新が可能になり、システム全体の保守性とスケーラビリティが向上します。
+
+-----
+
+#### 10\. 依存性注入 (Dependency Injection)
+
+本プロジェクトでは、コンポーネント間の依存関係を管理し、テスト容易性を向上させるために、依存性注入（DI）の原則を採用しています。
+
+*   **採用ライブラリ:** 軽量なDIコンテナである `punq` を利用します。
+*   **設定:** 依存関係の定義は `github_broker/infrastructure/di_container.py` に一元管理されます。各コンポーネント（`TaskService`, `GitHubClient`等）は、アプリケーション起動時にDIコンテナに`singleton`として登録されます。
+
+    ```python
+    # github_broker/infrastructure/di_container.py (抜粋)
+    import punq
+    # ...
+    container = punq.Container()
+    # ...
+    container.register(GitHubClient, scope=punq.Scope.singleton)
+    container.register(TaskService, scope=punq.Scope.singleton)
+    ```
+
+*   **利用方法:** API層では、FastAPIのDIシステムと連携してコンテナを利用します。`Depends` を使うことで、エンドポイントが必要とするサービス（例: `TaskService`）をコンテナから自動的に受け取ることができます。
+
+    ```python
+    # github_broker/interface/api.py (抜粋)
+    from fastapi import Depends
+    from github_broker.infrastructure.di_container import container
+    # ...
+    def get_task_service() -> TaskService:
+        return container.resolve(TaskService)
+
+    @app.post("/request-task")
+    async def request_task_endpoint(
+        task_service: TaskService = Depends(get_task_service),
+    ):
+        # ...
+    ```
+
+この設計により、各コンポーネントは自身が必要とする依存関係を意識することなく、その生成をDIコンテナに一任できます。結果として、コードの結合度が下がり、単体テストにおけるモックの差し替えなどが容易になります。
+
+-----
+
+#### 11\. 環境変数
+
+本システムは、以下の環境変数を通じて設定を外部から注入します。
+
+| 環境変数名          | 説明                                           | デフォルト値 |
+| ------------------- | ---------------------------------------------- | ------------ |
+| `BROKER_PORT`       | サーバーがリッスンするポート番号。             | `8080`       |
+| `GITHUB_TOKEN`      | GitHub API認証用のパーソナルアクセストークン。 | `None`       |
+| `GITHUB_REPOSITORY` | 操作対象のリポジトリ (例: `owner/repo`)。      | `None`       |
+| `GEMINI_API_KEY`    | Gemini API認証用のキー。                       | `None`       |
+| `REDIS_HOST`        | Redisサーバーのホスト名。                      | `localhost`  |
+| `REDIS_PORT`        | Redisサーバーのポート番号。                      | `6379`       |
+| `REDIS_DB`          | Redisのデータベース番号。                        | `0`          |
