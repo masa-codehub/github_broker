@@ -19,14 +19,14 @@ def test_get_open_issues_filters_in_progress(mock_github, mock_getenv):
 
     mock_issue_in_progress = MagicMock()
     mock_issue_in_progress.number = 1
-    mock_issue_in_progress.title = "In Progress Issue"
+    mock_issue_in_progress.title = "進行中のIssue"
     mock_label_in_progress = MagicMock()
     mock_label_in_progress.name = "in-progress"
     mock_issue_in_progress.labels = [mock_label_in_progress]
 
     mock_issue_open = MagicMock()
     mock_issue_open.number = 2
-    mock_issue_open.title = "Open Issue"
+    mock_issue_open.title = "オープンなIssue"
     mock_issue_open.labels = []
 
     # フィルタリングされた場合に返されるPaginatedListオブジェクトをモック
@@ -60,7 +60,7 @@ def test_get_open_issues_filters_in_progress(mock_github, mock_getenv):
     mock_github_instance.search_issues.assert_called_once_with(query=expected_query)
 
     assert len(issues) == 1
-    assert issues[0].title == "Open Issue"
+    assert issues[0].title == "オープンなIssue"
 
 
 @patch("os.getenv")
@@ -159,13 +159,11 @@ def test_create_branch_success(mock_github, mock_getenv):
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
 def test_find_issues_by_labels_found(mock_github, mock_getenv):
-    """
-    Test that find_issues_by_labels returns the correct issue when labels match.
-    """
+    """find_issues_by_labelsがラベルにマッチしたときに正しいIssueを返すことをテストします。"""
     # Arrange
     mock_getenv.return_value = "fake_token"
 
-    # Create mock labels
+    # モックラベルを作成
     mock_label_a = MagicMock()
     mock_label_a.name = "label-a"
     mock_label_b = MagicMock()
@@ -173,14 +171,14 @@ def test_find_issues_by_labels_found(mock_github, mock_getenv):
     mock_label_c = MagicMock()
     mock_label_c.name = "label-c"
 
-    # Create mock issues
+    # モックIssueを作成
     issue1 = MagicMock()
     issue1.number = 1
     issue1.labels = [mock_label_a]
 
     issue2 = MagicMock()
     issue2.number = 2
-    issue2.labels = [mock_label_a, mock_label_b]  # This is the one we want
+    issue2.labels = [mock_label_a, mock_label_b]  # これが探しているもの
 
     issue3 = MagicMock()
     issue3.number = 3
@@ -208,9 +206,7 @@ def test_find_issues_by_labels_found(mock_github, mock_getenv):
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
 def test_find_issues_by_labels_not_found(mock_github, mock_getenv):
-    """
-    Test that find_issues_by_labels returns None when no issue matches all labels.
-    """
+    """find_issues_by_labelsがすべてのラベルにマッチするIssueがない場合にNoneを返すことをテストします。"""
     # Arrange
     mock_getenv.return_value = "fake_token"
 
@@ -241,7 +237,7 @@ def test_find_issues_by_labels_not_found(mock_github, mock_getenv):
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
 def test_get_open_issues_raises_exception(mock_github, mock_getenv):
-    """Test that get_open_issues raises an exception when the API call fails."""
+    """get_open_issuesがAPI呼び出し失敗時に例外を送出することをテストします。"""
     mock_getenv.return_value = "fake_token"
     mock_github_instance = MagicMock()
     mock_github_instance.search_issues.side_effect = GithubException(
@@ -257,7 +253,7 @@ def test_get_open_issues_raises_exception(mock_github, mock_getenv):
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
 def test_find_issues_by_labels_raises_exception(mock_github, mock_getenv):
-    """Test that find_issues_by_labels raises an exception when the API call fails."""
+    """find_issues_by_labelsがAPI呼び出し失敗時に例外を送出することをテストします。"""
     mock_getenv.return_value = "fake_token"
     mock_github_instance = MagicMock()
     mock_github_instance.get_repo.side_effect = GithubException(
@@ -273,7 +269,7 @@ def test_find_issues_by_labels_raises_exception(mock_github, mock_getenv):
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
 def test_add_label_raises_exception(mock_github, mock_getenv):
-    """Test that add_label raises an exception when the API call fails."""
+    """add_labelがAPI呼び出し失敗時に例外を送出することをテストします。"""
     mock_getenv.return_value = "fake_token"
     mock_repo = MagicMock()
     mock_repo.get_issue.side_effect = GithubException(status=500, data={}, headers=None)
@@ -289,12 +285,12 @@ def test_add_label_raises_exception(mock_github, mock_getenv):
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
 def test_remove_label_raises_exception(mock_github, mock_getenv):
-    """Test that remove_label raises an exception for non-404 errors."""
+    """remove_labelが404以外のエラーで例外を送出することをテストします。"""
     mock_getenv.return_value = "fake_token"
     mock_repo = MagicMock()
     mock_repo.get_issue.side_effect = GithubException(
         status=500, data={}, headers=None
-    )  # 500 error
+    )  # 500エラー
     mock_github_instance = MagicMock()
     mock_github_instance.get_repo.return_value = mock_repo
     mock_github.return_value = mock_github_instance
@@ -307,12 +303,12 @@ def test_remove_label_raises_exception(mock_github, mock_getenv):
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
 def test_create_branch_raises_exception(mock_github, mock_getenv):
-    """Test that create_branch raises an exception for non-422 errors."""
+    """create_branchが422以外のエラーで例外を送出することをテストします。"""
     mock_getenv.return_value = "fake_token"
     mock_repo = MagicMock()
     mock_repo.get_branch.side_effect = GithubException(
         status=500, data={}, headers=None
-    )  # 500 error
+    )  # 500エラー
     mock_github_instance = MagicMock()
     mock_github_instance.get_repo.return_value = mock_repo
     mock_github.return_value = mock_github_instance
@@ -324,7 +320,7 @@ def test_create_branch_raises_exception(mock_github, mock_getenv):
 
 @patch("os.getenv")
 def test_init_raises_value_error_if_no_token(mock_getenv):
-    """Test that __init__ raises ValueError if GITHUB_TOKEN is not set."""
+    """__init__がGITHUB_TOKEN未設定時にValueErrorを送出することをテストします。"""
     mock_getenv.return_value = None
     with pytest.raises(
         ValueError, match="GITHUB_TOKEN環境変数にGitHubトークンが見つかりません。"
@@ -335,7 +331,7 @@ def test_init_raises_value_error_if_no_token(mock_getenv):
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
 def test_remove_label_handles_404(mock_github, mock_getenv):
-    """Test that remove_label handles 404 errors gracefully."""
+    """remove_labelが404エラーを正常に処理することをテストします。"""
     mock_getenv.return_value = "fake_token"
     mock_repo = MagicMock()
     mock_issue = MagicMock()
@@ -349,13 +345,13 @@ def test_remove_label_handles_404(mock_github, mock_getenv):
 
     client = GitHubClient()
     result = client.remove_label("test/repo", 123, "non-existent-label")
-    assert result is True  # Should not re-raise
+    assert result is True  # 例外を送出しないはず
 
 
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
 def test_create_branch_handles_422(mock_github, mock_getenv):
-    """Test that create_branch handles 422 errors gracefully."""
+    """create_branchが422エラー（ブランチ重複）を正常に処理することをテストします。"""
     mock_getenv.return_value = "fake_token"
     mock_repo = MagicMock()
     mock_repo.create_git_ref.side_effect = GithubException(
@@ -367,12 +363,12 @@ def test_create_branch_handles_422(mock_github, mock_getenv):
 
     client = GitHubClient()
     result = client.create_branch("test/repo", "existing-branch")
-    assert result is True  # Should not re-raise
+    assert result is True  # 例外を送出しないはず
 
 
-# --- Integration Tests ---
+# --- 統合テスト ---
 
-# Marker to skip tests if environment variables are not set
+# 環境変数が設定されていない場合にテストをスキップするためのマーカー
 requires_github_token = pytest.mark.skipif(
     not os.getenv("GITHUB_TOKEN") or not os.getenv("GITHUB_REPOSITORY"),
     reason="統合テストにはGITHUB_TOKENおよびGITHUB_REPOSITORY環境変数が必要です",
@@ -387,7 +383,7 @@ def github_client():
 
 @pytest.fixture(scope="module")
 def test_repo_name():
-    """環境変数からリポジリ名を提供します。"""
+    """環境変数からリポジトリ名を提供します。"""
     return os.getenv("GITHUB_REPOSITORY")
 
 
@@ -409,10 +405,10 @@ def test_integration_lifecycle(github_client, test_repo_name, raw_github_client)
     """
     repo = raw_github_client.get_repo(test_repo_name)
 
-    # --- Test Data ---
+    # --- テストデータ ---
     unique_id = int(time.time())
-    issue_to_filter_title = f"Test Issue to be Filtered - {unique_id}"
-    issue_to_keep_title = f"Test Issue to be Kept - {unique_id}"
+    issue_to_filter_title = f"フィルターされるべきテストIssue - {unique_id}"
+    issue_to_keep_title = f"保持されるべきテストIssue - {unique_id}"
     label_in_progress = "in-progress"
     label_to_add_remove = f"test-label-{unique_id}"
     branch_to_create = f"feature/test-branch-{unique_id}"
@@ -421,25 +417,25 @@ def test_integration_lifecycle(github_client, test_repo_name, raw_github_client)
     issue_to_keep = None
 
     try:
-        # 1. --- SETUP ---
-        # Create two issues for testing get_open_issues
+        # 1. --- セットアップ ---
+        # get_open_issuesをテストするために2つのIssueを作成
         issue_to_filter = repo.create_issue(
-            title=issue_to_filter_title, body="This issue should be filtered out."
+            title=issue_to_filter_title, body="このIssueは除外されるべきです。"
         )
         issue_to_filter.add_to_labels(label_in_progress)
 
         issue_to_keep = repo.create_issue(
-            title=issue_to_keep_title, body="This issue should be returned."
+            title=issue_to_keep_title, body="このIssueは返されるべきです。"
         )
 
-        # Give GitHub's API a moment to process the new issues and labels
+        # GitHub APIが新しいIssueとラベルを処理するのを少し待つ
         time.sleep(5)
 
-        # 2. --- TEST get_open_issues ---
-        print("--- 実行中: TEST get_open_issues ---")
+        # 2. --- get_open_issuesのテスト ---
+        print("--- 実行中: get_open_issuesのテスト ---")
         open_issues = github_client.get_open_issues(test_repo_name)
 
-        # Assert that the filtered issue is not present and the kept issue is
+        # フィルターされたIssueが存在せず、保持されるべきIssueが存在することを確認
         issue_numbers = [issue.number for issue in open_issues]
         print(f"見つかったオープンなIssue番号: {issue_numbers}")
         print(
@@ -448,22 +444,22 @@ def test_integration_lifecycle(github_client, test_repo_name, raw_github_client)
 
         assert issue_to_keep.number in issue_numbers
         assert issue_to_filter.number not in issue_numbers
-        print("--- PASSED: TEST get_open_issues ---")
+        print("--- PASSED: get_open_issuesのテスト ---")
 
-        # 3. --- TEST add_label and remove_label ---
+        # 3. --- add_labelとremove_labelのテスト ---
         print(
-            f"--- Running: TEST add_label and remove_label for issue #{issue_to_keep.number} ---"
+            f"--- 実行中: Issue #{issue_to_keep.number} のadd_labelとremove_labelのテスト ---"
         )
-        # Add a label
+        # ラベルを追加
         github_client.add_label(
             test_repo_name, issue_to_keep.number, label_to_add_remove
         )
         time.sleep(2)
         issue_reloaded = repo.get_issue(issue_to_keep.number)
         assert label_to_add_remove in [label.name for label in issue_reloaded.labels]
-        print(f"Successfully added label '{label_to_add_remove}'")
+        print(f"ラベル '{label_to_add_remove}' の追加に成功しました")
 
-        # Remove the label
+        # ラベルを削除
         github_client.remove_label(
             test_repo_name, issue_to_keep.number, label_to_add_remove
         )
@@ -472,16 +468,16 @@ def test_integration_lifecycle(github_client, test_repo_name, raw_github_client)
         assert label_to_add_remove not in [
             label.name for label in issue_reloaded.labels
         ]
-        print(f"Successfully removed label '{label_to_add_remove}'")
-        print("--- PASSED: TEST add_label and remove_label ---")
+        print(f"ラベル '{label_to_add_remove}' の削除に成功しました")
+        print("--- PASSED: add_labelとremove_labelのテスト ---")
 
-        # 4. --- TEST create_branch ---
-        print("--- Running: TEST create_branch ---")
+        # 4. --- create_branchのテスト ---
+        print("--- 実行中: create_branchのテスト ---")
         github_client.create_branch(
             test_repo_name, branch_to_create, base_branch="main"
         )
         time.sleep(2)
-        # Verify branch exists
+        # ブランチの存在を確認
         try:
             repo.get_branch(branch_to_create)
             branch_exists = True
@@ -490,27 +486,29 @@ def test_integration_lifecycle(github_client, test_repo_name, raw_github_client)
                 branch_exists = False
             else:
                 raise
-        assert branch_exists, f"Branch '{branch_to_create}' was not created."
-        print(f"Successfully created branch '{branch_to_create}'")
-        print("--- PASSED: TEST create_branch ---")
+        assert branch_exists, f"ブランチ '{branch_to_create}' が作成されませんでした。"
+        print(f"ブランチ '{branch_to_create}' の作成に成功しました")
+        print("--- PASSED: create_branchのテスト ---")
 
     finally:
-        # 5. --- CLEANUP ---
-        print("--- Running: Cleanup ---")
-        # Close issues
+        # 5. --- クリーンアップ ---
+        print("--- 実行中: クリーンアップ ---")
+        # Issueをクローズ
         if issue_to_filter:
-            print(f"Closing issue #{issue_to_filter.number}")
+            print(f"Issue #{issue_to_filter.number} をクローズ中")
             issue_to_filter.edit(state="closed")
         if issue_to_keep:
-            print(f"Closing issue #{issue_to_keep.number}")
+            print(f"Issue #{issue_to_keep.number} をクローズ中")
             issue_to_keep.edit(state="closed")
 
-        # Delete branch
+        # ブランチを削除
         try:
             ref = repo.get_git_ref(f"heads/{branch_to_create}")
-            print(f"Deleting branch '{branch_to_create}'")
+            print(f"ブランチ '{branch_to_create}' を削除中")
             ref.delete()
         except GithubException as e:
-            if e.status != 404:  # Ignore if branch doesn't exist
-                print(f"Warning: Could not delete branch '{branch_to_create}': {e}")
-        print("--- Cleanup Finished ---")
+            if e.status != 404:  # ブランチが存在しない場合は無視
+                print(
+                    f"警告: ブランチ '{branch_to_create}' を削除できませんでした: {e}"
+                )
+        print("--- クリーンアップ完了 ---")

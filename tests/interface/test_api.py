@@ -13,22 +13,22 @@ client = TestClient(app)
 
 @pytest.fixture
 def mock_task_service():
-    """Fixture to mock the TaskService dependency."""
+    """TaskServiceの依存関係をモックするためのフィクスチャ。"""
     mock_service = MagicMock(spec=TaskService)
     app.dependency_overrides[get_task_service] = lambda: mock_service
     yield mock_service
-    # Teardown: clean up the override
+    # ティアダウン：オーバーライドをクリーンアップ
     del app.dependency_overrides[get_task_service]
 
 
 def test_request_task_success(mock_task_service):
-    """Test a successful task request to the /request-task endpoint."""
+    """/request-taskエンドポイントへの成功したタスクリクエストをテストします。"""
     # Arrange
     expected_task = TaskResponse(
         issue_id=123,
         issue_url="http://example.com/issue/123",
-        title="Test Issue",
-        body="This is a test issue.",
+        title="テストIssue",
+        body="これはテストIssueです。",
         labels=["bug"],
         branch_name="feature/issue-123-test",
     )
@@ -47,7 +47,7 @@ def test_request_task_success(mock_task_service):
 
 
 def test_request_task_no_task_available(mock_task_service):
-    """Test the /request-task endpoint when no task is available (204 No Content)."""
+    """利用可能なタスクがない場合（204 No Content）の/request-taskエンドポイントをテストします。"""
     # Arrange
     mock_task_service.request_task.return_value = None
 
@@ -63,9 +63,9 @@ def test_request_task_no_task_available(mock_task_service):
 
 
 def test_request_task_lock_error(mock_task_service):
-    """Test the /request-task endpoint when a LockAcquisitionError is raised."""
+    """LockAcquisitionErrorが発生した場合の/request-taskエンドポイントをテストします。"""
     # Arrange
-    error_message = "Server is busy. Please try again later."
+    error_message = "サーバーがビジー状態です。後でもう一度お試しください。"
     mock_task_service.request_task.side_effect = LockAcquisitionError(error_message)
 
     # Act
