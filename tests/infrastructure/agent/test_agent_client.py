@@ -9,14 +9,14 @@ from github_broker import AgentClient
 
 @pytest.fixture
 def agent_client():
-    """Provides a test instance of AgentClient."""
+    """AgentClientのテストインスタンスを提供します。"""
     return AgentClient(agent_id="test-agent", capabilities=["python"])
 
 
 @patch("requests.post")
 def test_request_task_success(mock_post, agent_client):
     """
-    Test successful task request (200 OK).
+    タスクリクエストが成功するケース（200 OK）をテストします。
     """
     # Arrange
     mock_response = MagicMock()
@@ -47,7 +47,7 @@ def test_request_task_success(mock_post, agent_client):
 @patch("requests.post")
 def test_request_task_no_content(mock_post, agent_client):
     """
-    Test task request when no content is available (204 No Content).
+    利用可能なコンテンツがない場合（204 No Content）のタスクリクエストをテストします。
     """
     # Arrange
     mock_response = MagicMock()
@@ -65,7 +65,7 @@ def test_request_task_no_content(mock_post, agent_client):
 @patch("requests.post")
 def test_request_task_server_error(mock_post, agent_client):
     """
-    Test task request when the server returns an error that raises an exception.
+    サーバーが例外を発生させるエラーを返した場合のタスクリクエストをテストします。
     """
     # Arrange
     mock_response = MagicMock()
@@ -88,7 +88,7 @@ def test_request_task_server_error(mock_post, agent_client):
 )
 def test_request_task_connection_error(mock_post, agent_client):
     """
-    Test task request when a connection error occurs.
+    接続エラーが発生した場合のタスクリクエストをテストします。
     """
     # Act
     task = agent_client.request_task()
@@ -99,7 +99,7 @@ def test_request_task_connection_error(mock_post, agent_client):
 
 def test_agent_client_initialization_with_port():
     """
-    Test AgentClient initialization with a specific port.
+    特定のポートでAgentClientが初期化されることをテストします。
     """
     client = AgentClient(agent_id="test", capabilities=[], host="testhost", port=9000)
     assert client.port == 9000
@@ -108,7 +108,7 @@ def test_agent_client_initialization_with_port():
 @patch.dict(os.environ, {"BROKER_PORT": "9999"})
 def test_agent_client_initialization_with_env_var():
     """
-    Test AgentClient initialization using BROKER_PORT environment variable.
+    BROKER_PORT環境変数を使用してAgentClientが初期化されることをテストします。
     """
     client = AgentClient(agent_id="test", capabilities=[])
     assert client.port == 9999
@@ -116,7 +116,7 @@ def test_agent_client_initialization_with_env_var():
 
 def test_agent_client_initialization_default_port(monkeypatch):
     """
-    Test AgentClient initialization with the default port when env var is not set.
+    環境変数が設定されていない場合に、AgentClientがデフォルトポートで初期化されることをテストします。
     """
     monkeypatch.delenv("BROKER_PORT", raising=False)
     client = AgentClient(agent_id="test", capabilities=[])
