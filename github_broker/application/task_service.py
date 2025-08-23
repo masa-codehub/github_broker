@@ -17,21 +17,12 @@ class TaskService:
         if not self.repo_name:
             raise ValueError("GITHUB_REPOSITORY環境変数が設定されていません。")
 
-    def _generate_branch_name(self, issue_id: int, issue_title: str) -> str:
-        """Issueタイトルからブランチ名を生成します（フォールバック用）。"""
-        title = issue_title.lower()
-        title = re.sub(r"[^a-z0-9]+", "-", title).strip("-")
-        title = re.sub(r"-+", "-", title)
-        title = title[:50].strip("-")
-        return f"feature/issue-{issue_id}-{title}"
-
     def _extract_branch_name_from_issue(
         self,
         issue_body: str,
         issue_id: int,
-        issue_title: str,
-    ) -> str:
-        """Issue本文からブランチ名を抽出します。見つからない場合は動的に生成します。"""
+    ) -> str | None:
+        """Issue本文からブランチ名を抽出します。見つからない場合はNoneを返します。"""
         if issue_body:
             match = re.search(r"## ブランチ名\s*\n\s*`?([^`\n]+)`?", issue_body)
             if match:
@@ -41,57 +32,63 @@ class TaskService:
                 return branch_name
 
         logger.warning(
-            "Issue本文にブランチ名が見つかりませんでした。動的に生成します。"
+            f"Issue #{issue_id} の本文にブランチ名が見つかりませんでした。このIssueはスキップされます。"
         )
-        return self._generate_branch_name(issue_id, issue_title)
+        return None
 
     def request_task(self, agent_id: str) -> TaskResponse | None:
         """
         GitHubからアサイン可能なIssueを探し、ロックして、タスク情報を返します。
+        アサイン可能なIssueとは、オープンであり、かつ本文にブランチ名が指定されているものです。
         """
         logger.info(f"Searching for open issues in repository: {self.repo_name}")
         open_issues = self.github_client.get_open_issues(self.repo_name)
 
         if not open_issues:
-            logger.info("No assignable issues found.")
+            logger.info("No open issues found.")
             return None
 
-        issue = open_issues[0]
-        lock_key = f"issue_lock_{issue.id}"
-
-        logger.info(f"Attempting to acquire lock for issue #{issue.number}")
-        if not self.redis_client.acquire_lock(lock_key, "locked", timeout=600):
-            logger.warning(
-                f"Issue #{issue.number} のロック取得に失敗しました。他のエージェントによってロックされている可能性があります。"
-            )
-            return None
-
-        try:
-            logger.info(f"Lock acquired for issue #{issue.number}. Assigning task.")
-            # Issueにラベルを追加
-            self.github_client.add_label(self.repo_name, issue.number, "in-progress")
-            self.github_client.add_label(self.repo_name, issue.number, agent_id)
-            logger.info(f"Assigned agent '{agent_id}' to issue #{issue.number}.")
-
-            # Issue本文からブランチ名を取得
+        for issue in open_issues:
             branch_name = self._extract_branch_name_from_issue(
                 issue.body,
                 issue.number,
-                issue.title,
             )
-            self.github_client.create_branch(self.repo_name, branch_name)
 
-            return TaskResponse(
-                issue_id=issue.number,
-                issue_url=issue.html_url,
-                title=issue.title,
-                body=issue.body or "",
-                labels=[label.name for label in issue.labels],
-                branch_name=branch_name,
-            )
-        except Exception as e:
-            logger.error(
-                f"ロック取得後にIssue #{issue.number} の処理に失敗しました: {e}"
-            )
-            self.redis_client.release_lock(lock_key)
-            raise
+            if not branch_name:
+                continue
+
+            lock_key = f"issue_lock_{issue.id}"
+            logger.info(f"Attempting to acquire lock for issue #{issue.number}")
+            if not self.redis_client.acquire_lock(lock_key, "locked", timeout=600):
+                logger.warning(
+                    f"Issue #{issue.number} のロック取得に失敗しました。他のエージェントによってロックされている可能性があります。スキップします。"
+                )
+                continue
+
+            try:
+                logger.info(f"Lock acquired for issue #{issue.number}. Assigning task.")
+                self.github_client.add_label(
+                    self.repo_name, issue.number, "in-progress"
+                )
+                self.github_client.add_label(self.repo_name, issue.number, agent_id)
+                logger.info(f"Assigned agent '{agent_id}' to issue #{issue.number}.")
+
+                self.github_client.create_branch(self.repo_name, branch_name)
+
+                return TaskResponse(
+                    issue_id=issue.number,
+                    issue_url=issue.html_url,
+                    title=issue.title,
+                    body=issue.body or "",
+                    labels=[label.name for label in issue.labels],
+                    branch_name=branch_name,
+                )
+            except Exception as e:
+                logger.error(
+                    f"ロック取得後にIssue #{issue.number} の処理に失敗しました: {e}"
+                )
+                self.redis_client.release_lock(lock_key)
+                raise
+
+        logger.info("No assignable issues with a defined branch name found.")
+        return None
