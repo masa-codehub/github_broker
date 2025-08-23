@@ -156,12 +156,226 @@ def test_create_branch_success(mock_github, mock_getenv):
     assert result is True
 
 
+@patch("os.getenv")
+@patch("github_broker.infrastructure.github_client.Github")
+def test_find_issues_by_labels_found(mock_github, mock_getenv):
+    """
+    Test that find_issues_by_labels returns the correct issue when labels match.
+    """
+    # Arrange
+    mock_getenv.return_value = "fake_token"
+
+    # Create mock labels
+    mock_label_a = MagicMock()
+    mock_label_a.name = "label-a"
+    mock_label_b = MagicMock()
+    mock_label_b.name = "label-b"
+    mock_label_c = MagicMock()
+    mock_label_c.name = "label-c"
+
+    # Create mock issues
+    issue1 = MagicMock()
+    issue1.number = 1
+    issue1.labels = [mock_label_a]
+
+    issue2 = MagicMock()
+    issue2.number = 2
+    issue2.labels = [mock_label_a, mock_label_b]  # This is the one we want
+
+    issue3 = MagicMock()
+    issue3.number = 3
+    issue3.labels = [mock_label_b, mock_label_c]
+
+    mock_repo = MagicMock()
+    mock_repo.get_issues.return_value = [issue1, issue2, issue3]
+
+    mock_github_instance = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_github.return_value = mock_github_instance
+
+    client = GitHubClient()
+
+    # Act
+    found_issue = client.find_issues_by_labels("test/repo", ["label-a", "label-b"])
+
+    # Assert
+    assert found_issue is not None
+    assert found_issue.number == 2
+    mock_github_instance.get_repo.assert_called_once_with("test/repo")
+    mock_repo.get_issues.assert_called_once_with(state="all")
+
+
+@patch("os.getenv")
+@patch("github_broker.infrastructure.github_client.Github")
+def test_find_issues_by_labels_not_found(mock_github, mock_getenv):
+    """
+    Test that find_issues_by_labels returns None when no issue matches all labels.
+    """
+    # Arrange
+    mock_getenv.return_value = "fake_token"
+
+    mock_label_a = MagicMock()
+    mock_label_a.name = "label-a"
+    mock_label_b = MagicMock()
+    mock_label_b.name = "label-b"
+
+    issue1 = MagicMock()
+    issue1.labels = [mock_label_a]
+
+    mock_repo = MagicMock()
+    mock_repo.get_issues.return_value = [issue1]
+
+    mock_github_instance = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_github.return_value = mock_github_instance
+
+    client = GitHubClient()
+
+    # Act
+    found_issue = client.find_issues_by_labels("test/repo", ["label-a", "label-b"])
+
+    # Assert
+    assert found_issue is None
+
+
+@patch("os.getenv")
+@patch("github_broker.infrastructure.github_client.Github")
+def test_get_open_issues_raises_exception(mock_github, mock_getenv):
+    """Test that get_open_issues raises an exception when the API call fails."""
+    mock_getenv.return_value = "fake_token"
+    mock_github_instance = MagicMock()
+    mock_github_instance.search_issues.side_effect = GithubException(
+        status=500, data={}, headers=None
+    )
+    mock_github.return_value = mock_github_instance
+
+    client = GitHubClient()
+    with pytest.raises(GithubException):
+        client.get_open_issues("test/repo")
+
+
+@patch("os.getenv")
+@patch("github_broker.infrastructure.github_client.Github")
+def test_find_issues_by_labels_raises_exception(mock_github, mock_getenv):
+    """Test that find_issues_by_labels raises an exception when the API call fails."""
+    mock_getenv.return_value = "fake_token"
+    mock_github_instance = MagicMock()
+    mock_github_instance.get_repo.side_effect = GithubException(
+        status=500, data={}, headers=None
+    )
+    mock_github.return_value = mock_github_instance
+
+    client = GitHubClient()
+    with pytest.raises(GithubException):
+        client.find_issues_by_labels("test/repo", ["label"])
+
+
+@patch("os.getenv")
+@patch("github_broker.infrastructure.github_client.Github")
+def test_add_label_raises_exception(mock_github, mock_getenv):
+    """Test that add_label raises an exception when the API call fails."""
+    mock_getenv.return_value = "fake_token"
+    mock_repo = MagicMock()
+    mock_repo.get_issue.side_effect = GithubException(status=500, data={}, headers=None)
+    mock_github_instance = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_github.return_value = mock_github_instance
+
+    client = GitHubClient()
+    with pytest.raises(GithubException):
+        client.add_label("test/repo", 123, "label")
+
+
+@patch("os.getenv")
+@patch("github_broker.infrastructure.github_client.Github")
+def test_remove_label_raises_exception(mock_github, mock_getenv):
+    """Test that remove_label raises an exception for non-404 errors."""
+    mock_getenv.return_value = "fake_token"
+    mock_repo = MagicMock()
+    mock_repo.get_issue.side_effect = GithubException(
+        status=500, data={}, headers=None
+    )  # 500 error
+    mock_github_instance = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_github.return_value = mock_github_instance
+
+    client = GitHubClient()
+    with pytest.raises(GithubException):
+        client.remove_label("test/repo", 123, "label")
+
+
+@patch("os.getenv")
+@patch("github_broker.infrastructure.github_client.Github")
+def test_create_branch_raises_exception(mock_github, mock_getenv):
+    """Test that create_branch raises an exception for non-422 errors."""
+    mock_getenv.return_value = "fake_token"
+    mock_repo = MagicMock()
+    mock_repo.get_branch.side_effect = GithubException(
+        status=500, data={}, headers=None
+    )  # 500 error
+    mock_github_instance = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_github.return_value = mock_github_instance
+
+    client = GitHubClient()
+    with pytest.raises(GithubException):
+        client.create_branch("test/repo", "branch")
+
+
+@patch("os.getenv")
+def test_init_raises_value_error_if_no_token(mock_getenv):
+    """Test that __init__ raises ValueError if GITHUB_TOKEN is not set."""
+    mock_getenv.return_value = None
+    with pytest.raises(
+        ValueError, match="GITHUB_TOKEN環境変数にGitHubトークンが見つかりません。"
+    ):
+        GitHubClient()
+
+
+@patch("os.getenv")
+@patch("github_broker.infrastructure.github_client.Github")
+def test_remove_label_handles_404(mock_github, mock_getenv):
+    """Test that remove_label handles 404 errors gracefully."""
+    mock_getenv.return_value = "fake_token"
+    mock_repo = MagicMock()
+    mock_issue = MagicMock()
+    mock_issue.remove_from_labels.side_effect = GithubException(
+        status=404, data={}, headers=None
+    )
+    mock_repo.get_issue.return_value = mock_issue
+    mock_github_instance = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_github.return_value = mock_github_instance
+
+    client = GitHubClient()
+    result = client.remove_label("test/repo", 123, "non-existent-label")
+    assert result is True  # Should not re-raise
+
+
+@patch("os.getenv")
+@patch("github_broker.infrastructure.github_client.Github")
+def test_create_branch_handles_422(mock_github, mock_getenv):
+    """Test that create_branch handles 422 errors gracefully."""
+    mock_getenv.return_value = "fake_token"
+    mock_repo = MagicMock()
+    mock_repo.create_git_ref.side_effect = GithubException(
+        status=422, data={"message": "Reference already exists"}, headers=None
+    )
+    mock_github_instance = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_github.return_value = mock_github_instance
+
+    client = GitHubClient()
+    result = client.create_branch("test/repo", "existing-branch")
+    assert result is True  # Should not re-raise
+
+
 # --- Integration Tests ---
 
 # Marker to skip tests if environment variables are not set
 requires_github_token = pytest.mark.skipif(
-    not os.getenv("GH_TOKEN") or not os.getenv("GITHUB_REPOSITORY"),
-    reason="統合テストにはGH_TOKENおよびGITHUB_REPOSITORY環境変数が必要です",
+    not os.getenv("GITHUB_TOKEN") or not os.getenv("GITHUB_REPOSITORY"),
+    reason="統合テストにはGITHUB_TOKENおよびGITHUB_REPOSITORY環境変数が必要です",
 )
 
 
@@ -180,9 +394,9 @@ def test_repo_name():
 @pytest.fixture(scope="module")
 def raw_github_client():
     """テストのセットアップとティアダウンのために生のPyGithubインスタンスを提供します。"""
-    token = os.getenv("GH_TOKEN")
+    token = os.getenv("GITHUB_TOKEN")
     if not token:
-        pytest.skip("GH_TOKEN is not set.")
+        pytest.skip("GITHUB_TOKEN is not set.")
     return Github(token)
 
 

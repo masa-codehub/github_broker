@@ -105,10 +105,10 @@ def test_agent_client_initialization_with_port():
     assert client.port == 9000
 
 
-@patch.dict(os.environ, {"APP_PORT": "9999"})
+@patch.dict(os.environ, {"BROKER_PORT": "9999"})
 def test_agent_client_initialization_with_env_var():
     """
-    Test AgentClient initialization using APP_PORT environment variable.
+    Test AgentClient initialization using BROKER_PORT environment variable.
     """
     client = AgentClient(agent_id="test", capabilities=[])
     assert client.port == 9999
@@ -118,6 +118,6 @@ def test_agent_client_initialization_default_port(monkeypatch):
     """
     Test AgentClient initialization with the default port when env var is not set.
     """
-    monkeypatch.delenv("APP_PORT", raising=False)
+    monkeypatch.delenv("BROKER_PORT", raising=False)
     client = AgentClient(agent_id="test", capabilities=[])
     assert client.port == 8080
