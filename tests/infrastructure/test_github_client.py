@@ -514,8 +514,3 @@ def test_integration_lifecycle(github_client, test_repo_name, raw_github_client)
             if e.status != 404:  # Ignore if branch doesn't exist
                 print(f"Warning: Could not delete branch '{branch_to_create}': {e}")
         print("--- Cleanup Finished ---")
-
-
-# このファイルが直接実行された場合にテストを実行するためのエントリーポイント
-if __name__ == "__main__":
-    pytest.main()

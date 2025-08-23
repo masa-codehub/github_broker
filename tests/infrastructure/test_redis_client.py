@@ -1,99 +1,109 @@
-import unittest
 from unittest.mock import MagicMock
+
+import pytest
 
 from github_broker.infrastructure.redis_client import RedisClient
 
 
-class TestRedisClient(unittest.TestCase):
-    def setUp(self):
-        self.mock_redis_instance = MagicMock()
-        self.redis_client = RedisClient(self.mock_redis_instance)
-
-    def test_acquire_lock(self):
-        # Arrange
-        lock_key = "test_lock"
-        value = "locked"
-        timeout = 300
-        self.mock_redis_instance.set.return_value = True
-
-        # Act
-        result = self.redis_client.acquire_lock(lock_key, value, timeout)
-
-        # Assert
-        self.mock_redis_instance.set.assert_called_once_with(
-            lock_key, value, ex=timeout, nx=True
-        )
-        self.assertTrue(result)
-
-    def test_release_lock(self):
-        # Arrange
-        lock_key = "test_lock"
-        self.mock_redis_instance.delete.return_value = 1
-
-        # Act
-        result = self.redis_client.release_lock(lock_key)
-
-        # Assert
-        self.mock_redis_instance.delete.assert_called_once_with(lock_key)
-        self.assertTrue(result)
-
-    def test_release_lock_not_found(self):
-        # Arrange
-        lock_key = "test_lock"
-        self.mock_redis_instance.delete.return_value = 0
-
-        # Act
-        result = self.redis_client.release_lock(lock_key)
-
-        # Assert
-        self.assertFalse(result)
-
-    def test_get_value(self):
-        # Arrange
-        key = "test_key"
-        value = b"test_value"
-        self.mock_redis_instance.get.return_value = value
-
-        # Act
-        result = self.redis_client.get_value(key)
-
-        # Assert
-        self.mock_redis_instance.get.assert_called_once_with(key)
-        self.assertEqual(result, value.decode("utf-8"))
-
-    def test_get_value_none(self):
-        # Arrange
-        key = "test_key"
-        self.mock_redis_instance.get.return_value = None
-
-        # Act
-        result = self.redis_client.get_value(key)
-
-        # Assert
-        self.assertIsNone(result)
-
-    def test_set_value(self):
-        # Arrange
-        key = "test_key"
-        value = "test_value"
-        timeout = 300
-
-        # Act
-        self.redis_client.set_value(key, value, timeout)
-
-        # Assert
-        self.mock_redis_instance.set.assert_called_once_with(key, value, ex=timeout)
-
-    def test_delete_key(self):
-        # Arrange
-        key = "test_key"
-
-        # Act
-        self.redis_client.delete_key(key)
-
-        # Assert
-        self.mock_redis_instance.delete.assert_called_once_with(key)
+@pytest.fixture
+def mock_redis_instance():
+    """A mock for the redis.Redis instance."""
+    return MagicMock()
 
 
-if __name__ == "__main__":
-    unittest.main()
+@pytest.fixture
+def redis_client(mock_redis_instance):
+    """A RedisClient instance with a mocked redis instance."""
+    return RedisClient(mock_redis_instance)
+
+
+def test_acquire_lock(redis_client, mock_redis_instance):
+    # Arrange
+    lock_key = "test_lock"
+    value = "locked"
+    timeout = 300
+    mock_redis_instance.set.return_value = True
+
+    # Act
+    result = redis_client.acquire_lock(lock_key, value, timeout)
+
+    # Assert
+    mock_redis_instance.set.assert_called_once_with(
+        lock_key, value, ex=timeout, nx=True
+    )
+    assert result is True
+
+
+def test_release_lock(redis_client, mock_redis_instance):
+    # Arrange
+    lock_key = "test_lock"
+    mock_redis_instance.delete.return_value = 1
+
+    # Act
+    result = redis_client.release_lock(lock_key)
+
+    # Assert
+    mock_redis_instance.delete.assert_called_once_with(lock_key)
+    assert result is True
+
+
+def test_release_lock_not_found(redis_client, mock_redis_instance):
+    # Arrange
+    lock_key = "test_lock"
+    mock_redis_instance.delete.return_value = 0
+
+    # Act
+    result = redis_client.release_lock(lock_key)
+
+    # Assert
+    assert result is False
+
+
+def test_get_value(redis_client, mock_redis_instance):
+    # Arrange
+    key = "test_key"
+    value = b"test_value"
+    mock_redis_instance.get.return_value = value
+
+    # Act
+    result = redis_client.get_value(key)
+
+    # Assert
+    mock_redis_instance.get.assert_called_once_with(key)
+    assert result == value.decode("utf-8")
+
+
+def test_get_value_none(redis_client, mock_redis_instance):
+    # Arrange
+    key = "test_key"
+    mock_redis_instance.get.return_value = None
+
+    # Act
+    result = redis_client.get_value(key)
+
+    # Assert
+    assert result is None
+
+
+def test_set_value(redis_client, mock_redis_instance):
+    # Arrange
+    key = "test_key"
+    value = "test_value"
+    timeout = 300
+
+    # Act
+    redis_client.set_value(key, value, timeout)
+
+    # Assert
+    mock_redis_instance.set.assert_called_once_with(key, value, ex=timeout)
+
+
+def test_delete_key(redis_client, mock_redis_instance):
+    # Arrange
+    key = "test_key"
+
+    # Act
+    redis_client.delete_key(key)
+
+    # Assert
+    mock_redis_instance.delete.assert_called_once_with(key)
