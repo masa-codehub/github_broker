@@ -1,4 +1,5 @@
 import os
+import textwrap
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -12,16 +13,19 @@ from github_broker.interface.models import TaskResponse
 
 @pytest.fixture
 def mock_redis_client():
+    """Redisクライアントのモックを提供します。"""
     return MagicMock()
 
 
 @pytest.fixture
 def mock_github_client():
+    """GitHubクライアントのモックを提供します。"""
     return MagicMock()
 
 
 @pytest.fixture
 def task_service(mock_redis_client, mock_github_client):
+    """TaskServiceのテストインスタンスを提供します。"""
     with patch.dict(os.environ, {"GITHUB_REPOSITORY": "test/repo"}):
         return TaskService(
             redis_client=mock_redis_client,
@@ -31,11 +35,16 @@ def task_service(mock_redis_client, mock_github_client):
 
 @pytest.fixture
 def issue_with_branch():
+    """ブランチ名を持つIssueのモックを提供します。"""
     issue = MagicMock(spec=Issue)
     issue.id = 1
     issue.number = 123
-    issue.title = "Test Issue With Branch"
-    issue.body = "This is a test issue.\n\n## ブランチ名\n`feature/issue-123-test`"
+    issue.title = "ブランチ名付きのテストIssue"
+    issue.body = textwrap.dedent("""
+        これはテストIssueです。
+
+        ## ブランチ名
+        `feature/issue-123-test`""")
     issue.html_url = "https://github.com/test/repo/issues/123"
     label = MagicMock(spec=Label)
     label.name = "bug"
@@ -45,18 +54,19 @@ def issue_with_branch():
 
 @pytest.fixture
 def issue_without_branch():
+    """ブランチ名を持たないIssueのモックを提供します。"""
     issue = MagicMock(spec=Issue)
     issue.id = 2
     issue.number = 456
-    issue.title = "Test Issue Without Branch"
-    issue.body = "This issue has no branch name."
+    issue.title = "ブランチ名なしのテストIssue"
+    issue.body = "このIssueにはブランチ名がありません。"
     issue.html_url = "https://github.com/test/repo/issues/456"
     issue.labels = []
     return issue
 
 
 def test_request_task_no_open_issues(task_service, mock_github_client):
-    """Tests that None is returned when there are no open issues."""
+    """オープンなIssueがない場合にNoneが返されることをテストします。"""
     mock_github_client.get_open_issues.return_value = []
     result = task_service.request_task("test-agent")
     assert result is None
@@ -65,7 +75,7 @@ def test_request_task_no_open_issues(task_service, mock_github_client):
 def test_request_task_no_assignable_issues(
     task_service, mock_github_client, issue_without_branch
 ):
-    """Tests that None is returned when no issues have a branch name."""
+    """ブランチ名を持つIssueがない場合にNoneが返されることをテストします。"""
     mock_github_client.get_open_issues.return_value = [issue_without_branch]
     result = task_service.request_task("test-agent")
     assert result is None
@@ -78,7 +88,7 @@ def test_request_task_skips_issue_without_branch_name(
     issue_with_branch,
     issue_without_branch,
 ):
-    """Tests that the service skips an issue without a branch name and finds the next one."""
+    """サービスがブランチ名のないIssueをスキップし、次のIssueを見つけることをテストします。"""
     mock_github_client.get_open_issues.return_value = [
         issue_without_branch,
         issue_with_branch,
@@ -88,7 +98,7 @@ def test_request_task_skips_issue_without_branch_name(
     result = task_service.request_task("test-agent")
 
     assert isinstance(result, TaskResponse)
-    assert result.issue_id == 123  # The second issue
+    assert result.issue_id == 123  # 2番目のIssue
     mock_redis_client.acquire_lock.assert_called_once_with(
         "issue_lock_1", "locked", timeout=600
     )
@@ -97,12 +107,14 @@ def test_request_task_skips_issue_without_branch_name(
 def test_request_task_skips_locked_issue(
     task_service, mock_redis_client, mock_github_client, issue_with_branch
 ):
-    """Tests that the service skips a locked issue and finds the next one."""
+    """サービスがロックされたIssueをスキップし、次のIssueを見つけることをテストします。"""
     issue2_with_branch = MagicMock(spec=Issue)
     issue2_with_branch.id = 3
     issue2_with_branch.number = 789
-    issue2_with_branch.title = "Second Test Issue"
-    issue2_with_branch.body = "## ブランチ名\n`feature/issue-789-another`"
+    issue2_with_branch.title = "2番目のテストIssue"
+    issue2_with_branch.body = textwrap.dedent("""
+        ## ブランチ名
+        `feature/issue-789-another`""")
     issue2_with_branch.html_url = "https://github.com/test/repo/issues/789"
     issue2_with_branch.labels = []
 
@@ -110,13 +122,13 @@ def test_request_task_skips_locked_issue(
         issue_with_branch,
         issue2_with_branch,
     ]
-    # Fail lock for the first issue, succeed for the second
+    # 最初のIssueのロックに失敗し、2番目で成功する
     mock_redis_client.acquire_lock.side_effect = [False, True]
 
     result = task_service.request_task("test-agent")
 
     assert isinstance(result, TaskResponse)
-    assert result.issue_id == 789  # The second issue
+    assert result.issue_id == 789  # 2番目のIssue
     assert mock_redis_client.acquire_lock.call_count == 2
     mock_redis_client.acquire_lock.assert_any_call(
         "issue_lock_1", "locked", timeout=600
@@ -129,7 +141,7 @@ def test_request_task_skips_locked_issue(
 def test_request_task_success(
     task_service, mock_redis_client, mock_github_client, issue_with_branch
 ):
-    """Tests a successful task assignment."""
+    """タスクの割り当てが成功するケースをテストします。"""
     mock_redis_client.acquire_lock.return_value = True
     mock_github_client.get_open_issues.return_value = [issue_with_branch]
 
@@ -137,7 +149,7 @@ def test_request_task_success(
 
     assert isinstance(result, TaskResponse)
     assert result.issue_id == 123
-    assert result.title == "Test Issue With Branch"
+    assert result.title == "ブランチ名付きのテストIssue"
     assert result.branch_name == "feature/issue-123-test"
     mock_redis_client.acquire_lock.assert_called_once_with(
         "issue_lock_1", "locked", timeout=600
@@ -152,7 +164,7 @@ def test_request_task_success(
 def test_request_task_exception_after_lock(
     task_service, mock_redis_client, mock_github_client, issue_with_branch
 ):
-    """Tests that the lock is released if an exception occurs after locking."""
+    """ロック取得後に例外が発生した場合にロックが解放されることをテストします。"""
     mock_redis_client.acquire_lock.return_value = True
     mock_github_client.get_open_issues.return_value = [issue_with_branch]
     mock_github_client.add_label.side_effect = GithubException(
@@ -166,21 +178,27 @@ def test_request_task_exception_after_lock(
 
 
 def test_extract_branch_name_from_issue_found(task_service):
-    """Tests that a branch name is correctly extracted from the issue body."""
-    body = "Some text\n## ブランチ名\n`feature/issue-42-new-feature`\nMore text"
+    """Issue本文からブランチ名が正しく抽出されることをテストします。"""
+    body = textwrap.dedent("""
+        いくつかのテキスト
+        ## ブランチ名
+        `feature/issue-42-new-feature`
+        追加のテキスト""")
     branch_name = task_service._extract_branch_name_from_issue(body, 42)
     assert branch_name == "feature/issue-42-new-feature"
 
 
 def test_extract_branch_name_from_issue_not_found(task_service):
-    """Tests that None is returned when no branch name is found in the body."""
-    body = "Some text without branch name"
+    """本文にブランチ名が見つからない場合にNoneが返されることをテストします。"""
+    body = "ブランチ名のないテキスト"
     branch_name = task_service._extract_branch_name_from_issue(body, 42)
     assert branch_name is None
 
 
 def test_extract_branch_name_with_issue_xx_replacement(task_service):
-    """Tests that 'issue-xx' is correctly replaced with the actual issue number."""
-    body = "## ブランチ名\n`feature/issue-xx-cool-feature`"
+    """'issue-xx'が実際のIssue番号に正しく置換されることをテストします。"""
+    body = textwrap.dedent("""
+        ## ブランチ名
+        `feature/issue-xx-cool-feature`""")
     branch_name = task_service._extract_branch_name_from_issue(body, 99)
     assert branch_name == "feature/issue-99-cool-feature"

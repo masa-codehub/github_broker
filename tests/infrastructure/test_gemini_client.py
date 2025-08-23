@@ -8,7 +8,7 @@ from github_broker.infrastructure.gemini_client import GeminiClient
 @patch("os.getenv")
 def test_gemini_client_init_success(mock_getenv):
     """
-    Test that GeminiClient initializes successfully when GEMINI_API_KEY is set.
+    GEMINI_API_KEYが設定されている場合にGeminiClientが正常に初期化されることをテストします。
     """
     mock_getenv.return_value = "fake_gemini_api_key"
     client = GeminiClient()
@@ -19,7 +19,7 @@ def test_gemini_client_init_success(mock_getenv):
 @patch("os.getenv")
 def test_gemini_client_init_no_api_key(mock_getenv):
     """
-    Test that GeminiClient raises ValueError if GEMINI_API_KEY is not set.
+    GEMINI_API_KEYが設定されていない場合にGeminiClientがValueErrorを送出することをテストします。
     """
     mock_getenv.return_value = None
     with pytest.raises(
@@ -33,7 +33,7 @@ def test_gemini_client_init_no_api_key(mock_getenv):
 @patch("os.getenv")
 def test_select_best_issue_id_no_issues(mock_getenv):
     """
-    Test select_best_issue_id when no issues are provided.
+    Issueが提供されない場合にselect_best_issue_idがNoneを返すことをテストします。
     """
     mock_getenv.return_value = "fake_gemini_api_key"
     client = GeminiClient()
@@ -50,18 +50,17 @@ def test_select_best_issue_id_no_issues(mock_getenv):
 @patch("github_broker.infrastructure.gemini_client.genai.GenerativeModel")
 def test_select_best_issue_id_with_gemini_api_call(mock_generative_model, mock_getenv):
     """
-    Test that select_best_issue_id correctly calls the Gemini API,
-    generates a prompt, and parses the response.
+    select_best_issue_idがGemini APIを正しく呼び出し、プロンプトを生成し、レスポンスを解析することをテストします。
     """
     # Arrange
     mock_getenv.return_value = "fake_gemini_api_key"
 
-    # Mock the response from the Gemini API
+    # Gemini APIからのレスポンスをモック
     mock_gemini_response = MagicMock()
-    # The response text should be a JSON string.
+    # レスポンスのテキストはJSON文字列であるべき
     mock_gemini_response.text = '{"issue_id": 101}'
 
-    # The model's generate_content method returns the mock response
+    # モデルのgenerate_contentメソッドがモックレスポンスを返すように設定
     mock_model_instance = MagicMock()
     mock_model_instance.generate_content.return_value = mock_gemini_response
     mock_generative_model.return_value = mock_model_instance
@@ -71,14 +70,14 @@ def test_select_best_issue_id_with_gemini_api_call(mock_generative_model, mock_g
     issues = [
         {
             "id": 101,
-            "title": "Refactor database module",
-            "body": "The DB module is too complex.",
+            "title": "データベースモジュールのリファクタリング",
+            "body": "DBモジュールは複雑すぎます。",
             "labels": ["refactoring", "python"],
         },
         {
             "id": 102,
-            "title": "Fix login bug",
-            "body": "User cannot log in.",
+            "title": "ログインバグの修正",
+            "body": "ユーザーがログインできません。",
             "labels": ["bug", "frontend"],
         },
     ]
@@ -88,24 +87,24 @@ def test_select_best_issue_id_with_gemini_api_call(mock_generative_model, mock_g
     selected_id = client.select_best_issue_id(issues, capabilities)
 
     # Assert
-    # Verify that the model was called
+    # モデルが呼び出されたことを確認
     mock_model_instance.generate_content.assert_called_once()
 
-    # Get the actual prompt sent to the model
+    # モデルに送信された実際のプロンプトを取得
     actual_prompt = mock_model_instance.generate_content.call_args[0][0]
 
-    # Verify the prompt contains key information
-    assert "Refactor database module" in actual_prompt
+    # プロンプトに重要な情報が含まれていることを確認
+    assert "データベースモジュールのリファクタリング" in actual_prompt
     assert "python" in actual_prompt
     assert "refactoring" in actual_prompt
     assert "backend" in actual_prompt
-    # Check for a key phrase from the dedented prompt
+    # プロンプトからキーフレーズを確認
     assert (
         "あなたは熟練したソフトウェア開発プロジェクトマネージャーです。"
         in actual_prompt
     )
 
-    # Verify the result is correctly parsed
+    # 結果が正しく解析されたことを確認
     assert selected_id == 101
 
 
@@ -113,12 +112,12 @@ def test_select_best_issue_id_with_gemini_api_call(mock_generative_model, mock_g
 @patch("github_broker.infrastructure.gemini_client.genai.GenerativeModel")
 def test_select_best_issue_id_fallback_on_api_error(mock_generative_model, mock_getenv):
     """
-    Test that select_best_issue_id falls back to the first issue if the API call fails.
+    API呼び出しが失敗した場合にselect_best_issue_idが最初のIssueにフォールバックすることをテストします。
     """
     # Arrange
     mock_getenv.return_value = "fake_gemini_api_key"
 
-    # Mock the API call to raise an exception
+    # API呼び出しが例外を発生させるようにモック
     mock_model_instance = MagicMock()
     mock_model_instance.generate_content.side_effect = Exception("API Key Invalid")
     mock_generative_model.return_value = mock_model_instance
@@ -126,8 +125,8 @@ def test_select_best_issue_id_fallback_on_api_error(mock_generative_model, mock_
     client = GeminiClient()
 
     issues = [
-        {"id": 201, "title": "First Issue"},
-        {"id": 202, "title": "Second Issue"},
+        {"id": 201, "title": "最初のIssue"},
+        {"id": 202, "title": "2番目のIssue"},
     ]
     capabilities = ["*"]
 
@@ -135,5 +134,5 @@ def test_select_best_issue_id_fallback_on_api_error(mock_generative_model, mock_
     selected_id = client.select_best_issue_id(issues, capabilities)
 
     # Assert
-    # Verify that the fallback mechanism returned the ID of the first issue
+    # フォールバック機能が最初のIssueのIDを返したことを確認
     assert selected_id == 201

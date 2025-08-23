@@ -7,7 +7,7 @@ from github_broker.infrastructure.executors.gemini_executor import GeminiExecuto
 
 @pytest.fixture
 def executor():
-    """Provides a GeminiExecutor instance for tests with a log_dir."""
+    """ログディレクトリが設定された、テスト用のGeminiExecutorインスタンスを提供します。"""
     with patch("os.makedirs"):
         return GeminiExecutor(log_dir="/app/logs")
 
@@ -15,7 +15,7 @@ def executor():
 @patch("subprocess.Popen")
 def test_execute_success(mock_popen, executor):
     """
-    Test the successful execution of a task.
+    タスクの正常な実行をテストします。
     """
     # Arrange
     mock_proc = MagicMock()
@@ -41,13 +41,13 @@ def test_execute_success(mock_popen, executor):
         executor.execute(task)
 
     # Assert
-    assert mock_run.call_count == 2  # Initial and review phase
+    assert mock_run.call_count == 2  # 初回実行とレビューフェーズ
 
 
 @patch("subprocess.Popen")
 def test_execute_command_fails(mock_popen, executor):
     """
-    Test when the gemini cli command returns a non-zero exit code.
+    gemini cliコマンドが0以外の終了コードを返した場合をテストします。
     """
     # Arrange
     mock_proc = MagicMock()
@@ -66,7 +66,7 @@ def test_execute_command_fails(mock_popen, executor):
 @patch("subprocess.Popen", side_effect=FileNotFoundError("Command not found"))
 def test_execute_file_not_found(mock_popen, executor):
     """
-    Test when the gemini cli command is not found.
+    gemini cliコマンドが見つからない場合をテストします。
     """
     # Act
     executor.execute(
@@ -78,7 +78,7 @@ def test_execute_file_not_found(mock_popen, executor):
 
 
 def test_build_review_prompt(executor):
-    """Test the _build_review_prompt method."""
+    """_build_review_promptメソッドをテストします。"""
     original_prompt = "Original instruction"
     execution_output = "Initial output"
     review_prompt = executor._build_review_prompt(original_prompt, execution_output)
@@ -88,7 +88,7 @@ def test_build_review_prompt(executor):
 
 
 def test_get_log_filepath_success():
-    """Test _get_log_filepath returns a correct path when log_dir is set."""
+    """_get_log_filepathがlog_dir設定時に正しいパスを返すことをテストします。"""
     with patch("os.makedirs"):
         executor = GeminiExecutor(log_dir="/tmp/logs")
         filepath = executor._get_log_filepath("test-agent")
@@ -97,14 +97,14 @@ def test_get_log_filepath_success():
 
 
 def test_get_log_filepath_no_log_dir():
-    """Test _get_log_filepath returns None when log_dir is not set."""
+    """_get_log_filepathがlog_dir未設定時にNoneを返すことをテストします。"""
     executor = GeminiExecutor(log_dir=None)
     filepath = executor._get_log_filepath("test-agent")
     assert filepath is None
 
 
 def test_get_log_filepath_no_agent_id():
-    """Test _get_log_filepath returns None when agent_id is not provided."""
+    """_get_log_filepathがagent_id未提供時にNoneを返すことをテストします。"""
     with patch("os.makedirs"):
         executor = GeminiExecutor(log_dir="/app/logs")
         filepath = executor._get_log_filepath(None)
@@ -115,7 +115,7 @@ def test_get_log_filepath_no_agent_id():
     "github_broker.infrastructure.executors.gemini_executor.GeminiExecutor._run_sub_process"
 )
 def test_execute_handles_log_read_error(mock_run_sub_process, executor):
-    """Test that the review step is skipped if reading the log file fails."""
+    """ログファイルの読み込み失敗時にレビューがスキップされることをテストします。"""
     mock_run_sub_process.return_value = True
     task = {"title": "t", "body": "b", "branch_name": "b", "agent_id": "test-agent"}
 
@@ -128,6 +128,6 @@ def test_execute_handles_log_read_error(mock_run_sub_process, executor):
 
 @patch("subprocess.Popen", side_effect=Exception("Unexpected error"))
 def test_run_sub_process_handles_generic_exception(mock_popen, executor):
-    """Test that _run_sub_process handles generic exceptions."""
+    """_run_sub_processが一般的な例外を処理することをテストします。"""
     result = executor._run_sub_process(["some", "command"], "/tmp/log.txt")
     assert result is False
