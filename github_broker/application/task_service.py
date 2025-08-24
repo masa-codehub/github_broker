@@ -92,12 +92,12 @@ class TaskService:
         # Prepare issues for GeminiClient.select_best_issue_id
         gemini_issues_input = [
             {
-                "id": issue.number,
-                "title": issue.title,
-                "body": issue.body or "",
-                "labels": [label.name for label in issue.labels],
+                "id": issue_obj.number,
+                "title": issue_obj.title,
+                "body": issue_obj.body or "",
+                "labels": [label.name for label in issue_obj.labels],
             }
-            for issue in candidate_issues
+            for issue_obj, _ in candidate_issues
         ]
 
         # Gemini APIを使用して最適なIssueを選択
