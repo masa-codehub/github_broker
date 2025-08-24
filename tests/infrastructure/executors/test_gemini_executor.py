@@ -46,7 +46,7 @@ def test_init_loads_prompts_from_file(mock_prompts):
         executor_instance = GeminiExecutor(prompt_file=prompt_file_path)
 
         # Assert
-        mock_file.assert_called_once_with(prompt_file_path, "r", encoding="utf-8")
+        mock_file.assert_called_once_with(prompt_file_path, encoding="utf-8")
         mock_safe_load.assert_called_once()
         assert executor_instance.build_prompt_template == mock_prompts["build_prompt"]
         assert executor_instance.review_prompt_template == mock_prompts["review_prompt"]
