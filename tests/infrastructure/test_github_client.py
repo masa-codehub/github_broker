@@ -341,6 +341,7 @@ def raw_github_client():
     return Github(token)
 
 
+@pytest.mark.integration
 @requires_github_token
 def test_integration_lifecycle(github_client, test_repo_name, raw_github_client):
     """
