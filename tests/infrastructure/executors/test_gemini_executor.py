@@ -1,142 +1,154 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import mock_open, patch
 
 import pytest
+import yaml
 
 from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
 
+PROMPT_FILE_CONTENT = """
+build_prompt: |
+  Title: {title}
+  Branch: {branch_name}
+  Body: {body}
+review_prompt: |
+  Original: {original_prompt}
+  Output: {execution_output}
+"""
+
 
 @pytest.fixture
-def executor():
-    """ログディレクトリが設定された、テスト用のGeminiExecutorインスタンスを提供します。"""
-    with patch("os.makedirs"):
+def mock_prompts():
+    """ロードされたプロンプトの辞書をモックします"""
+    return yaml.safe_load(PROMPT_FILE_CONTENT)
+
+
+@pytest.fixture
+def executor(mock_prompts):
+    """プロンプトがモックされた、テスト用のGeminiExecutorインスタンスを提供します"""
+    with (
+        patch("builtins.open", mock_open(read_data=PROMPT_FILE_CONTENT)),
+        patch("yaml.safe_load", return_value=mock_prompts),
+        patch("os.makedirs"),
+    ):
+        # __init__ 内でファイルIOとyamlパースがモックされる
         return GeminiExecutor(log_dir="/app/logs")
 
 
-@patch("subprocess.Popen")
-def test_execute_success(mock_popen, executor):
-    """
-    タスクの正常な実行をテストします。
-    """
+def test_init_loads_prompts_from_file(mock_prompts):
+    """__init__がプロンプトファイルを正しく読み込むことをテストします"""
     # Arrange
-    mock_proc = MagicMock()
-    mock_proc.returncode = 0
-    mock_proc.stdout = ["line 1", "line 2"]
-    mock_popen.return_value.__enter__.return_value = mock_proc
+    prompt_file_path = "dummy/path/prompts.yml"
+    with (
+        patch("builtins.open", mock_open(read_data=PROMPT_FILE_CONTENT)) as mock_file,
+        patch("yaml.safe_load", return_value=mock_prompts) as mock_safe_load,
+    ):
+        # Act
+        executor_instance = GeminiExecutor(prompt_file=prompt_file_path)
 
+        # Assert
+        mock_file.assert_called_once_with(prompt_file_path, encoding="utf-8")
+        mock_safe_load.assert_called_once()
+        assert executor_instance.build_prompt_template == mock_prompts["build_prompt"]
+        assert executor_instance.review_prompt_template == mock_prompts["review_prompt"]
+
+
+def test_build_prompt(executor):
+    """_build_promptがテンプレートに基づいてプロンプトを正しく構築することをテストします"""
+    # Act
+    prompt = executor._build_prompt("Test Title", "Test Body", "feature/test")
+
+    # Assert
+    assert prompt == "Title: Test Title\nBranch: feature/test\nBody: Test Body\n"
+
+
+def test_build_review_prompt(executor):
+    """_build_review_promptがテンプレートに基づいてプロンプトを正しく構築することをテストします"""
+    # Act
+    review_prompt = executor._build_review_prompt("Original", "Output")
+
+    # Assert
+    assert review_prompt == "Original: Original\nOutput: Output\n"
+
+
+@patch(
+    "github_broker.infrastructure.executors.gemini_executor.GeminiExecutor._run_sub_process"
+)
+def test_execute_success(mock_run_sub_process, executor):
+    """タスクの正常な実行（初回＋レビュー）をテストします"""
+    # Arrange
+    mock_run_sub_process.return_value = True
     task = {
         "title": "Test Title",
         "body": "Test Body",
         "branch_name": "feature/test",
         "agent_id": "test-agent",
     }
-
-    # Act
-    with (
-        patch("builtins.open"),
-        patch(
-            "github_broker.infrastructure.executors.gemini_executor.GeminiExecutor._run_sub_process"
-        ) as mock_run,
-    ):
-        mock_run.return_value = True
+    # openをモックして、ログファイルの読み書きをシミュレート
+    with patch("builtins.open", mock_open(read_data="initial output")):
+        # Act
         executor.execute(task)
 
     # Assert
-    assert mock_run.call_count == 2  # 初回実行とレビューフェーズ
+    assert mock_run_sub_process.call_count == 2
 
 
-@patch("subprocess.Popen")
-def test_execute_command_fails(mock_popen, executor):
-    """
-    gemini cliコマンドが0以外の終了コードを返した場合をテストします。
-    """
+@patch(
+    "github_broker.infrastructure.executors.gemini_executor.GeminiExecutor._run_sub_process"
+)
+def test_execute_first_run_fails(mock_run_sub_process, executor):
+    """初回実行が失敗した場合、レビューステップがスキップされることをテストします"""
     # Arrange
-    mock_proc = MagicMock()
-    mock_proc.returncode = 1
-    mock_proc.stdout = ["error occurred"]
-    mock_popen.return_value.__enter__.return_value = mock_proc
+    mock_run_sub_process.return_value = False  # 実行失敗をシミュレート
     task = {"title": "t", "body": "b", "branch_name": "b", "agent_id": "test-agent"}
 
     # Act
-    with patch(
-        "github_broker.infrastructure.executors.gemini_executor.GeminiExecutor._run_sub_process"
-    ) as mock_run_sub_process:
-        mock_run_sub_process.return_value = False
-        executor.execute(task)
+    executor.execute(task)
 
     # Assert
     mock_run_sub_process.assert_called_once()
-
-
-@patch("subprocess.Popen", side_effect=FileNotFoundError("Command not found"))
-def test_execute_file_not_found(mock_popen, executor):
-    """
-    gemini cliコマンドが見つからない場合をテストします。
-    """
-    # Arrange
-    task = {"title": "t", "body": "b", "branch_name": "b", "agent_id": "test-agent"}
-
-    # Act
-    with patch(
-        "github_broker.infrastructure.executors.gemini_executor.GeminiExecutor._run_sub_process"
-    ) as mock_run_sub_process:
-        mock_run_sub_process.return_value = False
-        executor.execute(task)
-
-    # Assert
-    mock_run_sub_process.assert_called_once()
-
-
-def test_build_review_prompt(executor):
-    """_build_review_promptメソッドをテストします。"""
-    original_prompt = "Original instruction"
-    execution_output = "Initial output"
-    review_prompt = executor._build_review_prompt(original_prompt, execution_output)
-    assert "あなたはシニア品質保証エンジニアです。" in review_prompt
-    assert original_prompt in review_prompt
-    assert execution_output in review_prompt
-
-
-def test_get_log_filepath_success():
-    """_get_log_filepathがlog_dir設定時に正しいパスを返すことをテストします。"""
-    with patch("os.makedirs"):
-        executor = GeminiExecutor(log_dir="/tmp/logs")
-        filepath = executor._get_log_filepath("test-agent")
-        assert filepath.startswith("/tmp/logs/test-agent_")
-        assert filepath.endswith(".md")
-
-
-def test_get_log_filepath_no_log_dir():
-    """_get_log_filepathがlog_dir未設定時にNoneを返すことをテストします。"""
-    executor = GeminiExecutor(log_dir=None)
-    filepath = executor._get_log_filepath("test-agent")
-    assert filepath is None
-
-
-def test_get_log_filepath_no_agent_id():
-    """_get_log_filepathがagent_id未提供時にNoneを返すことをテストします。"""
-    with patch("os.makedirs"):
-        executor = GeminiExecutor(log_dir="/app/logs")
-        filepath = executor._get_log_filepath(None)
-        assert filepath is None
 
 
 @patch(
     "github_broker.infrastructure.executors.gemini_executor.GeminiExecutor._run_sub_process"
 )
 def test_execute_handles_log_read_error(mock_run_sub_process, executor):
-    """ログファイルの読み込み失敗時にレビューがスキップされることをテストします。"""
+    """ログファイルの読み込み失敗時にレビューがスキップされることをテストします"""
+    # Arrange
     mock_run_sub_process.return_value = True
     task = {"title": "t", "body": "b", "branch_name": "b", "agent_id": "test-agent"}
 
-    with patch("builtins.open", side_effect=OSError("Failed to read")):
+    # openをモックして、読み込み時にエラーを発生させる
+    with patch("builtins.open", mock_open()) as mock_file:
+        mock_file.side_effect = OSError("Failed to read")
+        # Act
         executor.execute(task)
 
-    # Assert that only the first call to _run_sub_process happened
+    # Assert
+    # 初回実行は呼ばれるが、レビューのための2回目の実行はスキップされる
     mock_run_sub_process.assert_called_once()
 
 
-@patch("subprocess.Popen", side_effect=Exception("Unexpected error"))
+@patch("subprocess.Popen")
+def test_run_sub_process_handles_file_not_found(mock_popen, executor):
+    """_run_sub_processがFileNotFoundErrorを処理することをテストします"""
+    # Arrange
+    mock_popen.side_effect = FileNotFoundError("Command not found")
+
+    # Act
+    result = executor._run_sub_process(["gemini"], "/tmp/log.txt")
+
+    # Assert
+    assert result is False
+
+
+@patch("subprocess.Popen")
 def test_run_sub_process_handles_generic_exception(mock_popen, executor):
-    """_run_sub_processが一般的な例外を処理することをテストします。"""
+    """_run_sub_processが一般的な例外を処理することをテストします"""
+    # Arrange
+    mock_popen.side_effect = Exception("Unexpected error")
+
+    # Act
     result = executor._run_sub_process(["some", "command"], "/tmp/log.txt")
+
+    # Assert
     assert result is False

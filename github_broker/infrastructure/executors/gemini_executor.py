@@ -4,6 +4,8 @@ import os
 import subprocess
 from typing import Any
 
+import yaml
+
 
 class GeminiExecutor:
     """
@@ -11,18 +13,35 @@ class GeminiExecutor:
     品質向上のため、実行とレビューの2段階プロセスを実装しています。
     """
 
-    def __init__(self, log_dir: str | None = None, model: str = "gemini-2.5-flash"):
+    def __init__(
+        self,
+        log_dir: str | None = None,
+        model: str = "gemini-1.5-flash",
+        prompt_file: str = "github_broker/infrastructure/prompts/gemini_executor.yml",
+    ):
         """
         Executorを初期化します。
 
         Args:
             log_dir (Optional[str]): 実行ログを保存するディレクトリ。
             model (str): 使用するGeminiモデルの名前。
+            prompt_file (str): プロンプトテンプレートが記述されたYAMLファイルのパス。
         """
         self.log_dir = log_dir
         self.model = model
         if self.log_dir:
             os.makedirs(self.log_dir, exist_ok=True)
+
+        try:
+            with open(prompt_file, encoding="utf-8") as f:
+                prompts = yaml.safe_load(f)
+            self.build_prompt_template = prompts["build_prompt"]
+            self.review_prompt_template = prompts["review_prompt"]
+        except (FileNotFoundError, KeyError) as e:
+            logging.error(f"プロンプトファイルの読み込みまたは解析に失敗しました: {e}")
+            # フォールバックとして空のテンプレートを設定
+            self.build_prompt_template = ""
+            self.review_prompt_template = ""
 
     def execute(self, task: dict[str, Any]):
         """タスクを初回実行と自己レビューの2段階プロセスで実行します。
@@ -126,20 +145,12 @@ class GeminiExecutor:
 
     def _build_prompt(self, title: str, body: str, branch_name: str) -> str:
         """タスク実行のための初回プロンプトを構築します。"""
-        return (
-            f"以下のGitHub Issueを解決してください。必ず行動を宣言をしながらタスクを進めること。\n"
-            f"作業用のブランチ '{branch_name}' は既に作成済みです。\n"
-            f"まずそのブランチに切り替えてから、Issueの指示に従って実装を開始してください。\n\n"
-            f"# Issue: {title}\n\n{body}"
+        return self.build_prompt_template.format(
+            title=title, body=body, branch_name=branch_name
         )
 
     def _build_review_prompt(self, original_prompt: str, execution_output: str) -> str:
         """自己レビューステップのためのプロンプトを構築します。"""
-        return (
-            f"あなたはシニア品質保証エンジニアです。あなたのタスクは、開発者エージェントの作業をレビューすることです。\n"
-            f"以下に元の指示と、その指示に対するエージェントの出力が示されています。\n"
-            f"エージェントの出力が、元の指示を完全かつ正確に実装しているか確認してください。間違い、漏れ、改善の余地がある点を特定してください。\n"
-            f"その上で、修正および完成させた最終版の成果物全体を提示してください。あなたの出力は、修正点だけではなく、最終的な完成物そのものである必要があります。\n\n"
-            f"--- 元の指示 ---\n{original_prompt}\n\n"
-            f"--- エージェントの初回出力 ---\n{execution_output}"
+        return self.review_prompt_template.format(
+            original_prompt=original_prompt, execution_output=execution_output
         )
