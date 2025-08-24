@@ -102,18 +102,20 @@ graph TD
 
 4.  **タスク選択とブランチ作成ロジック:**
 
-    1.  **Issueの事前フィルタリング:** GitHubクライアントを介して、オープンかつ未割り当てのIssue（`in-progress`と`needs-review`ラベルを持たない）を全て取得する。
-    2.  **タスクの前提条件チェック：取得したIssueの中から、本文に「成果物」セクションが正しく定義されているものだけを候補として絞り込む。**
-    3.  **知的選択:** 絞り込んだIssue候補リストとワーカーの`capabilities`を基に、Geminiの能力を使って最適なIssueを1つ選択する。
-    4.  **ブランチ作成：**
+    1.  **Issueの取得:** GitHubクライアントを介して、リポジトリのオープンなIssueを全て取得する。
+    2.  **候補のフィルタリング:** 取得したIssueと、ワーカーから受け取った`capabilities`を比較し、Issueが持つラベルの**うち1つでも**`capabilities`に含まれているものをタスク候補とする。
+    3.  **優先順位付け:** タスク候補を、`capabilities`とラベルの**一致数が最も多い順**にソートする。これにより、ワーカーの能力に最も合致するタスクが優先される。
+    4.  **前提条件チェック:** 優先順位の高い順に各候補Issueの本文をチェックし、「成果物」セクションが正しく定義されている最初のIssueを選択する。
+    5.  **ブランチ作成：**
           * 選択したIssueに対応するブランチを**GitHubクライアント**経由で作成する。
           * **Issue本文にブランチ名の指定がない場合は、`feature/issue-{issue_id}`という形式でデフォルト名を生成する。**
-    5.  **タスク割り当て:** 選択したIssueに`in-progress`と`[agent_id]`のラベルを付与する。
+    6.  **タスク割り当て:** 選択したIssueに`in-progress`と`[agent_id]`のラベルを付与する。
+    7.  **候補なし:** 全ての候補が前提条件チェックをパスしなかった場合、割り当てるタスクはないものとする。
 
 5.  **GitHubクライアント:**
 
       * GitHub APIとの通信をカプセル化する内部ライブラリ。
-      * `get_open_issues()`: **`in-progress`と`needs-review`ラベルを持つIssueを除外**して検索する。
+      * `get_open_issues()`: リポジトリに存在する**全てのオープンなIssueを取得**する。具体的なフィルタリングはアプリケーション層の責務とする。
       * **`find_issues_by_labels()`: GitHub検索APIの不安定性を回避するため、リポジトリの全Issueを取得してからアプリケーション側でラベルによるフィルタリングを行うロジックを持つ。**
       * **スケーラビリティに関する注意点:** この全件取得アプローチは、リポジトリのIssueが数万件規模に増加した場合、パフォーマンスの低下やAPIレート制限のリスクを伴います。将来的な対策として、ETagを利用したキャッシュ戦略や、定期的な全件取得とWebhookによる差分更新を組み合わせるなどの検討が必要です。
       * `update_issue(issue_id, ...)`
@@ -145,10 +147,11 @@ sequenceDiagram
         end
 
         Note over Server, GitHub: 新タスクの選択
-        Server->>GitHub: GET /issues (オープンなIssue取得)
+        Server->>GitHub: GET /issues (全てのオープンなIssue取得)
         GitHub-->>Server: Issue List
-        Server->>Server: **Filter Issues (前提条件チェック)**
-        Note right of Server: Geminiの能力で最適なIssueを選択
+        Server->>Server: 1. Filter by Capabilities (1つでも一致)
+        Server->>Server: 2. Sort by match count (一致数で降順ソート)
+        Server->>Server: 3. Check for "成果物" section
         
         alt 最適なIssueあり
             Note over Server, GitHub: 新タスクの割り当てとブランチ作成
@@ -174,8 +177,6 @@ sequenceDiagram
 
 #### 7\. 堅牢性のための設計
 
-  * **Gemini API障害時のフォールバック:**
-      * **Gemini APIとの通信に失敗した場合、システムは停止せず、Issue候補リストの先頭にあるものを選択する、というシンプルなロジックにフォールバックする。**
   * **GitHub APIの特性への対応:**
       * **ブランチが既に存在する場合 (`422 Reference already exists`) はエラーとせず、処理を続行する。**
       * **Issueのラベル更新直後の検索反映遅延を考慮し、明示的な待機時間を設ける。**
@@ -284,7 +285,6 @@ services:
 | `BROKER_PORT`       | サーバーがリッスンするポート番号。             | `8080`       |
 | `GITHUB_TOKEN`      | GitHub API認証用のパーソナルアクセストークン。 | `None`       |
 | `GITHUB_REPOSITORY` | 操作対象のリポジトリ (例: `owner/repo`)。      | `None`       |
-| `GEMINI_API_KEY`    | Gemini API認証用のキー。                       | `None`       |
 | `REDIS_HOST`        | Redisサーバーのホスト名。                      | `localhost`  |
 | `REDIS_PORT`        | Redisサーバーのポート番号。                    | `6379`       |
 | `REDIS_DB`          | Redisのデータベース番号。                        | `0`          |
