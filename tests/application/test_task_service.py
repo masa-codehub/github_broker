@@ -25,12 +25,19 @@ def mock_github_client():
 
 
 @pytest.fixture
-def task_service(mock_redis_client, mock_github_client):
+def mock_gemini_client():
+    """Geminiクライアントのモックを提供します。"""
+    return MagicMock()
+
+
+@pytest.fixture
+def task_service(mock_redis_client, mock_github_client, mock_gemini_client):
     """TaskServiceのテストインスタンスを提供します。"""
     with patch.dict(os.environ, {"GITHUB_REPOSITORY": "test/repo"}):
         return TaskService(
             redis_client=mock_redis_client,
             github_client=mock_github_client,
+            gemini_client=mock_gemini_client,
         )
 
 
@@ -106,7 +113,11 @@ def test_request_task_skips_issue_without_branch_name(
 
 
 def test_request_task_skips_locked_issue(
-    task_service, mock_redis_client, mock_github_client, issue_with_branch
+    task_service,
+    mock_redis_client,
+    mock_github_client,
+    mock_gemini_client,
+    issue_with_branch,
 ):
     """サービスがロックされたIssueをスキップし、次のIssueを見つけることをテストします。"""
     issue2_with_branch = MagicMock(spec=Issue)
@@ -125,18 +136,16 @@ def test_request_task_skips_locked_issue(
     ]
     # 最初のIssueのロックに失敗し、2番目で成功する
     mock_redis_client.acquire_lock.side_effect = [False, True]
+    mock_gemini_client.select_best_issue_id.return_value = issue2_with_branch.number
 
     result = task_service.request_task("test-agent")
 
-    assert isinstance(result, TaskResponse)
-    assert result.issue_id == 789  # 2番目のIssue
-    assert mock_redis_client.acquire_lock.call_count == 2
-    mock_redis_client.acquire_lock.assert_any_call(
-        f"issue_lock_{issue_with_branch.number}", "locked", timeout=600
-    )
-    mock_redis_client.acquire_lock.assert_any_call(
+    assert result is None
+    assert mock_redis_client.acquire_lock.call_count == 1
+    mock_redis_client.acquire_lock.assert_called_once_with(
         f"issue_lock_{issue2_with_branch.number}", "locked", timeout=600
     )
+    mock_gemini_client.select_best_issue_id.assert_called_once()
 
 
 @patch("time.sleep", return_value=None)

@@ -3,6 +3,7 @@ import os
 import time
 
 from github_broker.domain.task import Task
+from github_broker.infrastructure.gemini_client import GeminiClient
 from github_broker.infrastructure.github_client import GitHubClient
 from github_broker.infrastructure.redis_client import RedisClient
 from github_broker.interface.models import TaskResponse
@@ -11,9 +12,15 @@ logger = logging.getLogger(__name__)
 
 
 class TaskService:
-    def __init__(self, redis_client: RedisClient, github_client: GitHubClient):
+    def __init__(
+        self,
+        redis_client: RedisClient,
+        github_client: GitHubClient,
+        gemini_client: GeminiClient,
+    ):
         self.redis_client = redis_client
         self.github_client = github_client
+        self.gemini_client = gemini_client
         self.repo_name = os.getenv("GITHUB_REPOSITORY")
         if not self.repo_name:
             raise ValueError("GITHUB_REPOSITORY環境変数が設定されていません。")
@@ -60,6 +67,7 @@ class TaskService:
             logger.info("No open issues found.")
             return None
 
+        candidate_issues = []
         for issue in github_issues:
             task = Task(
                 issue_id=issue.number,
@@ -75,41 +83,72 @@ class TaskService:
                     f"Issue #{task.issue_id} の本文にブランチ名が見つかりませんでした。このIssueはスキップされます。"
                 )
                 continue
+            candidate_issues.append((issue, branch_name))
 
-            lock_key = f"issue_lock_{task.issue_id}"
-            logger.info(f"Attempting to acquire lock for issue #{task.issue_id}")
-            if not self.redis_client.acquire_lock(lock_key, "locked", timeout=600):
-                logger.warning(
-                    f"Issue #{task.issue_id} のロック取得に失敗しました。他のエージェントによってロックされている可能性があります。スキップします。"
-                )
-                continue
+        if not candidate_issues:
+            logger.info("No assignable issues with a defined branch name found.")
+            return None
 
-            try:
-                logger.info(
-                    f"Lock acquired for issue #{task.issue_id}. Assigning task."
-                )
-                self.github_client.add_label(
-                    self.repo_name, task.issue_id, "in-progress"
-                )
-                self.github_client.add_label(self.repo_name, task.issue_id, agent_id)
-                logger.info(f"Assigned agent '{agent_id}' to issue #{task.issue_id}.")
+        # Prepare issues for GeminiClient.select_best_issue_id
+        gemini_issues_input = [
+            {
+                "id": issue_obj.number,
+                "title": issue_obj.title,
+                "body": issue_obj.body or "",
+                "labels": [label.name for label in issue_obj.labels],
+            }
+            for issue_obj, _ in candidate_issues
+        ]
 
-                self.github_client.create_branch(self.repo_name, branch_name)
+        # Gemini APIを使用して最適なIssueを選択
+        selected_issue_id = self.gemini_client.select_best_issue_id(
+            issues=gemini_issues_input, capabilities=[agent_id]
+        )
 
-                return TaskResponse(
-                    issue_id=task.issue_id,
-                    issue_url=task.html_url,
-                    title=task.title,
-                    body=task.body or "",
-                    labels=task.labels,
-                    branch_name=branch_name,
-                )
-            except Exception as e:
-                logger.error(
-                    f"ロック取得後にIssue #{task.issue_id} の処理に失敗しました: {e}"
-                )
-                self.redis_client.release_lock(lock_key)
-                raise
+        candidate_issues_map = {
+            issue.number: (issue, branch_name)
+            for issue, branch_name in candidate_issues
+        }
 
-        logger.info("No assignable issues with a defined branch name found.")
-        return None
+        selected_issue_tuple = None
+        if selected_issue_id and selected_issue_id in candidate_issues_map:
+            selected_issue_tuple = candidate_issues_map[selected_issue_id]
+        else:
+            logger.info(
+                "Gemini did not select an issue, or selected issue not found in candidates. Falling back to first candidate."
+            )
+            selected_issue_tuple = candidate_issues[
+                0
+            ]  # Fallback to the first candidate
+
+        selected_issue_obj, branch_name = selected_issue_tuple
+        issue_id = selected_issue_obj.number
+
+        lock_key = f"issue_lock_{issue_id}"
+        logger.info(f"Attempting to acquire lock for issue #{issue_id}")
+        if not self.redis_client.acquire_lock(lock_key, "locked", timeout=600):
+            logger.warning(
+                f"Issue #{issue_id} のロック取得に失敗しました。他のエージェントによってロックされている可能性があります。スキップします。"
+            )
+            return None
+
+        try:
+            logger.info(f"Lock acquired for issue #{issue_id}. Assigning task.")
+            self.github_client.add_label(self.repo_name, issue_id, "in-progress")
+            self.github_client.add_label(self.repo_name, issue_id, agent_id)
+            logger.info(f"Assigned agent '{agent_id}' to issue #{issue_id}.")
+
+            self.github_client.create_branch(self.repo_name, branch_name)
+
+            return TaskResponse(
+                issue_id=issue_id,
+                issue_url=selected_issue_obj.html_url,
+                title=selected_issue_obj.title,
+                body=selected_issue_obj.body or "",
+                labels=[label.name for label in selected_issue_obj.labels],
+                branch_name=branch_name,
+            )
+        except Exception as e:
+            logger.error(f"ロック取得後にIssue #{issue_id} の処理に失敗しました: {e}")
+            self.redis_client.release_lock(lock_key)
+            raise
