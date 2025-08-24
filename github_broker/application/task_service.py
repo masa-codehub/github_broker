@@ -78,25 +78,12 @@ class TaskService:
             )
             branch_name = task.extract_branch_name()
 
-            candidate_issues = []
-        for issue in github_issues:
-            task = Task(
-                issue_id=issue.number,
-                title=issue.title,
-                body=issue.body or "",
-                html_url=issue.html_url,
-                labels=[label.name for label in issue.labels],
-            )
-            branch_name = task.extract_branch_name()
-
             if not branch_name:
                 logger.warning(
                     f"Issue #{task.issue_id} の本文にブランチ名が見つかりませんでした。このIssueはスキップされます。"
                 )
                 continue
-            # Store the original issue object along with the extracted branch_name
-            issue.extracted_branch_name = branch_name
-            candidate_issues.append(issue)
+            candidate_issues.append((issue, branch_name))
 
         if not candidate_issues:
             logger.info("No assignable issues with a defined branch name found.")
@@ -118,21 +105,24 @@ class TaskService:
             issues=gemini_issues_input, capabilities=[agent_id]
         )
 
-        selected_issue_obj = None
-        if selected_issue_id:
-            for issue_obj in candidate_issues:
-                if issue_obj.number == selected_issue_id:
-                    selected_issue_obj = issue_obj
-                    break
+        candidate_issues_map = {
+            issue.number: (issue, branch_name)
+            for issue, branch_name in candidate_issues
+        }
 
-        if not selected_issue_obj:
+        selected_issue_tuple = None
+        if selected_issue_id and selected_issue_id in candidate_issues_map:
+            selected_issue_tuple = candidate_issues_map[selected_issue_id]
+        else:
             logger.info(
                 "Gemini did not select an issue, or selected issue not found in candidates. Falling back to first candidate."
             )
-            selected_issue_obj = candidate_issues[0]  # Fallback to the first candidate
+            selected_issue_tuple = candidate_issues[
+                0
+            ]  # Fallback to the first candidate
 
+        selected_issue_obj, branch_name = selected_issue_tuple
         issue_id = selected_issue_obj.number
-        branch_name = selected_issue_obj.extracted_branch_name
 
         lock_key = f"issue_lock_{issue_id}"
         logger.info(f"Attempting to acquire lock for issue #{issue_id}")
