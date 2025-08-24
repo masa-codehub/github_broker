@@ -4,6 +4,7 @@ from pydantic import BaseModel, HttpUrl
 class AgentTaskRequest(BaseModel):
     agent_id: str
     capabilities: list[str]
+    capabilities: list[str]
 
 
 class TaskResponse(BaseModel):

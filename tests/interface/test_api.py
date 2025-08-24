@@ -33,33 +33,33 @@ def test_request_task_success(mock_task_service):
         branch_name="feature/issue-123-test",
     )
     mock_task_service.request_task.return_value = expected_task
+    request_body = {"agent_id": "test-agent", "capabilities": ["python", "fastapi"]}
 
     # Act
-    response = client.post(
-        "/request-task",
-        json={"agent_id": "test-agent", "capabilities": ["python"]},
-    )
+    response = client.post("/request-task", json=request_body)
 
     # Assert
     assert response.status_code == 200
     assert response.json() == expected_task.model_dump(mode="json")
-    mock_task_service.request_task.assert_called_once_with(agent_id="test-agent")
+    mock_task_service.request_task.assert_called_once_with(
+        agent_id=request_body["agent_id"], capabilities=request_body["capabilities"]
+    )
 
 
 def test_request_task_no_task_available(mock_task_service):
     """利用可能なタスクがない場合（204 No Content）の/request-taskエンドポイントをテストします。"""
     # Arrange
     mock_task_service.request_task.return_value = None
+    request_body = {"agent_id": "test-agent", "capabilities": ["python"]}
 
     # Act
-    response = client.post(
-        "/request-task",
-        json={"agent_id": "test-agent", "capabilities": ["python"]},
-    )
+    response = client.post("/request-task", json=request_body)
 
     # Assert
     assert response.status_code == 204
-    mock_task_service.request_task.assert_called_once_with(agent_id="test-agent")
+    mock_task_service.request_task.assert_called_once_with(
+        agent_id=request_body["agent_id"], capabilities=request_body["capabilities"]
+    )
 
 
 def test_request_task_lock_error(mock_task_service):
@@ -67,14 +67,14 @@ def test_request_task_lock_error(mock_task_service):
     # Arrange
     error_message = "サーバーがビジー状態です。後でもう一度お試しください。"
     mock_task_service.request_task.side_effect = LockAcquisitionError(error_message)
+    request_body = {"agent_id": "test-agent", "capabilities": ["python"]}
 
     # Act
-    response = client.post(
-        "/request-task",
-        json={"agent_id": "test-agent", "capabilities": ["python"]},
-    )
+    response = client.post("/request-task", json=request_body)
 
     # Assert
     assert response.status_code == 503
     assert response.json() == {"message": error_message}
-    mock_task_service.request_task.assert_called_once_with(agent_id="test-agent")
+    mock_task_service.request_task.assert_called_once_with(
+        agent_id=request_body["agent_id"], capabilities=request_body["capabilities"]
+    )

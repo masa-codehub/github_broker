@@ -4,7 +4,6 @@ import punq
 from redis import Redis
 
 from github_broker.application.task_service import TaskService
-from github_broker.infrastructure.gemini_client import GeminiClient
 from github_broker.infrastructure.github_client import GitHubClient
 from github_broker.infrastructure.redis_client import RedisClient
 
@@ -24,16 +23,12 @@ container.register(RedisClient, instance=RedisClient(redis_instance))
 # GitHubClientの登録
 container.register(GitHubClient, scope=punq.Scope.singleton)
 
-# GeminiClientの登録
-container.register(GeminiClient, scope=punq.Scope.singleton)
-
 # TaskServiceの登録
 container.register(
     TaskService,
     instance=TaskService(
         redis_client=container.resolve(RedisClient),
         github_client=container.resolve(GitHubClient),
-        gemini_client=container.resolve(GeminiClient),
     ),
     scope=punq.Scope.singleton,
 )

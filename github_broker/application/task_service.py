@@ -3,7 +3,6 @@ import os
 import time
 
 from github_broker.domain.task import Task
-from github_broker.infrastructure.gemini_client import GeminiClient
 from github_broker.infrastructure.github_client import GitHubClient
 from github_broker.infrastructure.redis_client import RedisClient
 from github_broker.interface.models import TaskResponse
@@ -16,11 +15,9 @@ class TaskService:
         self,
         redis_client: RedisClient,
         github_client: GitHubClient,
-        gemini_client: GeminiClient,
     ):
         self.redis_client = redis_client
         self.github_client = github_client
-        self.gemini_client = gemini_client
         self.repo_name = os.getenv("GITHUB_REPOSITORY")
         if not self.repo_name:
             raise ValueError("GITHUB_REPOSITORY環境変数が設定されていません。")
@@ -52,103 +49,105 @@ class TaskService:
                 f"Updated labels for issue #{issue.number}: removed {remove_labels}, added {add_labels}."
             )
 
-    def request_task(self, agent_id: str) -> TaskResponse | None:
-        """
-        GitHubからアサイン可能なIssueを探し、ロックして、タスク情報を返します。
-        アサイン可能なIssueとは、オープンであり、かつ本文にブランチ名が指定されているものです。
-        """
-        self.complete_previous_task(agent_id)
-        # GitHubの検索インデックス遅延を考慮し、一定時間待機
-        time.sleep(15)
-        logger.info(f"Searching for open issues in repository: {self.repo_name}")
-        github_issues = self.github_client.get_open_issues(self.repo_name)
-
-        if not github_issues:
-            logger.info("No open issues found.")
-            return None
-
+    def _find_and_sort_candidates(self, issues: list, capabilities: list[str]) -> list:
+        """Issueをフィルタリングし、Capabilityとの一致数でソートします。"""
         candidate_issues = []
-        for issue in github_issues:
-            task = Task(
-                issue_id=issue.number,
-                title=issue.title,
-                body=issue.body or "",
-                html_url=issue.html_url,
-                labels=[label.name for label in issue.labels],
-            )
-            branch_name = task.extract_branch_name()
+        agent_capabilities = set(capabilities)
 
+        for issue in issues:
+            issue_labels = {label.name for label in issue.labels}
+            match_count = len(agent_capabilities.intersection(issue_labels))
+
+            if match_count > 0:
+                candidate_issues.append({"issue": issue, "match_count": match_count})
+
+        if not candidate_issues:
+            logger.info("No issues found matching agent's capabilities.")
+            return []
+
+        return sorted(candidate_issues, key=lambda x: x["match_count"], reverse=True)
+
+    def _find_first_assignable_task(
+        self, sorted_candidates: list, agent_id: str
+    ) -> TaskResponse | None:
+        """ソート済みの候補リストから、最初に割り当て可能なタスクを見つけます。"""
+        for candidate in sorted_candidates:
+            issue_obj = candidate["issue"]
+            task = Task(
+                issue_id=issue_obj.number,
+                title=issue_obj.title,
+                body=issue_obj.body or "",
+                html_url=issue_obj.html_url,
+                labels=[label.name for label in issue_obj.labels],
+            )
+
+            if not task.is_assignable():
+                logger.info(
+                    f"Issue #{task.issue_id} is not assignable (missing '成果物' section). Skipping."
+                )
+                continue
+
+            branch_name = task.extract_branch_name()
             if not branch_name:
                 logger.warning(
                     f"Issue #{task.issue_id} の本文にブランチ名が見つかりませんでした。このIssueはスキップされます。"
                 )
                 continue
-            candidate_issues.append((issue, branch_name))
 
-        if not candidate_issues:
-            logger.info("No assignable issues with a defined branch name found.")
+            lock_key = f"issue_lock_{task.issue_id}"
+            if not self.redis_client.acquire_lock(lock_key, "locked", timeout=600):
+                logger.warning(
+                    f"Issue #{task.issue_id} is locked by another agent. Skipping."
+                )
+                continue
+
+            try:
+                logger.info(
+                    f"Lock acquired for issue #{task.issue_id}. Assigning task."
+                )
+                self.github_client.add_label(
+                    self.repo_name, task.issue_id, "in-progress"
+                )
+                self.github_client.add_label(self.repo_name, task.issue_id, agent_id)
+                logger.info(f"Assigned agent '{agent_id}' to issue #{task.issue_id}.")
+
+                self.github_client.create_branch(self.repo_name, branch_name)
+
+                return TaskResponse(
+                    issue_id=task.issue_id,
+                    issue_url=task.html_url,
+                    title=task.title,
+                    body=task.body,
+                    labels=task.labels,
+                    branch_name=branch_name,
+                )
+            except Exception as e:
+                logger.error(
+                    f"Failed to process issue #{task.issue_id} after acquiring lock: {e}"
+                )
+                self.redis_client.release_lock(lock_key)
+                raise
+
+        logger.info("No assignable and unlocked issues found.")
+        return None
+
+    def request_task(
+        self, agent_id: str, capabilities: list[str]
+    ) -> TaskResponse | None:
+        """
+        エージェントのCapabilityに基づいて最適なIssueを探し、タスク情報を返します。
+        """
+        self.complete_previous_task(agent_id)
+        time.sleep(15)  # GitHubの検索インデックス遅延を考慮
+
+        logger.info(f"Searching for open issues in repository: {self.repo_name}")
+        all_issues = self.github_client.get_open_issues(self.repo_name)
+        if not all_issues:
+            logger.info("No open issues found.")
             return None
 
-        # Prepare issues for GeminiClient.select_best_issue_id
-        gemini_issues_input = [
-            {
-                "id": issue_obj.number,
-                "title": issue_obj.title,
-                "body": issue_obj.body or "",
-                "labels": [label.name for label in issue_obj.labels],
-            }
-            for issue_obj, _ in candidate_issues
-        ]
-
-        # Gemini APIを使用して最適なIssueを選択
-        selected_issue_id = self.gemini_client.select_best_issue_id(
-            issues=gemini_issues_input, capabilities=[agent_id]
-        )
-
-        candidate_issues_map = {
-            issue.number: (issue, branch_name)
-            for issue, branch_name in candidate_issues
-        }
-
-        selected_issue_tuple = None
-        if selected_issue_id and selected_issue_id in candidate_issues_map:
-            selected_issue_tuple = candidate_issues_map[selected_issue_id]
-        else:
-            logger.info(
-                "Gemini did not select an issue, or selected issue not found in candidates. Falling back to first candidate."
-            )
-            selected_issue_tuple = candidate_issues[
-                0
-            ]  # Fallback to the first candidate
-
-        selected_issue_obj, branch_name = selected_issue_tuple
-        issue_id = selected_issue_obj.number
-
-        lock_key = f"issue_lock_{issue_id}"
-        logger.info(f"Attempting to acquire lock for issue #{issue_id}")
-        if not self.redis_client.acquire_lock(lock_key, "locked", timeout=600):
-            logger.warning(
-                f"Issue #{issue_id} のロック取得に失敗しました。他のエージェントによってロックされている可能性があります。スキップします。"
-            )
+        sorted_candidates = self._find_and_sort_candidates(all_issues, capabilities)
+        if not sorted_candidates:
             return None
 
-        try:
-            logger.info(f"Lock acquired for issue #{issue_id}. Assigning task.")
-            self.github_client.add_label(self.repo_name, issue_id, "in-progress")
-            self.github_client.add_label(self.repo_name, issue_id, agent_id)
-            logger.info(f"Assigned agent '{agent_id}' to issue #{issue_id}.")
-
-            self.github_client.create_branch(self.repo_name, branch_name)
-
-            return TaskResponse(
-                issue_id=issue_id,
-                issue_url=selected_issue_obj.html_url,
-                title=selected_issue_obj.title,
-                body=selected_issue_obj.body or "",
-                labels=[label.name for label in selected_issue_obj.labels],
-                branch_name=branch_name,
-            )
-        except Exception as e:
-            logger.error(f"ロック取得後にIssue #{issue_id} の処理に失敗しました: {e}")
-            self.redis_client.release_lock(lock_key)
-            raise
+        return self._find_first_assignable_task(sorted_candidates, agent_id)

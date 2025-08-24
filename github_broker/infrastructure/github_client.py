@@ -17,16 +17,13 @@ class GitHubClient:
 
     def get_open_issues(self, repo_name: str):
         """
-        進行中でなく、レビューを必要としないすべてのオープンなIssueを取得します。
-        クエリはシンプルで、状態ラベルの有無に依存しています。
+        リポジトリに存在するすべてのオープンなIssueを取得します。
         """
         try:
-            query = f'repo:{repo_name} is:issue is:open -label:"in-progress" -label:"needs-review"'
-            logging.info(f"クエリ: {query} でアサイン可能なIssueを検索中")
+            query = f"repo:{repo_name} is:issue is:open"
+            logging.info(f"クエリ: {query} でオープンなIssueを検索中")
             issues = self._client.search_issues(query=query)
-            logging.info(
-                f"アサイン可能なIssueが {issues.totalCount} 件見つかりました。"
-            )
+            logging.info(f"オープンなIssueが {issues.totalCount} 件見つかりました。")
             return list(issues)
         except GithubException as e:
             logging.error(

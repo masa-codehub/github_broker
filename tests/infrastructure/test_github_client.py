@@ -10,61 +10,6 @@ from github_broker.infrastructure.github_client import GitHubClient
 
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
-def test_get_open_issues_filters_in_progress(mock_github, mock_getenv):
-    """
-    get_open_issuesが'in-progress'ラベルを持つIssueを除外することを確認するテスト。
-    """
-    # Arrange
-    mock_getenv.return_value = "fake_token"
-
-    mock_issue_in_progress = MagicMock()
-    mock_issue_in_progress.number = 1
-    mock_issue_in_progress.title = "進行中のIssue"
-    mock_label_in_progress = MagicMock()
-    mock_label_in_progress.name = "in-progress"
-    mock_issue_in_progress.labels = [mock_label_in_progress]
-
-    mock_issue_open = MagicMock()
-    mock_issue_open.number = 2
-    mock_issue_open.title = "オープンなIssue"
-    mock_issue_open.labels = []
-
-    # フィルタリングされた場合に返されるPaginatedListオブジェクトをモック
-    mock_search_result_filtered = MagicMock()
-    mock_search_result_filtered.totalCount = 1
-    mock_search_result_filtered.__iter__.return_value = [mock_issue_open]
-
-    # このモックはsearch_issuesメソッドの動作をシミュレートします
-    def search_issues_side_effect(query):
-        # クエリが'in-progress'でフィルタリングされている場合、フィルタリングされたリストを返す
-        if '-label:"in-progress"' in query:
-            return mock_search_result_filtered
-        # それ以外の場合は、フィルタリングされていないリストを返すか、エラーを発生させることができます
-        # このテストでは、フィルタリングされた呼び出しのみを期待します
-        return MagicMock()
-
-    mock_github_instance = MagicMock()
-    mock_github_instance.search_issues.side_effect = search_issues_side_effect
-    mock_github.return_value = mock_github_instance
-
-    client = GitHubClient()
-    repo_name = "test/repo"
-
-    # Act
-    issues = client.get_open_issues(repo_name)
-
-    # Assert
-    expected_query = (
-        f'repo:{repo_name} is:issue is:open -label:"in-progress" -label:"needs-review"'
-    )
-    mock_github_instance.search_issues.assert_called_once_with(query=expected_query)
-
-    assert len(issues) == 1
-    assert issues[0].title == "オープンなIssue"
-
-
-@patch("os.getenv")
-@patch("github_broker.infrastructure.github_client.Github")
 def test_add_label_success(mock_github, mock_getenv):
     """
     add_labelが正しいパラメータでGitHubライブラリを呼び出すことを確認するテスト。
@@ -435,15 +380,15 @@ def test_integration_lifecycle(github_client, test_repo_name, raw_github_client)
         print("--- 実行中: get_open_issuesのテスト ---")
         open_issues = github_client.get_open_issues(test_repo_name)
 
-        # フィルターされたIssueが存在せず、保持されるべきIssueが存在することを確認
+        # フィルタリングされなくなったため、両方のIssueが含まれることを確認
         issue_numbers = [issue.number for issue in open_issues]
         print(f"見つかったオープンなIssue番号: {issue_numbers}")
         print(
-            f"Issue #{issue_to_keep.number} が見つかり、Issue #{issue_to_filter.number} が見つからないことを期待しています"
+            f"Issue #{issue_to_keep.number} と Issue #{issue_to_filter.number} の両方が見つかることを期待しています"
         )
 
         assert issue_to_keep.number in issue_numbers
-        assert issue_to_filter.number not in issue_numbers
+        assert issue_to_filter.number in issue_numbers
         print("--- PASSED: get_open_issuesのテスト ---")
 
         # 3. --- add_labelとremove_labelのテスト ---

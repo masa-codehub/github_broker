@@ -11,13 +11,15 @@ class Task:
     labels: list[str]
 
     def is_assignable(self) -> bool:
-        # TODO: Issueの準備状態をチェックするロジックをここに移動する
-        return True
+        """Issueの本文に「## 成果物」セクションが存在するかどうかを判定します。"""
+        if self.body:
+            return bool(re.search(r"^## 成果物", self.body, re.MULTILINE))
+        return False
 
     def extract_branch_name(self) -> str | None:
-        # TODO: ブランチ名を決定するロジックをここに移動する
+        """Issueの本文からブランチ名を抽出します。"""
         if self.body:
-            match = re.search(r"## ブランチ名\s*\n\s*`?([^\s`]+)`?", self.body)
+            match = re.search(r"## ブランチ名\s+`?([^\s`]+)`?", self.body)
             if match:
                 branch_name = match.group(1).strip()
                 return branch_name.replace("issue-xx", f"issue-{self.issue_id}")
