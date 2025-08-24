@@ -30,13 +30,16 @@ def task_service(mock_redis_client, mock_github_client):
         )
 
 
-def create_mock_issue(number, title, body, labels):
+def create_mock_issue(number, title, body, labels, has_branch_name: bool = True):
     """テスト用のIssueモックを生成するヘルパー関数。"""
     issue = MagicMock(spec=Issue)
     issue.number = number
     issue.title = title
-    # デフォルトでブランチ名セクションを追加
-    full_body = body + f"\n\n## ブランチ名\n`feature/issue-{number}`"
+
+    full_body = body
+    if has_branch_name:
+        full_body += f"\n\n## ブランチ名\n`feature/issue-{number}`"
+
     issue.body = full_body
     issue.html_url = f"https://github.com/test/repo/issues/{number}"
 
@@ -176,3 +179,41 @@ def test_request_task_skips_locked_issue(
     assert result is not None
     assert result.issue_id == 2  # 2番目のIssueが選択される
     assert mock_redis_client.acquire_lock.call_count == 2
+
+
+@patch("time.sleep", return_value=None)
+def test_request_task_skips_issue_without_branch_name(
+    mock_sleep, task_service, mock_github_client, mock_redis_client
+):
+    """「成果物」はあるがブランチ名がないIssueをスキップすることをテストします。"""
+    # Arrange
+    issue_no_branch = create_mock_issue(
+        number=1,
+        title="No branch name",
+        body="## 成果物\n- some deliverable",
+        labels=["python"],
+        has_branch_name=False,
+    )
+    issue_with_branch = create_mock_issue(
+        number=2,
+        title="With branch name",
+        body="## 成果物\n- another deliverable",
+        labels=["python"],
+    )
+    mock_github_client.get_open_issues.return_value = [
+        issue_no_branch,
+        issue_with_branch,
+    ]
+    mock_github_client.search_issues.return_value = []
+    mock_redis_client.acquire_lock.return_value = True
+
+    agent_capabilities = ["python"]
+
+    # Act
+    result = task_service.request_task(
+        agent_id="test-agent", capabilities=agent_capabilities
+    )
+
+    # Assert
+    assert result is not None
+    assert result.issue_id == 2  # 2番目のIssueが選択される
