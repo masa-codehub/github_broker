@@ -6,54 +6,83 @@
 
 ---
 
-## 1. 共通スキル (Core Skills)
+## 1. 能力（Capability）の語彙体系
 
-役割を問わず、ほとんどのエージェントが持つべき基本的な能力です。個別のエージェントの必須スキルリストでは、これらの記載を省略することがあります。
+プロジェクト内で使用される標準的なスキルキーワードのマスターリストです。
 
-- `git`: バージョン管理の基本操作
-- `documentation`: ドキュメントの読解や、成果物をドキュメントとしてまとめる能力
+### 1.1. プログラミング言語
+- `python`
+- `shell`
+- `typescript`
 
-## 2. 専門エージェントの役割と必須スキル
+### 1.2. フレームワーク & ライブラリ
+- `fastapi`
+- `pydantic`
+- `pytest`
+- `react`
+- `sqlalchemy`
 
-各エージェントの主な役割と、その役割を遂行する上で専門的に要求される必須スキル（`must`スキル）を定義します。
+### 1.3. ツール & プラットフォーム
+- `aws`
+- `docker`
+- `gcp`
+- `git`
+- `github-actions`
+- `redis`
 
-### 2.1. 開発 (Development)
+### 1.4. スキル & 概念
+- `api-design`
+- `architecture-design`
+- `backend`
+- `bugfix`
+- `ci-cd`
+- `copywriting`
+- `documentation`
+- `frontend`
+- `issue-analysis`
+- `performance`
+- `performance-tuning`
+- `pest-analysis`
+- `refactor`
+- `refactoring`
+- `security`
+- `strategy-planning`
+- `test-writing`
+- `ui-design`
+- `ux-research`
+- `web-research`
 
-#### BACKEND_CODER
-- **役割:** Pythonを用いたAPIサーバーの設計、実装、テストを担当します。
-- **必須スキル:** `python`, `fastapi`, `pydantic`, `pytest`, `api-design`, `test-writing`, `docker`
+### 1.5. プロセス & ステータス
+- `code-review`
+- `needs-review`
 
-#### FRONT_END_CODER
-- **役割:** TypeScriptとReactを用いたフロントエンドアプリケーションの設計、実装を担当します。
-- **必須スキル:** `typescript`, `react`, `ui-design`, `docker`
+---
 
-### 2.2. 設計 (Design)
+## 2. エージェントの役割と必須スキル
 
-#### SYSTEM_ARCHITECT
-- **役割:** システム全体のアーキテクチャ設計、技術選定、非機能要件（パフォーマンス、セキュリティ）の定義を担当します。
-- **必須スキル:** `architecture-design`, `api-design`, `security`, `performance`
+### 2.1. 共通必須スキル (Common Must-Have Skills)
 
-#### UIUX_DESIGNER
-- **役割:** ユーザー体験（UX）のリサーチと、それに基づいたユーザーインターフェース（UI）の設計を担当します。
-- **必須スキル:** `ui-design`, `ux-research`
+開発や分析に関わる多くのエージェントが共通して持つべき必須スキルです。
 
-### 2.3. コンテンツ & 分析 (Contents & Analysis)
+- `git`: バージョン管理
+- `docker`: コンテナ技術
+- `documentation`: ドキュメントの読解・作成
 
-#### CONTENTS_WRITER
-- **役割:** ドキュメント、ブログ記事、UIのマイクロコピーなど、テキストコンテンツの執筆を担当します。
-- **必須スキル:** `copywriting`
+### 2.2. 専門スキル (Specialized Skills)
 
-#### MARKET_RESEARCHER
-- **役割:** ウェブ上の情報収集や競合分析を通じて、市場の動向を調査・報告します。
-- **必須スキル:** `web-research`
+各エージェントの役割と、共通スキルに加えて要求される専門的な必須スキル（`must`スキル）の対応表です。
 
-#### PEST_ANALYST
-- **役割:** 政治・経済・社会・技術の観点からマクロ環境を分析し、事業戦略への影響を報告します。
-- **必須スキル:** `pest-analysis`
-
-#### STRATEGIST
-- **役割:** プロジェクト全体の課題を分析し、次のアクションアイテム（Issue）を起票して戦略を立案します。
-- **必須スキル:** `strategy-planning`, `issue-analysis`
+| エージェント名 | 役割 | 専門必須スキル（`must`） |
+| :--- | :--- | :--- |
+| **BACKEND_CODER** | APIサーバーの設計、実装、テスト | `python`, `fastapi`, `pydantic`, `pytest`, `api-design`, `test-writing` |
+| **FRONT_END_CODER** | フロントエンドUIの実装 | `typescript`, `react`, `ui-design` |
+| **SYSTEM_ARCHITECT** | システム全体のアーキテクチャ設計 | `architecture-design`, `api-design`, `security`, `performance` |
+| **UIUX_DESIGNER** | UI設計とUXリサーチ | `ui-design`, `ux-research` |
+| **CODE_REVIEWER** | コードレビューとフィードバック | `code-review`, `needs-review`, `python`, `typescript` |
+| **CONTENTS_WRITER** | テキストコンテンツの執筆 | `copywriting` |
+| **MARKET_RESEARCHER** | 市場動向の調査・報告 | `web-research` |
+| **PEST_ANALYST** | マクロ環境の分析・報告 | `pest-analysis` |
+| **STRATEGIST** | 戦略立案と課題起票 | `strategy-planning`, `issue-analysis` |
 
 ---
 
