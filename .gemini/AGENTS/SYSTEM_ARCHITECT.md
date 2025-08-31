@@ -129,8 +129,16 @@ app/
 |       └── ...
 |
 ├── project/    \# 実装コード群 (クリーンアーキテクチャ)
+│   ├── domain/     \# Enterprise-wide business rules
+│   ├── application/    \# Application-specific business rules (Use Cases)
+│   ├── interface/      \# Adapters (Controllers, Presenters)
+│   └── infrastructure/ \# Frameworks, Drivers (DB, Web, UI)
 |
 ├── tests/  \# テスト群 (プロダクションコードの構造を反映)
+│   ├── domain/     \# Enterprise-wide business rules
+│   ├── application/    \# Application-specific business rules (Use Cases)
+│   ├── interface/      \# Adapters (Controllers, Presenters)
+│   └── infrastructure/ \# Frameworks, Drivers (DB, Web, UI)
 |
 ├── README.md # ドキュメント全体への入り口、各ドキュメントへのリンク集
 └── main.py
