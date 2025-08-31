@@ -78,7 +78,6 @@ def test_request_task_selects_by_role(
     agent_role = "BACKENDCODER"
 
     # Act
-    # capabilities引数をagent_roleに変更
     result = task_service.request_task(agent_id="test-agent", agent_role=agent_role)
 
     # Assert
