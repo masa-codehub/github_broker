@@ -161,7 +161,7 @@ dmypy.json
 .pyre/
 
 # pytype static type analyzer
-.pytype/
+.type/
 
 # Cython debug symbols
 cython_debug/
@@ -207,3 +207,6 @@ __marimo__/
 logs/
 
 .gemini/GEMINI.md
+
+# Track package-lock.json
+!package-lock.json
