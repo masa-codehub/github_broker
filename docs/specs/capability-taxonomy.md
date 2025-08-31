@@ -12,41 +12,45 @@
 
 #### 1.1. プログラミング言語 (Programming Languages)
 - `python`
-- `typescript`
 - `shell`
+- `typescript`
 
 #### 1.2. フレームワーク & ライブラリ (Frameworks & Libraries)
 - `fastapi`
 - `pydantic`
 - `pytest`
-- `sqlalchemy`
 - `react`
+- `sqlalchemy`
 
 #### 1.3. ツール & プラットフォーム (Tools & Platforms)
-- `git`
-- `docker`
-- `redis`
-- `github-actions`
 - `aws`
+- `docker`
 - `gcp`
+- `git`
+- `github-actions`
+- `redis`
 
 #### 1.4. スキル & 概念 (Skills & Concepts)
-- `bugfix`
-- `refactor`
-- `test-writing`
-- `documentation`
-- `copywriting`
 - `api-design`
 - `architecture-design`
-- `security`
-- `performance`
+- `backend`
+- `bugfix`
 - `ci-cd`
+- `copywriting`
+- `documentation`
+- `frontend`
+- `issue-analysis`
+- `performance`
+- `performance-tuning`
+- `pest-analysis`
+- `refactor`
+- `refactoring`
+- `security`
+- `strategy-planning`
+- `test-writing`
 - `ui-design`
 - `ux-research`
 - `web-research`
-- `pest-analysis`
-- `strategy-planning`
-- `issue-analysis`
 
 ---
 
@@ -57,11 +61,10 @@
 | エージェント名 | 必須スキル（`must`） |
 | :--- | :--- |
 | **BACKEND_CODER** | `python`, `fastapi`, `pydantic`, `pytest`, `git`, `docker`, `api-design`, `test-writing` |
-| **FRONT_ENDCODER** | `typescript`, `react`, `git`, `docker`, `ui-design` |
+| **FRONT_END_CODER** | `typescript`, `react`, `git`, `docker`, `ui-design` |
 | **SYSTEM_ARCHITECT** | `architecture-design`, `api-design`, `security`, `performance`, `docker` |
 | **UIUX_DESIGNER** | `ui-design`, `ux-research` |
 | **CONTENTS_WRITER** | `documentation`, `copywriting` |
 | **MARKET_RESEARCHER** | `web-research`, `documentation` |
 | **PEST_ANALYST** | `pest-analysis`, `documentation` |
 | **STRATEGIST** | `strategy-planning`, `issue-analysis` |
-
