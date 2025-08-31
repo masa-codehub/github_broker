@@ -128,7 +128,7 @@ class TaskService:
         エージェントの役割（role）に基づいて最適なIssueを探し、タスク情報を返します。
         """
         self.complete_previous_task(agent_id)
-        time.sleep(15)  # GitHubの検索インデックス遅延を考慮
+        time.sleep(15)
 
         logger.info(f"Searching for open issues in repository: {self.repo_name}")
         all_issues = self.github_client.get_open_issues(self.repo_name)
