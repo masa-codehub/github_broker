@@ -62,7 +62,7 @@ class TaskService:
         self, candidate_issues: list, agent_id: str
     ) -> TaskResponse | None:
         """候補リストから、最初に割り当て可能なタスクを見つけます。"""
-        for issue_obj in sorted(candidate_issues, key=lambda i: i.number): # Issue番号でソート
+        for issue_obj in sorted(candidate_issues, key=lambda i: i.number):
             task = Task(
                 issue_id=issue_obj.number,
                 title=issue_obj.title,
