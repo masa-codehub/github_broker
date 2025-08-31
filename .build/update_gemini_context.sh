@@ -1,14 +1,14 @@
 #!/bin/bash
 
-AGENT_ROLL_UPPER=$(echo $AGENT_ROLL | tr '[:lower:]' '[:upper:]')
+AGENT_ROLE_UPPER=$(echo $AGENT_ROLE | tr '[:lower:]' '[:upper:]')
 
-if [ -z "$AGENT_ROLL_UPPER" ]; then
-    echo "エラー: AGENT_ROLL 環境変数が設定されていません。" >&2
+if [ -z "$AGENT_ROLE_UPPER" ]; then
+    echo "エラー: AGENT_ROLE 環境変数が設定されていません。" >&2
     exit 1
 fi
 
 GEMINI_MD_PATH="/app/.gemini/GEMINI.md"
-AGENT_MD_PATH="/app/.gemini/AGENTS/${AGENT_ROLL_UPPER}.md"
+AGENT_MD_PATH="/app/.gemini/AGENTS/${AGENT_ROLE_UPPER}.md"
 
 if [ ! -f "$AGENT_MD_PATH" ]; then
     echo "エラー: エージェントロールファイルが $AGENT_MD_PATH に見つかりません。" >&2
