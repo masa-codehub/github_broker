@@ -3,8 +3,7 @@ from pydantic import BaseModel, HttpUrl
 
 class AgentTaskRequest(BaseModel):
     agent_id: str
-    capabilities: list[str]
-    capabilities: list[str]
+    agent_role: str
 
 
 class TaskResponse(BaseModel):

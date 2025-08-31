@@ -49,30 +49,24 @@ class TaskService:
                 f"Updated labels for issue #{issue.number}: removed {remove_labels}, added {add_labels}."
             )
 
-    def _find_and_sort_candidates(self, issues: list, capabilities: list[str]) -> list:
-        """Issueをフィルタリングし、Capabilityとの一致数でソートします。"""
+    def _find_candidates_by_role(self, issues: list, agent_role: str) -> list:
+        """指定された役割（role）ラベルを持つIssueをフィルタリングします。"""
         candidate_issues = []
-        agent_capabilities = set(capabilities)
-
         for issue in issues:
             issue_labels = {label.name for label in issue.labels}
-            match_count = len(agent_capabilities.intersection(issue_labels))
-
-            if match_count > 0:
-                candidate_issues.append({"issue": issue, "match_count": match_count})
-
+            if agent_role in issue_labels:
+                candidate_issues.append(issue)
+        
         if not candidate_issues:
-            logger.info("No issues found matching agent's capabilities.")
-            return []
-
-        return sorted(candidate_issues, key=lambda x: x["match_count"], reverse=True)
+            logger.info(f"No issues found with role label: {agent_role}")
+        
+        return candidate_issues
 
     def _find_first_assignable_task(
-        self, sorted_candidates: list, agent_id: str
+        self, candidate_issues: list, agent_id: str
     ) -> TaskResponse | None:
-        """ソート済みの候補リストから、最初に割り当て可能なタスクを見つけます。"""
-        for candidate in sorted_candidates:
-            issue_obj = candidate["issue"]
+        """候補リストから、最初に割り当て可能なタスクを見つけます。"""
+        for issue_obj in sorted(candidate_issues, key=lambda i: i.number): # Issue番号でソート
             task = Task(
                 issue_id=issue_obj.number,
                 title=issue_obj.title,
@@ -132,13 +126,13 @@ class TaskService:
         return None
 
     def request_task(
-        self, agent_id: str, capabilities: list[str]
+        self, agent_id: str, agent_role: str
     ) -> TaskResponse | None:
         """
-        エージェントのCapabilityに基づいて最適なIssueを探し、タスク情報を返します。
+        エージェントの役割（role）に基づいて最適なIssueを探し、タスク情報を返します。
         """
         self.complete_previous_task(agent_id)
-        time.sleep(15)  # GitHubの検索インデックス遅延を考慮
+        time.sleep(15)
 
         logger.info(f"Searching for open issues in repository: {self.repo_name}")
         all_issues = self.github_client.get_open_issues(self.repo_name)
@@ -146,8 +140,8 @@ class TaskService:
             logger.info("No open issues found.")
             return None
 
-        sorted_candidates = self._find_and_sort_candidates(all_issues, capabilities)
-        if not sorted_candidates:
+        candidate_issues = self._find_candidates_by_role(all_issues, agent_role)
+        if not candidate_issues:
             return None
 
-        return self._find_first_assignable_task(sorted_candidates, agent_id)
+        return self._find_first_assignable_task(candidate_issues, agent_id)
