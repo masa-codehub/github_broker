@@ -1,27 +1,52 @@
 services:
-  service-name:
+  agent:
     build:
-      context: ./${BROKER_NAME}/.build
+      context: ./${AGENT_NAME}/.build
       dockerfile: Dockerfile
-    image: ${BROKER_NAME}_image
+    image: ${AGENT_NAME}_image
     volumes:
-      - ./${BROKER_NAME}:${CONTAINER_VOLUME:-/app}
+      - ./${AGENT_NAME}:${CONTAINER_VOLUME:-/app}
+      - ./messages:${MESSAGE_DIR:-/app/messages}
+    working_dir: ${CONTAINER_VOLUME:-/app}
+    ports:
+      - "${AGENT_PORT:-8080}:${AGENT_PORT:-8080}"
+    environment:
+      - AGENT_NAME=${AGENT_NAME:-your_agent_name}
+      - MESSAGE_DIR=${MESSAGE_DIR:-/app/messages}
+      - GITHUB_REPOSITORY=${GITHUB_REPOSITORY:-my_account/my_repository}
+      - BROKER_HOST=${BROKER_HOST:-broker}
+      - BROKER_PORT=${BROKER_PORT:-8001}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-my_github_token}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-my_gemini_api_key}
+      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT:-your_gcp_project}
+      - GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION:-us-central1}
+    depends_on:
+      - github_broker
+      - redis
+    # command: ["bash", "run.sh"]
+    stdin_open: true
+    tty: true
+
+  github_broker:
+    build:
+      context: ./${BROKER_HOST}/.build
+      dockerfile: Dockerfile
+    image: ${BROKER_HOST}_image
+    volumes:
+      - ./${BROKER_HOST}:${CONTAINER_VOLUME:-/app}
+      - ./messages:${MESSAGE_DIR:-/app/messages}
     working_dir: ${CONTAINER_VOLUME:-/app}
     ports:
       - "${BROKER_PORT:-8080}:${BROKER_PORT:-8080}"
     environment:
-      - AGENT_ID=${AGENT_ID:-agent_id}
-      - AGENT_MESSAGE_DIR=${AGENT_MESSAGE_DIR:-/app/messages}
-      - BROKER_PORT=${BROKER_PORT:-8080}
-      - GITHUB_REPOSITORY=${GITHUB_REPOSITORY:-your_github_repo}
-      - GH_TOKEN=${GH_TOKEN:-my_github_token}
-      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT:-your_gcp_project}
-      - GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION:-us-central1}
+      - BROKER_PORT=${BROKER_PORT:-8000}
+      - GITHUB_REPOSITORY=${GITHUB_REPOSITORY:-my_account/my_repository}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-my_github_token}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-    # command: ["bash", "run.sh"]
-    stdin_open: true
-    tty: true
+    depends_on:
+      - redis
+    command: ["python", "main.py"]
 
   redis:
     image: redis:latest
