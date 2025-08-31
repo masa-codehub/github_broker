@@ -53,72 +53,53 @@ def create_mock_issue(number, title, body, labels, has_branch_name: bool = True)
 
 
 @patch("time.sleep", return_value=None)
-def test_request_task_selects_best_match(
+def test_request_task_selects_by_role(
     mock_sleep, task_service, mock_github_client, mock_redis_client
 ):
-    """Capabilityと最も多く一致し、割り当て可能なIssueが選択されることをテストします。"""
+    """エージェントの役割（role）に一致するラベルを持つIssueが選択されることをテストします。"""
     # Arrange
     issue1 = create_mock_issue(
         number=1,
-        title="Docs update",
+        title="Irrelevant Task",
         body="## 成果物\n- README.md",
         labels=["documentation"],
     )
     issue2 = create_mock_issue(
-        number=2, title="Bug fix", body="## 成果物\n- fix.py", labels=["bug", "python"]
-    )
-    issue3 = create_mock_issue(
-        number=3,
-        title="Feature dev",
+        number=2,
+        title="Backend Task",
         body="## 成果物\n- feature.py",
-        labels=["feature", "python", "fastapi"],
-    )
-    issue4_no_deliverable = create_mock_issue(
-        number=4,
-        title="Refactor",
-        body="no deliverables section",
-        labels=["refactor", "python", "fastapi", "bug"],
+        labels=["feature", "BACKENDCODER"],
     )
 
-    mock_github_client.get_open_issues.return_value = [
-        issue1,
-        issue2,
-        issue3,
-        issue4_no_deliverable,
-    ]
-    mock_github_client.search_issues.return_value = []  # complete_previous_taskが何もしないようにする
+    mock_github_client.get_open_issues.return_value = [issue1, issue2]
+    mock_github_client.search_issues.return_value = []
     mock_redis_client.acquire_lock.return_value = True
 
-    agent_capabilities = ["python", "fastapi", "feature", "testing"]
+    agent_role = "BACKENDCODER"
 
     # Act
-    result = task_service.request_task(
-        agent_id="test-agent", capabilities=agent_capabilities
-    )
+    result = task_service.request_task(agent_id="test-agent", agent_role=agent_role)
 
     # Assert
-    # issue3が3つ一致で最も優先度が高い
     assert result is not None
-    assert result.issue_id == 3
+    assert result.issue_id == 2
     mock_redis_client.acquire_lock.assert_called_once_with(
-        "issue_lock_3", "locked", timeout=600
+        "issue_lock_2", "locked", timeout=600
     )
 
 
 @patch("time.sleep", return_value=None)
 def test_request_task_no_matching_issue(mock_sleep, task_service, mock_github_client):
-    """エージェントのCapabilityに一致するIssueがない場合にNoneが返されることをテストします。"""
+    """エージェントの役割に一致するIssueがない場合にNoneが返されることをテストします。"""
     # Arrange
     issue1 = create_mock_issue(
         number=1, title="Docs", body="", labels=["documentation"]
     )
     mock_github_client.get_open_issues.return_value = [issue1]
-    agent_capabilities = ["python", "bugfix"]
+    agent_role = "BACKENDCODER"
 
     # Act
-    result = task_service.request_task(
-        agent_id="test-agent", capabilities=agent_capabilities
-    )
+    result = task_service.request_task(agent_id="test-agent", agent_role=agent_role)
 
     # Assert
     assert result is None
@@ -126,18 +107,19 @@ def test_request_task_no_matching_issue(mock_sleep, task_service, mock_github_cl
 
 @patch("time.sleep", return_value=None)
 def test_request_task_no_assignable_issue(mock_sleep, task_service, mock_github_client):
-    """一致するIssueはあるが、どれも割り当て可能でない（成果物セクションがない）場合にNoneが返されることをテストします。"""
+    """一致するIssueはあるが、どれも割り当て可能でない場合にNoneが返されることをテストします。"""
     # Arrange
     issue1 = create_mock_issue(
-        number=1, title="Feature", body="body without deliverables", labels=["python"]
+        number=1,
+        title="Feature",
+        body="body without deliverables",
+        labels=["BACKENDCODER"],
     )
     mock_github_client.get_open_issues.return_value = [issue1]
-    agent_capabilities = ["python"]
+    agent_role = "BACKENDCODER"
 
     # Act
-    result = task_service.request_task(
-        agent_id="test-agent", capabilities=agent_capabilities
-    )
+    result = task_service.request_task(agent_id="test-agent", agent_role=agent_role)
 
     # Assert
     assert result is None
@@ -147,37 +129,35 @@ def test_request_task_no_assignable_issue(mock_sleep, task_service, mock_github_
 def test_request_task_skips_locked_issue(
     mock_sleep, task_service, mock_github_client, mock_redis_client
 ):
-    """最も優先度の高いIssueがロックされている場合、次に優先度の高いIssueが選択されることをテストします。"""
+    """役割に一致するIssueがロックされている場合、次に一致するIssueが選択されることをテストします。"""
     # Arrange
-    issue_high_priority = create_mock_issue(
+    issue_locked = create_mock_issue(
         number=1,
-        title="High prio",
+        title="Locked Task",
         body="## 成果物\n- fix.py",
-        labels=["python", "bug"],
+        labels=["BACKENDCODER"],
     )
-    issue_low_priority = create_mock_issue(
-        number=2, title="Low prio", body="## 成果物\n- doc.md", labels=["documentation"]
+    issue_available = create_mock_issue(
+        number=2,
+        title="Available Task",
+        body="## 成果物\n- another.py",
+        labels=["BACKENDCODER"],
     )
-    mock_github_client.get_open_issues.return_value = [
-        issue_high_priority,
-        issue_low_priority,
-    ]
-    mock_github_client.search_issues.return_value = []  # complete_previous_taskが何もしないようにする
+    mock_github_client.get_open_issues.return_value = [issue_locked, issue_available]
+    mock_github_client.search_issues.return_value = []
     mock_redis_client.acquire_lock.side_effect = [
         False,
         True,
     ]  # 1番目は失敗、2番目は成功
 
-    agent_capabilities = ["python", "bug", "documentation"]
+    agent_role = "BACKENDCODER"
 
     # Act
-    result = task_service.request_task(
-        agent_id="test-agent", capabilities=agent_capabilities
-    )
+    result = task_service.request_task(agent_id="test-agent", agent_role=agent_role)
 
     # Assert
     assert result is not None
-    assert result.issue_id == 2  # 2番目のIssueが選択される
+    assert result.issue_id == 2
     assert mock_redis_client.acquire_lock.call_count == 2
 
 
@@ -191,14 +171,14 @@ def test_request_task_skips_issue_without_branch_name(
         number=1,
         title="No branch name",
         body="## 成果物\n- some deliverable",
-        labels=["python"],
+        labels=["BACKENDCODER"],
         has_branch_name=False,
     )
     issue_with_branch = create_mock_issue(
         number=2,
         title="With branch name",
         body="## 成果物\n- another deliverable",
-        labels=["python"],
+        labels=["BACKENDCODER"],
     )
     mock_github_client.get_open_issues.return_value = [
         issue_no_branch,
@@ -207,13 +187,11 @@ def test_request_task_skips_issue_without_branch_name(
     mock_github_client.search_issues.return_value = []
     mock_redis_client.acquire_lock.return_value = True
 
-    agent_capabilities = ["python"]
+    agent_role = "BACKENDCODER"
 
     # Act
-    result = task_service.request_task(
-        agent_id="test-agent", capabilities=agent_capabilities
-    )
+    result = task_service.request_task(agent_id="test-agent", agent_role=agent_role)
 
     # Assert
     assert result is not None
-    assert result.issue_id == 2  # 2番目のIssueが選択される
+    assert result.issue_id == 2
