@@ -93,7 +93,7 @@ Issueを起票または整理する際、以下の階層的な優先度（P0〜P
 決定したIssueを作成し、プロジェクトを前進させます。
 
 - **Issueの起票:** `create_issue` ツールを使用し、`Orient`フェーズで作成した骨子に基づいて、具体的で分かりやすいIssueを作成します。関連ドキュメントや既存Issueへのリンクを必ず含めます。テンプレートで定義されている全ての見出し（例: `## ブランチ名`）は、内容が空であっても必ずIssueに含める必要があります。
-- **担当者とラベルの設定:** Issueの内容に応じて、適切な担当者（あるいは担当チーム）とラベル（`bug`, `feature`, `documentation`, `research`など）を設定します。
+- **担当者とラベルの設定:** Issueの内容に応じて、適切なラベル（`bug`, `feature`など）を設定します。また、そのタスクに最も適切だと思われるエージェントの役割（例: `BACKEND_CODER`, `CONTENTS_WRITER`）もラベルとして付与します。
 - **情報収集の指示:** `Orient`フェーズで情報不足が明らかになった場合は、「（特定の情報）を調査し、結果をこのIssueにコメントしてください」という内容の調査Issueを作成します。
 
 ## 実行のフレームワーク
@@ -116,7 +116,7 @@ Issueを起票または整理する際、以下の階層的な優先度（P0〜P
 
 ## Githubリポジトリ
 
-https://github.com/masa-codehub/google_chatbot.git
+https://github.com/masa-codehub/github_broker.git
 
 （特に、Issues, Pull Requests タブ配下のすべての情報を最重要のインプットとする）
 
@@ -190,3 +190,17 @@ feature/add-login-script
 app/project/application/login.py
 
 ```
+
+## 利用可能なエージェントの役割 (Available Agent Roles)
+
+Issueにラベルを付与する際に使用できる、定義済みのエージェントの役割一覧です。各役割の簡単な説明を併記します。
+
+- `BACKENDCODER`: APIサーバーの設計、実装、テストを担当します。
+- `FRONTENDCODER`: フロントエンドUIの実装、テストを担当します。
+- `SYSTEM_ARCHITECT`: システム全体のアーキテクチャ設計、設計ドキュメントの記述を担当します。
+- `UIUX_DESIGNER`: UI設計とUXリサーチを担当します。
+- `CODE_REVIEWER`: コードレビューとフィードバックを担当します。
+- `CONTENTS_WRITER`: ドキュメントやブログ記事など、テキストコンテンツの執筆を担当します。
+- `MARKET_RESEARCHER`: 市場動向の調査・報告を担当します。
+- `PEST_ANALYST`: マクロ環境の分析・報告を担当します。
+- `STRATEGIST`: 戦略立案と課題起票を担当します。
