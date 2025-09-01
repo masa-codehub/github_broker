@@ -65,12 +65,6 @@ candidate_issues = [
         "title": "APIのパフォーマンスを改善する",
         "body": "ユーザープロファイルの取得APIが遅い。N+1問題を解決する必要がある。",
         "labels": ["performance", "backend", "python", "CODER"]
-    },
-    {
-        "id": 103,
-        "title": "ドキュメントの誤字を修正",
-        "body": "README.mdにタイポがあります。",
-        "labels": ["documentation", "SYSTEM_ARCHITECT"]
     }
 ]
 

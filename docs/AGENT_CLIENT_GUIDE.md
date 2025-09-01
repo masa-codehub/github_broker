@@ -24,7 +24,7 @@ pip install git+https://github.com/masa-codehub/github_broker.git
 
 クライアントの初期化時に、エージェントの`agent_id`と`agent_role`、そして接続先のサーバー情報を渡します。
 
-- `agent_id` (str): エージェントを一位に識別するID。
+- `agent_id` (str): エージェントを一意に識別するID。
 - `agent_role` (str): エージェントの役割を示す文字列 (例: `CODER`)。
 - `host` (str): サーバーのホスト名。デフォルトは`localhost`。
 - `port` (int): サーバーのポート番号。デフォルトは環境変数`APP_PORT`または`8080`。

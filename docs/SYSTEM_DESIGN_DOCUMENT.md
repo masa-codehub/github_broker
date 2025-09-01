@@ -40,7 +40,7 @@ graph TD
   * **リクエストボディ (JSON):**
     ```json
     {
-      "agent_id": "string", // ワーカーを一位に識別するID
+      "agent_id": "string", // ワーカーを一意に識別するID
       "agent_role": "string" // ワーカーの役割を示す文字列 (例: "CODER")
     }
     ```
