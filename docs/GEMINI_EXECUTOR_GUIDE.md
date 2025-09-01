@@ -4,7 +4,7 @@
 
 このドキュメントは、`github-broker`ライブラリに含まれる`GeminiExecutor`クラスの利用方法を説明するガイドです。
 
-`GeminiExecutor`は、Issueリストとエージェントの能力（Capabilities）に基づき、GoogleのGemini APIを利用して最適なIssueを選択するためのユーティリティです。外部エージェントが独自の判断ロジック内でGeminiの能力を活用したい場合に利用できます。
+`GeminiExecutor`は、与えられたIssueリストに基づき、GoogleのGemini APIを利用して最適なIssueを選択するためのユーティリティです。これは、エージェントの役割（Role）に合致するタスクが複数存在する場合の、優先順位付けロジックとして利用できます。
 
 ## 2. インストール
 
@@ -41,10 +41,9 @@ executor = GeminiExecutor()
 
 ### 4.2. 最適なIssueの選択
 
-`select_best_issue`メソッドに、Issueのリストとエージェントの能力`capabilities`を渡すことで、最適と判断されたIssueのID（`int`）が返されます。
+`select_best_issue`メソッドに、Issueのリストを渡すことで、最適と判断されたIssueのID（`int`）が返されます。
 
 - **`issues`**: `dict`のリスト。各`dict`は`id`, `title`, `body`, `labels`のキーを持つ必要があります。
-- **`capabilities`**: エージェントの能力を示す文字列のリスト。
 
 Gemini APIとの通信に失敗した場合、このメソッドはフォールバックとしてリストの最初のIssueのIDを返します。
 
@@ -53,38 +52,28 @@ Gemini APIとの通信に失敗した場合、このメソッドはフォール�
 ```python
 from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
 
-# Issue候補のリストを作成（実際のアプリケーションではAPIなどから取得）
+# Issue候補のリストを作成（役割によるフィルタリングは完了済みと仮定）
 candidate_issues = [
     {
         "id": 101,
         "title": "UIのボタンの色を修正する",
         "body": "ログインボタンの色が赤すぎるので、青色に変更してください。",
-        "labels": ["bug", "ui", "css"]
+        "labels": ["bug", "ui", "css", "CODER"]
     },
     {
         "id": 102,
         "title": "APIのパフォーマンスを改善する",
         "body": "ユーザープロファイルの取得APIが遅い。N+1問題を解決する必要がある。",
-        "labels": ["performance", "backend", "python"]
-    },
-    {
-        "id": 103,
-        "title": "ドキュメントの誤字を修正",
-        "body": "README.mdにタイポがあります。",
-        "labels": ["documentation"]
+        "labels": ["performance", "backend", "python", "CODER"]
     }
 ]
-
-# エージェントの能力
-agent_capabilities = ["backend", "python", "performance-tuning"]
 
 # Executorの初期化
 executor = GeminiExecutor()
 
 # 最適なIssueを選択
 selected_id = executor.select_best_issue(
-    issues=candidate_issues,
-    capabilities=agent_capabilities
+    issues=candidate_issues
 )
 
 if selected_id is not None:

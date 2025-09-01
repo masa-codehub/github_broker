@@ -39,7 +39,7 @@ cp .build/context/.env.sample .env
 
 -   `GH_TOKEN`: GitHub APIと連携するための、`repo`スコープを持つ個人のGitHubアクセストークン。
 -   `GITHUB_REPOSITORY`: ブローカーが管理するリポジトリ名 (例: `your-username/your-repo`)。
--   `GEMINI_API_KEY`: (任意) Google AI Studioで発行したAPIキー。これを設定すると、Geminiによる知的タスク選択が有効になります。設定しない場合、単純な先着順のロジックにフォールバックします。
+-   `GEMINI_API_KEY`: (任意) Google AI Studioで発行したAPIキー。これを設定すると、エージェントの役割（Role）に合致するタスクが複数ある場合に、Geminiが最適なタスクを知的に選択します。設定しない場合、最も古く作成されたIssueを優先するロジックにフォールバックします。
 
 **.env ファイルの例:**
 ```
@@ -47,6 +47,7 @@ GH_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 GITHUB_REPOSITORY=your_github_account/your_github_repository
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
+
 
 ## 2. 実行方法
 
@@ -88,10 +89,7 @@ APIサーバーは `http://localhost:8080` で利用可能になります。
 ```bash
 curl -X POST "http://localhost:8080/api/v1/request-task" \
 -H "Content-Type: application/json" \
--d '{
-  "agent_id": "my-test-agent-1",
-  "capabilities": ["python", "bugfix", "fastapi"]
-}'
+-d '{ "agent_id": "my-test-agent-1", "agent_role": "CODER" }'
 ```
 
 ### レスポンス
