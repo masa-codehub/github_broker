@@ -18,14 +18,14 @@ pip install git+https://github.com/masa-codehub/github_broker.git
 
 ## 3. `AgentClient` の利用方法
 
-`AgentClient`は、エージェント自身の情報（IDや能力）とサーバーの接続情報を保持し、タスクの要求を行います。
+`AgentClient`は、エージェント自身の情報（IDや役割）とサーバーの接続情報を保持し、タスクの要求を行います。
 
 ### 3.1. 初期化
 
-クライアントの初期化時に、エージェントの`agent_id`と`capabilities`、そして接続先のサーバー情報を渡します。
+クライアントの初期化時に、エージェントの`agent_id`と`agent_role`、そして接続先のサーバー情報を渡します。
 
 - `agent_id` (str): エージェントを一位に識別するID。
-- `capabilities` (list[str]): エージェントの能力を示す文字列のリスト。
+- `agent_role` (str): エージェントの役割を示す文字列 (例: `CODER`)。
 - `host` (str): サーバーのホスト名。デフォルトは`localhost`。
 - `port` (int): サーバーのポート番号。デフォルトは環境変数`APP_PORT`または`8080`。
 
@@ -34,7 +34,7 @@ from github_broker import AgentClient
 
 # エージェントの情報を定義
 AGENT_ID = "my-python-agent-001"
-CAPABILITIES = ["python", "fastapi", "refactoring"]
+AGENT_ROLE = "CODER"
 
 # サーバーの接続情報を定義
 SERVER_HOST = "localhost"
@@ -43,7 +43,7 @@ SERVER_PORT = 8000
 # クライアントの初期化
 client = AgentClient(
     agent_id=AGENT_ID,
-    capabilities=CAPABILITIES,
+    agent_role=AGENT_ROLE,
     host=SERVER_HOST,
     port=SERVER_PORT
 )

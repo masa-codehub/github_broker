@@ -41,7 +41,7 @@ graph TD
     ```json
     {
       "agent_id": "string", // ワーカーを一位に識別するID
-      "capabilities": ["string"] // ワーカーの能力を示す文字列の配列 (例: ["python", "bugfix", "frontend"])
+      "agent_role": "string" // ワーカーの役割を示す文字列 (例: "CODER")
     }
     ```
   * **レスポンス:**
@@ -103,8 +103,8 @@ graph TD
 4.  **タスク選択とブランチ作成ロジック:**
 
     1.  **Issueの取得:** GitHubクライアントを介して、リポジトリのオープンなIssueを全て取得する。
-    2.  **候補のフィルタリング:** 取得したIssueと、ワーカーから受け取った`capabilities`を比較し、Issueが持つラベルの**うち1つでも**`capabilities`に含まれているものをタスク候補とする。
-    3.  **優先順位付け:** タスク候補を、`capabilities`とラベルの**一致数が最も多い順**にソートする。これにより、ワーカーの能力に最も合致するタスクが優先される。
+    2.  **候補のフィルタリング:** 取得したIssueの中から、リクエストの`agent_role`と一致するラベルを持つIssueをタスク候補として抽出する。
+    3.  **優先順位付け:** 役割に一致するタスクが複数ある場合、`GEMINI_API_KEY`が設定されていればGeminiを用いて最適なタスクを選択する。未設定の場合は、最も古く作成されたIssueを優先する。
     4.  **前提条件チェック:** 優先順位の高い順に各候補Issueの本文をチェックし、「成果物」セクションが正しく定義されている最初のIssueを選択する。
     5.  **ブランチ作成：**
           * 選択したIssueに対応するブランチを**GitHubクライアント**経由で作成する。
@@ -149,8 +149,8 @@ sequenceDiagram
         Note over Server, GitHub: 新タスクの選択
         Server->>GitHub: GET /issues (全てのオープンなIssue取得)
         GitHub-->>Server: Issue List
-        Server->>Server: 1. Filter by Capabilities (1つでも一致)
-        Server->>Server: 2. Sort by match count (一致数で降順ソート)
+        Server->>Server: 1. Filter by agent_role label
+        Server->>Server: 2. Prioritize tasks (if multiple)
         Server->>Server: 3. Check for "成果物" section
         
         alt 最適なIssueあり
