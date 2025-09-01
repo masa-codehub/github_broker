@@ -23,8 +23,8 @@
 
 より詳細なアーキテクチャ上の決定については、以下のドキュメントを参照してください。
 
-- [依存性注入(DI)コンテナ 設計書](./di-container.md)
-- [Redisキースキーマ 設計書](./redis-schema.md)
+- [依存性注入(DI)コンテナ 設計書](./architecture/di-container.md)
+- [Redisキースキーマ 設計書](./architecture/redis-schema.md)
 
 -----
 

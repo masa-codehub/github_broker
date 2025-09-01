@@ -43,7 +43,6 @@ container.register(
         redis_client=container.resolve(RedisClient),
         github_client=container.resolve(GitHubClient),
     ),
-    scope=punq.Scope.singleton,
 )
 ```
 
