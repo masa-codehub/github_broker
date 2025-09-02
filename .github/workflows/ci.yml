@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  issues: write
+  contents: write
+
+jobs:
+  build:
+    runs-on: [self-hosted, Linux, X64, gpu]
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SQLite dependencies
+        run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install dependencies
+        run: pip install -e .[test,dev]
+      - name: Lint with ruff
+        run: ruff check .
+      - name: Test with pytest
+        run: pytest
