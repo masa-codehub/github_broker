@@ -1,5 +1,7 @@
 #!/bin/sh
 
+npm update && npm install -g @google/gemini-cli
+
 # 外部モジュールのインストール
 pip install -U -r .build/repositories.txt && pip install -e .
 

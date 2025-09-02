@@ -37,13 +37,13 @@ cp .build/context/.env.sample .env
 
 `.env` ファイルを開き、以下の変数を設定してください。
 
--   `GH_TOKEN`: GitHub APIと連携するための、`repo`スコープを持つ個人のGitHubアクセストークン。
+-   `GITHUB_TOKEN`: GitHub APIと連携するための、`repo`スコープを持つ個人のGitHubアクセストークン。
 -   `GITHUB_REPOSITORY`: ブローカーが管理するリポジトリ名 (例: `your-username/your-repo`)。
 -   `GEMINI_API_KEY`: (任意) Google AI Studioで発行したAPIキー。これを設定すると、エージェントの役割（Role）に合致するタスクが複数ある場合に、Geminiが最適なタスクを知的に選択します。設定しない場合、最も古く作成されたIssueを優先するロジックにフォールバックします。
 
 **.env ファイルの例:**
 ```
-GH_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 GITHUB_REPOSITORY=your_github_account/your_github_repository
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
@@ -102,5 +102,6 @@ curl -X POST "http://localhost:8080/api/v1/request-task" \
 
 本システムは、GitHubのラベルを利用してタスクの進行状況を管理します。
 
--   `in-progress:<agent_id>`: あるエージェントにタスクが割り当てられると、このラベルが自動的にIssueに付与されます。これにより、他のエージェントに同じタスクが割り当てられるのを防ぎます。
--   `needs-review`: エージェントが次のタスクをリクエストすると、前回割り当てられていたIssueから`in-progress`ラベルが削除され、代わりにこのラベルが付与されます。これにより、人間によるレビュー待ちの状態であることを示します。
+-   `in-progress`: あるエージェントにタスクが割り当てられると、この状態ラベルが自動的にIssueに付与されます。
+-   `[agent_id]`: 上記の `in-progress` ラベルと同時に、タスクを担当するエージェントのID（例: `my-test-agent-1`）がラベルとして付与されます。これら2つのラベルの組み合わせにより、特定のタスクがどのエージェントによって処理中であるかが一意に識別され、他のエージェントへの重複割り当てを防ぎます。
+-   `needs-review`: エージェントが次のタスクをリクエストすると、前回割り当てられていたIssueから`in-progress`と`[agent_id]`のラベルが削除され、代わりにこのラベルが付与されます。これにより、人間によるレビュー待ちの状態であることを示します。
