@@ -139,7 +139,7 @@ github_broker/
     -   **概要**: GitHubタスクブローカーサーバーとHTTP経由で通信するためのクライアントです。
     -   **主要なクラス/関数**:
         -   `AgentClient`:
-            -   `__init__()`: エージェントID, 機能, サーバーホスト, ポートを設定し初期化します。
+            -   `__init__()`: エージェントID, 役割, サーバーホスト, ポートを設定し初期化します。
             -   `request_task()`: サーバーに新しいタスクをリクエストします。
 
 -   **`github_broker/infrastructure/executors/gemini_executor.py`**
