@@ -46,6 +46,7 @@ dependencies = [
 test = [
     "pytest",
     "pytest-cov", # テストカバレッジを計測するツール
+    "httpx",
 ]
 dev = [
     "black",         # コードフォーマッター
@@ -54,6 +55,7 @@ dev = [
     "pytest",
     "pytest-cov",
     "pre-commit",    # Git フック管理
+    "httpx",
 ]
 ml = [
     "scikit-learn",  # 機械学習ライブラリ
