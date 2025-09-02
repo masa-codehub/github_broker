@@ -15,6 +15,10 @@ if [ ! -f "$AGENT_MD_PATH" ]; then
     exit 1
 fi
 
+if [ ! -f "$GEMINI_MD_PATH" ]; then
+    touch "$GEMINI_MD_PATH"
+fi
+
 cp "$AGENT_MD_PATH" "$GEMINI_MD_PATH"
 
 if [ $? -eq 0 ]; then
@@ -46,4 +50,3 @@ if [ -n "$GITHUB_REPOSITORY" ]; then
         fi
     fi
 fi
-

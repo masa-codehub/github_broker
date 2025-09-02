@@ -70,6 +70,12 @@
 
 **(新規セクション)**
 
+# インプット
+
+## Githubリポジトリ
+
+https://github.com/masa-codehub/github_broker.git
+
 # 成果物の保管場所と提出プロセス
 
 ### 保管場所
