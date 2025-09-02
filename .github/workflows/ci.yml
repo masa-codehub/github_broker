@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+permissions:
+  issues: write
+  contents: read
+
 jobs:
   build:
     runs-on: [self-hosted, Linux, X64, gpu]
