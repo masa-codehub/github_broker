@@ -7,7 +7,9 @@ This document outlines the specifications of the self-hosted runner environment 
 Our CI/CD pipeline utilizes a self-hosted runner with the following configuration:
 
 - **Labels:** `self-hosted`, `linux`, `x64`, `gpu`
-- **Host Environment:** The runner is hosted within a `github-runner` container.
+- **Operating System:** Ubuntu 24.04
+- **GPU:** 不明
+- **Host Environment:** The runner is hosted within a `github-runner` container using the `github_broker-github_runner` image.
 
 ## Usage
 
