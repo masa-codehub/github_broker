@@ -79,7 +79,7 @@ GitHub のリポジトリ設定で、新しい Webhook を作成します。
 *   **処理フロー:**
     1.  リクエストの `X-Hub-Signature-256` ヘッダーを検証し、リクエストが GitHub からのものであることを確認します。
     2.  リクエストボディをパースし、`action` プロパティに応じて処理を分岐します。
-    3.  `opened`, `reopened`, `labeled`, `unlabeled`, `assigned`, `unassigned` の場合に、Redis の Issue Cache を更新します。
+    3.  `opened`, `reopened`, `edited`, `labeled`, `unlabeled`, `assigned`, `unassigned` の場合に、Redis の Issue Cache を更新します。
     4.  `closed` の場合に、Redis の Issue Cache から該当する Issue を削除します。
 
 ### 4.3. Issue Cache (Redis)
