@@ -56,6 +56,7 @@ dev = [
     "pytest-cov",
     "pre-commit",    # Git フック管理
     "httpx",
+    "mypy",          # 型チェッカー
 ]
 ml = [
     "scikit-learn",  # 機械学習ライブラリ
