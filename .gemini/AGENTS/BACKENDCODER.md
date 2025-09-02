@@ -133,7 +133,7 @@
 
 ## Githubリポジトリ
 
-[https://github.com/masa-codehub/github\_broker.git](https://github.com/masa-codehub/github_broker.git)
+https://github.com/masa-codehub/github_broker.git
 
 ## フォルダ構成
 
