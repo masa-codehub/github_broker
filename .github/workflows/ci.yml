@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: [self-hosted, Linux, X64, gpu]
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - name: Install SQLite dependencies
