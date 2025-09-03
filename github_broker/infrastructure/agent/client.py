@@ -14,7 +14,7 @@ class AgentClient:
     def __init__(
         self,
         agent_id: str,
-        capabilities: list[str],
+        agent_role: str,
         host: str = "localhost",
         port: int | None = None,
     ):
@@ -23,12 +23,12 @@ class AgentClient:
 
         Args:
             agent_id (str): エージェントの一意な識別子。
-            capabilities (List[str]): エージェントの機能リスト。
+            agent_role (str): エージェントのロール。
             host (str): サーバーのホスト名。デフォルトは"localhost"。
             port (Optional[int]): サーバーのポート。デフォルトはAPP_PORT環境変数または8080。
         """
         self.agent_id = agent_id
-        self.capabilities = capabilities
+        self.agent_role = agent_role
         self.host = host
         self.port = port if port is not None else int(os.getenv("BROKER_PORT", 8080))
         self.endpoint = "/request-task"
@@ -42,7 +42,7 @@ class AgentClient:
         Returns:
             Optional[Dict[str, Any]]: 割り当てられたタスク情報、または利用可能なタスクがない場合はNone。
         """
-        payload = {"agent_id": self.agent_id, "capabilities": self.capabilities}
+        payload = {"agent_id": self.agent_id, "agent_role": self.agent_role}
         url = f"http://{self.host}:{self.port}{self.endpoint}"
         try:
             # `requests`ライブラリは、接続プールやタイムアウト管理などを自動で行います。

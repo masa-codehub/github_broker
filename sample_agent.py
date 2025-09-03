@@ -21,29 +21,18 @@ if __name__ == "__main__":
     gemini_log_dir = os.getenv("GEMINI_LOG_DIR", "/app/logs")
     gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
-    capabilities = [
-        "software-design",
-        "clean-architecture",
-        "tdd",
-        "refactoring",
-        "python",
-        "fastapi",
-        "docker",
-        "github-actions",
-        "technical-writing",
-        "日本語",
-    ]
+    agent_role = os.getenv("AGENT_ROLE", "BACKENDCODER")
     # --------------------------
 
     logging.info(f"エージェント '{agent_id}' を開始します。")
     logging.info(f"サーバー {host}:{port} に接続しています。")
     logging.info(f"ログディレクトリ: {gemini_log_dir}")
-    logging.info(f"機能: {capabilities}")
+    logging.info(f"ロール: {agent_role}")
     print("-" * 30)
 
     # AgentClientとExecutorを初期化
     client = AgentClient(
-        agent_id=agent_id, capabilities=capabilities, host=host, port=port
+        agent_id=agent_id, agent_role=agent_role, host=host, port=port
     )
     executor = GeminiExecutor(log_dir=gemini_log_dir, model=gemini_model)
 
