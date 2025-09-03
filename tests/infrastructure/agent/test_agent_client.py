@@ -10,7 +10,7 @@ from github_broker import AgentClient
 @pytest.fixture
 def agent_client():
     """AgentClientのテストインスタンスを提供します。"""
-    return AgentClient(agent_id="test-agent", capabilities=["python"])
+    return AgentClient(agent_id="test-agent", agent_role="BACKENDCODER")
 
 
 @patch("requests.post")
@@ -35,7 +35,7 @@ def test_request_task_success(mock_post, agent_client):
     )
     expected_payload = {
         "agent_id": agent_client.agent_id,
-        "capabilities": agent_client.capabilities,
+        "agent_role": agent_client.agent_role,
     }
     mock_post.assert_called_once_with(
         expected_url, json=expected_payload, headers=agent_client.headers, timeout=30
@@ -101,7 +101,7 @@ def test_agent_client_initialization_with_port():
     """
     特定のポートでAgentClientが初期化されることをテストします。
     """
-    client = AgentClient(agent_id="test", capabilities=[], host="testhost", port=9000)
+    client = AgentClient(agent_id="test", agent_role="", host="testhost", port=9000)
     assert client.port == 9000
 
 
@@ -110,7 +110,7 @@ def test_agent_client_initialization_with_env_var():
     """
     BROKER_PORT環境変数を使用してAgentClientが初期化されることをテストします。
     """
-    client = AgentClient(agent_id="test", capabilities=[])
+    client = AgentClient(agent_id="test", agent_role="")
     assert client.port == 9999
 
 
@@ -119,5 +119,5 @@ def test_agent_client_initialization_default_port(monkeypatch):
     環境変数が設定されていない場合に、AgentClientがデフォルトポートで初期化されることをテストします。
     """
     monkeypatch.delenv("BROKER_PORT", raising=False)
-    client = AgentClient(agent_id="test", capabilities=[])
+    client = AgentClient(agent_id="test", agent_role="")
     assert client.port == 8080
