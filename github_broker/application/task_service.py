@@ -55,7 +55,11 @@ class TaskService:
 
     def _find_candidates_by_role(self, issues: list, agent_role: str) -> list:
         """指定された役割（role）ラベルを持つIssueをフィルタリングします。"""
-        candidate_issues = [issue for issue in issues if agent_role in {label.name for label in issue.labels}]
+        candidate_issues = [
+            issue
+            for issue in issues
+            if agent_role in {label.name for label in issue.labels}
+        ]
 
         if not candidate_issues:
             logger.info(f"No issues found with role label: {agent_role}")
@@ -125,17 +129,16 @@ class TaskService:
         logger.info("No assignable and unlocked issues found.")
         return None
 
-    def request_task(
-        self, agent_id: str, agent_role: str
-    ) -> TaskResponse | None:
+    def request_task(self, agent_id: str, agent_role: str) -> TaskResponse | None:
         """
         エージェントの役割（role）に基づいて最適なIssueを探し、タスク情報を返します。
         """
         self.complete_previous_task(agent_id)
-        
+
         try:
             wait_seconds_str = os.getenv(
-                _GITHUB_INDEXING_WAIT_SECONDS_ENV, str(_DEFAULT_GITHUB_INDEXING_WAIT_SECONDS)
+                _GITHUB_INDEXING_WAIT_SECONDS_ENV,
+                str(_DEFAULT_GITHUB_INDEXING_WAIT_SECONDS),
             )
             wait_seconds = int(wait_seconds_str)
         except (ValueError, TypeError):
@@ -144,7 +147,7 @@ class TaskService:
                 f"Using default value: {_DEFAULT_GITHUB_INDEXING_WAIT_SECONDS} seconds."
             )
             wait_seconds = _DEFAULT_GITHUB_INDEXING_WAIT_SECONDS
-        
+
         time.sleep(wait_seconds)
 
         logger.info(f"Searching for open issues in repository: {self.repo_name}")
