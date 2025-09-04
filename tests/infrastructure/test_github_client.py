@@ -139,11 +139,12 @@ def test_find_issues_by_labels_found(mock_github, mock_getenv):
     client = GitHubClient()
 
     # Act
-    found_issue = client.find_issues_by_labels("test/repo", ["label-a", "label-b"])
+    found_issues = client.find_issues_by_labels("test/repo", ["label-a", "label-b"])
 
     # Assert
-    assert found_issue is not None
-    assert found_issue.number == 2
+    assert found_issues is not None
+    assert len(found_issues) == 1
+    assert found_issues[0].number == 2
     mock_github_instance.get_repo.assert_called_once_with("test/repo")
     mock_repo.get_issues.assert_called_once_with(state="all")
 
@@ -151,7 +152,7 @@ def test_find_issues_by_labels_found(mock_github, mock_getenv):
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
 def test_find_issues_by_labels_not_found(mock_github, mock_getenv):
-    """find_issues_by_labelsがすべてのラベルにマッチするIssueがない場合にNoneを返すことをテストします。"""
+    """find_issues_by_labelsがすべてのラベルにマッチするIssueがない場合に空のリストを返すことをテストします。"""
     # Arrange
     mock_getenv.return_value = "fake_token"
 
@@ -173,10 +174,10 @@ def test_find_issues_by_labels_not_found(mock_github, mock_getenv):
     client = GitHubClient()
 
     # Act
-    found_issue = client.find_issues_by_labels("test/repo", ["label-a", "label-b"])
+    found_issues = client.find_issues_by_labels("test/repo", ["label-a", "label-b"])
 
     # Assert
-    assert found_issue is None
+    assert found_issues == []
 
 
 @patch("os.getenv")
