@@ -28,7 +28,7 @@ class TaskService:
         in-progressとagent_idラベルを持つIssueを検索し、それらのラベルを削除し、needs-reviewラベルを付与します。
         """
         logger.info(f"Completing previous task for agent: {agent_id}")
-        previous_issues = self.github_client.search_issues(
+        previous_issues = self.github_client.find_issues_by_labels(
             repo_name=self.repo_name, labels=["in-progress", agent_id]
         )
 

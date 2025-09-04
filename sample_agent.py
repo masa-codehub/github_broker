@@ -13,9 +13,9 @@ logging.basicConfig(
 
 if __name__ == "__main__":
     # --- エージェントの設定 ---
-    agent_id = os.getenv("AGENT_ID", "sample-agent-001")
+    agent_id = os.getenv("AGENT_NAME", "sample-agent-001")
     # AgentClientとmain.pyの仕様に合わせ、hostとportで接続先を指定
-    host = os.getenv("SERVER_HOST", "localhost")
+    host = os.getenv("BROKER_HOST", "localhost")
     port = int(os.getenv("BROKER_PORT", 8080))
 
     gemini_log_dir = os.getenv("GEMINI_LOG_DIR", "/app/logs")
