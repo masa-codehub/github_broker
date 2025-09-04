@@ -9,6 +9,10 @@ from github_broker.interface.models import TaskResponse
 
 logger = logging.getLogger(__name__)
 
+# --- Constants ---
+_GITHUB_INDEXING_WAIT_SECONDS_ENV = "GITHUB_INDEXING_WAIT_SECONDS"
+_DEFAULT_GITHUB_INDEXING_WAIT_SECONDS = 15
+
 
 class TaskService:
     def __init__(
@@ -128,7 +132,19 @@ class TaskService:
         エージェントの役割（role）に基づいて最適なIssueを探し、タスク情報を返します。
         """
         self.complete_previous_task(agent_id)
-        wait_seconds = int(os.getenv("GITHUB_INDEXING_WAIT_SECONDS", 15))
+        
+        try:
+            wait_seconds_str = os.getenv(
+                _GITHUB_INDEXING_WAIT_SECONDS_ENV, str(_DEFAULT_GITHUB_INDEXING_WAIT_SECONDS)
+            )
+            wait_seconds = int(wait_seconds_str)
+        except (ValueError, TypeError):
+            logger.warning(
+                f"Invalid value for {_GITHUB_INDEXING_WAIT_SECONDS_ENV}. "
+                f"Using default value: {_DEFAULT_GITHUB_INDEXING_WAIT_SECONDS} seconds."
+            )
+            wait_seconds = _DEFAULT_GITHUB_INDEXING_WAIT_SECONDS
+        
         time.sleep(wait_seconds)
 
         logger.info(f"Searching for open issues in repository: {self.repo_name}")
