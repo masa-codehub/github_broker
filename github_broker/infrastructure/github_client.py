@@ -38,28 +38,26 @@ class GitHubClient:
         """
         try:
             repo = self._client.get_repo(repo_name)
-            # すべてのIssue（オープンおよびクローズ済み）を取得
             all_issues = repo.get_issues(state="all")
-
             required_labels = set(labels)
+            found_issues = []
 
             for issue in all_issues:
-                # 現在のIssueのラベルセットを取得
                 issue_labels = {label.name for label in issue.labels}
-
-                # 必要なすべてのラベルがIssueのラベルに存在するかを確認
                 if required_labels.issubset(issue_labels):
                     logging.info(
-                        f"ラベル {issue_labels} を持つ一致するIssue #{issue.number} が見つかりました。"
+                        f"Found matching issue #{issue.number} with labels {issue_labels}"
                     )
-                    return issue
+                    found_issues.append(issue)
 
-            logging.info(f"必要なラベルを持つIssueは見つかりませんでした: {labels}")
-            return None
+            if not found_issues:
+                logging.info(f"No issues found with the required labels: {labels}")
+
+            return found_issues
 
         except GithubException as e:
             logging.error(
-                f"リポジトリ {repo_name} でラベルによるIssue検索中にエラーが発生しました: {e}"
+                f"An error occurred while searching for issues by labels in repo {repo_name}: {e}"
             )
             raise
 
