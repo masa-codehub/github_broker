@@ -40,6 +40,7 @@ cp .build/context/.env.sample .env
 -   `GITHUB_TOKEN`: GitHub APIと連携するための、`repo`スコープを持つ個人のGitHubアクセストークン。
 -   `GITHUB_REPOSITORY`: ブローカーが管理するリポジトリ名 (例: `your-username/your-repo`)。
 -   `GEMINI_API_KEY`: (任意) Google AI Studioで発行したAPIキー。これを設定すると、エージェントの役割（Role）に合致するタスクが複数ある場合に、Geminiが最適なタスクを知的に選択します。設定しない場合、最も古く作成されたIssueを優先するロジックにフォールバックします。
+-   `GITHUB_INDEXING_WAIT_SECONDS`: (任意) GitHubの検索インデックスの更新を待つ時間（秒）。デフォルトは `15`。
 
 **.env ファイルの例:**
 ```
