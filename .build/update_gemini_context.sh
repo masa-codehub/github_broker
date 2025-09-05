@@ -50,3 +50,25 @@ if [ -n "$GITHUB_REPOSITORY" ]; then
         fi
     fi
 fi
+
+# ~/.gemini/GEMINI.md の設定
+USER_GEMINI_MD_PATH="$HOME/.gemini/GEMINI.md"
+AGENTS_GEMINI_MD_PATH="/app/.gemini/AGENTS/GEMINI.md"
+
+if [ -f "$AGENTS_GEMINI_MD_PATH" ]; then
+    if [ ! -d "$(dirname "$USER_GEMINI_MD_PATH")" ]; then
+        mkdir -p "$(dirname "$USER_GEMINI_MD_PATH")"
+    fi
+    if [ ! -f "$USER_GEMINI_MD_PATH" ]; then
+        touch "$USER_GEMINI_MD_PATH"
+    fi
+    cp "$AGENTS_GEMINI_MD_PATH" "$USER_GEMINI_MD_PATH"
+    if [ $? -eq 0 ]; then
+        echo "$USER_GEMINI_MD_PATH を $AGENTS_GEMINI_MD_PATH の内容で正常に更新しました。"
+    else
+        echo "エラー: $AGENTS_GEMINI_MD_PATH から $USER_GEMINI_MD_PATH へのファイルコピーに失敗しました。" >&2
+        exit 1
+    fi
+else
+    echo "警告: $AGENTS_GEMINI_MD_PATH が見つからないため、~/.gemini/GEMINI.md の更新はスキップされます。"
+fi
