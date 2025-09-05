@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# GCP認証設定スクリプトの実行
+bash ./.build/setup_gemini_auth.sh
+
+# Gemini CLIのインストールと更新
 npm update && npm install -g @google/gemini-cli
 
 # 外部モジュールのインストール
