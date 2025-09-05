@@ -136,18 +136,13 @@ class TaskService:
         self.complete_previous_task(agent_id)
 
         try:
-            wait_seconds_str = os.getenv(
-                _GITHUB_INDEXING_WAIT_SECONDS_ENV,
-                str(_DEFAULT_GITHUB_INDEXING_WAIT_SECONDS),
-            )
-            wait_seconds = int(wait_seconds_str)
-        except (ValueError, TypeError):
+            wait_seconds = int(os.getenv(_GITHUB_INDEXING_WAIT_SECONDS_ENV, _DEFAULT_GITHUB_INDEXING_WAIT_SECONDS))
+        except ValueError:
+            wait_seconds = _DEFAULT_GITHUB_INDEXING_WAIT_SECONDS
             logger.warning(
                 f"Invalid value for {_GITHUB_INDEXING_WAIT_SECONDS_ENV}. "
-                f"Using default value: {_DEFAULT_GITHUB_INDEXING_WAIT_SECONDS} seconds."
+                f"Falling back to default {wait_seconds} seconds."
             )
-            wait_seconds = _DEFAULT_GITHUB_INDEXING_WAIT_SECONDS
-
         time.sleep(wait_seconds)
 
         logger.info(f"Searching for open issues in repository: {self.repo_name}")
