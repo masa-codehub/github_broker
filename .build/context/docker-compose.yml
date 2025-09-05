@@ -7,7 +7,9 @@ services:
     volumes:
       - ./${AGENT_NAME}:${CONTAINER_VOLUME:-/app}
       - ./messages:${MESSAGE_DIR:-/app/messages}
-      - gemini_config:/root/.gemini
+      - gemini_config:${HOME:-/root}/.gemini
+    secrets:
+      - gcp_access_key
     working_dir: ${CONTAINER_VOLUME:-/app}
     ports:
       - "${AGENT_PORT:-8080}:${AGENT_PORT:-8080}"
@@ -19,8 +21,8 @@ services:
       - BROKER_PORT=${BROKER_PORT:-8001}
       - GITHUB_TOKEN=${GITHUB_TOKEN:-my_github_token}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-my_gemini_api_key}
-      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT:-your_gcp_project}
-      - GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION:-us-central1}
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID:-your_gcp_project}
+      - GCP_LOCATION=${GCP_LOCATION:-us-central1}
     depends_on:
       - github_broker
       - redis
@@ -57,3 +59,7 @@ services:
 
 volumes:
   gemini_config:
+  
+secrets:
+  gcp_access_key:
+    file: ./${GCP_ACCESS_KEY}
