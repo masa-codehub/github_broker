@@ -4,7 +4,34 @@
 
 ## 開発環境
 
-開発環境のセットアップについては、`README.md`の「2. 実行方法」を参照してください。
+### 1. .envファイルの準備
+
+プロジェクトのルートディレクトリに`.env`ファイルを作成し、`.build/context/.env.sample`を参考に、実行環境に合わせて必要な環境変数を設定してください。
+
+### 2. 機密情報の設定 (Docker Secrets)
+
+本番環境ではDocker Secretsを利用して機密情報を安全に扱います。ローカル開発環境では、以下の手順で同様の仕組みを再現します。
+
+1.  プロジェクトのルートディレクトリに`secrets`という名前のディレクトリを作成します。
+    ```bash
+    mkdir secrets
+    ```
+
+2.  `secrets`ディレクトリ内に、以下のファイル名でそれぞれの機密情報を記述したファイルを作成します。
+    -   `github_token`: ご自身のGitHub Personal Access Tokenを記述します。
+    -   `gemini_api_key`: ご自身のGemini APIキーを記述します。
+    -   `github_webhook_secret`: GitHub Webhook用に設定したシークレットキーを記述します。
+
+    **（注意）`secrets`ディレクトリとその中のファイルは、Gitの追跡対象外（`.gitignore`に記載済み）です。**
+
+### 3. コンテナのビルドと実行
+
+上記の設定が完了したら、`docker-compose`コマンドでコンテナをビルドし、起動します。
+
+```bash
+docker-compose up --build -d
+```
+
 
 ## 開発ワークフロー
 
