@@ -142,8 +142,8 @@ def test_find_issues_by_labels_found(mock_github, mock_getenv):
     found_issue = client.find_issues_by_labels("test/repo", ["label-a", "label-b"])
 
     # Assert
-    assert found_issue is not None
-    assert found_issue.number == 2
+    assert len(found_issue) == 1
+    assert found_issue[0].number == 2
     mock_github_instance.get_repo.assert_called_once_with("test/repo")
     mock_repo.get_issues.assert_called_once_with(state="all")
 
@@ -176,7 +176,7 @@ def test_find_issues_by_labels_not_found(mock_github, mock_getenv):
     found_issue = client.find_issues_by_labels("test/repo", ["label-a", "label-b"])
 
     # Assert
-    assert found_issue is None
+    assert found_issue == []
 
 
 @patch("os.getenv")
