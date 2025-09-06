@@ -1,42 +1,49 @@
+import logging
+import os
 import hmac
 import hashlib
-import os
-from collections import deque
-from typing import Dict, Any
+from queue import Queue
+
+logger = logging.getLogger(__name__)
 
 class WebhookService:
     def __init__(self):
         self.webhook_secret = os.getenv("GITHUB_WEBHOOK_SECRET")
         if not self.webhook_secret:
-            raise ValueError("GITHUB_WEBHOOK_SECRET environment variable not set.")
-        self.queue = deque() # Simple in-memory queue
+            raise ValueError("GITHUB_WEBHOOK_SECRET 環境変数が設定されていません。")
+        self.webhook_queue = Queue() # シンプルなインメモリキュー
 
-    def verify_signature(self, signature: str, payload: bytes) -> bool:
+    def verify_signature(self, signature: str, payload_body: bytes) -> bool:
         """
-        Verifies the GitHub webhook signature.
+        GitHub Webhookの署名を検証します。
         """
         if not signature:
+            logger.warning("X-Hub-Signature-256 ヘッダーがありません。")
             return False
 
-        sha_name, signature_hash = signature.split('=', 1)
+        sha_name, signature = signature.split('=', 1)
         if sha_name != 'sha256':
+            logger.warning(f"不明なハッシュタイプ: {sha_name}")
             return False
 
-        mac = hmac.new(self.webhook_secret.encode('utf-8'), payload, hashlib.sha256)
-        return hmac.compare_digest(mac.hexdigest(), signature_hash)
+        mac = hmac.new(self.webhook_secret.encode('utf-8'), msg=payload_body, digestmod=hashlib.sha256)
+        return hmac.compare_digest(mac.hexdigest(), signature)
 
-    def enqueue_webhook_payload(self, payload: Dict[str, Any]):
+    def enqueue_webhook_payload(self, payload: dict):
         """
-        Enqueues the parsed webhook payload for asynchronous processing.
+        受信したWebhookペイロードをキューに格納します。
         """
-        self.queue.append(payload)
-        print(f"Webhook payload enqueued. Current queue size: {len(self.queue)}")
+        logger.info("Webhookペイロードをキューに格納します。")
+        self.webhook_queue.put(payload)
+        logger.info(f"現在のキューサイズ: {self.webhook_queue.qsize()}")
 
-    def process_next_payload(self) -> Dict[str, Any] | None:
+    def process_next_webhook(self):
         """
-        Retrieves and removes the next payload from the queue.
-        (For demonstration/testing purposes, actual processing would be async)
+        キューから次のWebhookペイロードを取り出して処理します。（仮実装）
         """
-        if self.queue:
-            return self.queue.popleft()
+        if not self.webhook_queue.empty():
+            payload = self.webhook_queue.get()
+            logger.info(f"キューからペイロードを取り出しました: {payload.get('action')}")
+            # ここに実際のWebhook処理ロジックを追加
+            return payload
         return None
