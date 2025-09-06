@@ -58,7 +58,7 @@ class TaskService:
         candidate_issues = [
             issue
             for issue in issues
-            if agent_role in {label.name for label in issue.labels}
+            if agent_role in issue["labels"]
         ]
 
         if not candidate_issues:
@@ -70,13 +70,13 @@ class TaskService:
         self, candidate_issues: list, agent_id: str
     ) -> TaskResponse | None:
         """候補リストから、最初に割り当て可能なタスクを見つけます。"""
-        for issue_obj in sorted(candidate_issues, key=lambda i: i.number):
+        for issue_obj in sorted(candidate_issues, key=lambda i: i["number"]):
             task = Task(
-                issue_id=issue_obj.number,
-                title=issue_obj.title,
-                body=issue_obj.body or "",
-                html_url=issue_obj.html_url,
-                labels=[label.name for label in issue_obj.labels],
+                issue_id=issue_obj["number"],
+                title=issue_obj["title"],
+                body=issue_obj["body"] or "",
+                html_url=issue_obj["html_url"],
+                labels=issue_obj["labels"],
             )
 
             if not task.is_assignable():
@@ -167,7 +167,7 @@ class TaskService:
 
         while True:
             logger.info(f"Searching for open issues in repository: {self.repo_name}")
-            all_issues = self.github_client.get_open_issues(self.repo_name)
+            all_issues = self.redis_client.get_all_issues()
             if all_issues:
                 candidate_issues = self._find_candidates_by_role(
                     all_issues, agent_role

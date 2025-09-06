@@ -1,3 +1,4 @@
+import json
 import redis
 
 
@@ -86,5 +87,5 @@ class RedisClient:
         for key in issue_keys:
             issue_data = self.client.get(key)
             if issue_data:
-                issues.append(issue_data.decode("utf-8"))
+                issues.append(json.loads(issue_data.decode("utf-8")))
         return issues
