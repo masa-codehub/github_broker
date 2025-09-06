@@ -174,3 +174,8 @@ junit_family = "xunit2"
 where = ["."]  # プロジェクトのルートディレクトリを探す
 include = ["github_broker*"]  # "github_broker"で始まるディレクトリをパッケージとして含める
 exclude = ["tests*"]  # "tests"ディレクトリはパッケージに含めない
+
+# --- mypyの設定 ---
+[tool.mypy]
+python_version = "3.13"
+ignore_missing_imports = true
