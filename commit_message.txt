@@ -1,0 +1,9 @@
+feat: Refactor TaskService to use Redis cache for issue retrieval
+
+This commit refactors the TaskService to utilize the Redis cache for retrieving issue information,
+improving performance and reducing reliance on direct GitHub API calls.
+
+- Modified `TaskService.complete_previous_task` to fetch issues from Redis cache.
+- Updated `tests/application/test_task_service.py` to reflect the changes in `TaskService`
+  and ensure all tests pass with the new Redis-based logic.
+- Removed outdated test `test_request_task_no_open_issues`.
