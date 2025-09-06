@@ -62,15 +62,16 @@ class TaskService:
 
     def _find_candidates_by_role(self, issues: list, agent_role: str) -> list:
         """指定された役割（role）ラベルを持つIssueをフィルタリングします。"""
-        candidate_issues = [
-            issue
-            for issue in issues
-            if agent_role in {label.get("name") for label in issue.get("labels", [])}
-        ]
+        candidate_issues = []
+        for issue in issues:
+            labels = {label.get("name") for label in issue.get("labels", [])}
+            if agent_role in labels and "needs-review" not in labels:
+                candidate_issues.append(issue)
 
         if not candidate_issues:
-            logger.info(f"No issues found with role label: {agent_role}")
-
+            logger.info(
+                f"No issues found with role label '{agent_role}' that do not also have 'needs-review'."
+            )
         return candidate_issues
 
     def _find_first_assignable_task(

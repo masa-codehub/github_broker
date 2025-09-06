@@ -20,7 +20,7 @@ class GitHubClient:
         リポジトリに存在するすべてのオープンなIssueを取得します。
         """
         try:
-            query = f"repo:{repo_name} is:issue is:open"
+            query = f'repo:{repo_name} is:issue is:open -label:"needs-review"'
             logging.info(f"クエリ: {query} でオープンなIssueを検索中")
             issues = self._client.search_issues(query=query)
             logging.info(f"オープンなIssueが {issues.totalCount} 件見つかりました。")
