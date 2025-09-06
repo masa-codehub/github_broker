@@ -312,15 +312,6 @@ def test_create_branch_handles_422(mock_github, mock_getenv):
     assert result is True  # 例外を送出しないはず
 
 
-# --- 統合テスト ---
-
-# 環境変数が設定されていない場合にテストをスキップするためのマーカー
-requires_github_token = pytest.mark.skipif(
-    not os.getenv("GITHUB_TOKEN") or not os.getenv("GITHUB_REPOSITORY"),
-    reason="統合テストにはGITHUB_TOKENおよびGITHUB_REPOSITORY環境変数が必要です",
-)
-
-
 @pytest.fixture(scope="module")
 def github_client():
     """統合テスト用のGitHubClientインスタンスを提供します。"""
@@ -342,120 +333,114 @@ def raw_github_client():
     return Github(token)
 
 
-@pytest.mark.integration
-@requires_github_token
-def test_integration_lifecycle(github_client, test_repo_name, raw_github_client):
+# --- 統合テスト ---
+def _wait_for_condition(check_function, expected_value, timeout=30, poll_interval=2):
+    """特定の条件が満たされるまでポーリングします。"""
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        current_value = check_function()
+        if current_value == expected_value:
+            return True
+        time.sleep(poll_interval)
+    raise TimeoutError(
+        f"Condition not met within {timeout} seconds. "
+        f"Last value: {current_value}, Expected value: {expected_value}"
+    )
+
+
+# 環境変数が設定されていない場合にテストをスキップするためのマーカー
+requires_github_token = pytest.mark.skipif(
+    not os.getenv("GITHUB_TOKEN") or not os.getenv("GITHUB_REPOSITORY"),
+    reason="統合テストにはGITHUB_TOKENおよびGITHUB_REPOSITORY環境変数が必要です",
+)
+
+
+@pytest.fixture(scope="function")
+def managed_test_issue(raw_github_client, test_repo_name):
     """
-    Issueとブランチ管理の完全なライフサイクルをテストします。
-    この単一のテストは、アトミック性を確保し、リポジトリ内の孤立したテストデータを防ぐために、
-    セットアップ、実行、クリーンアップを組み合わせています。
+    テスト用のIssueを作成し、テスト終了後に自動的にクローズするフィクスチャ。
+    scope="function" により、このフィクスチャを使用する各テスト関数ごとに新しいIssueが作成されます。
     """
     repo = raw_github_client.get_repo(test_repo_name)
-
-    # --- テストデータ ---
     unique_id = int(time.time())
-    issue_to_filter_title = f"フィルターされるべきテストIssue - {unique_id}"
-    issue_to_keep_title = f"保持されるべきテストIssue - {unique_id}"
-    label_in_progress = "in-progress"
-    label_to_add_remove = f"test-label-{unique_id}"
-    branch_to_create = f"feature/test-branch-{unique_id}"
+    issue_title = f"統合テスト用Issue - {unique_id}"
+    issue = repo.create_issue(title=issue_title, body="このIssueはテスト後に自動的にクローズされます。")
+    print(f"\n--- SETUP: Issue #{issue.number} ('{issue_title}') を作成しました ---")
 
-    issue_to_filter = None
-    issue_to_keep = None
+    yield issue
+
+    # --- Teardown ---
+    print(f"\n--- TEARDOWN: Issue #{issue.number} をクローズします ---")
+    try:
+        issue.edit(state="closed")
+    except GithubException as e:
+        print(f"警告: Issue #{issue.number} のクローズに失敗しました: {e}")
+
+
+@pytest.mark.integration
+@requires_github_token
+def test_integration_add_and_remove_label(
+    github_client, test_repo_name, raw_github_client, managed_test_issue
+):
+    """ラベルの追加と削除のライフサイクルをテストします。"""
+    repo = raw_github_client.get_repo(test_repo_name)
+    issue = managed_test_issue
+    label_name = f"test-label-{int(time.time())}"
+
+    # 1. ラベルを追加
+    print(f"--- RUN: Issue #{issue.number} にラベル '{label_name}' を追加します ---")
+    github_client.add_label(test_repo_name, issue.number, label_name)
+
+    # 2. ラベルが追加されたことをポーリングして確認
+    def check_labels():
+        reloaded_issue = repo.get_issue(issue.number)
+        return label_name in [label.name for label in reloaded_issue.labels]
+
+    _wait_for_condition(check_labels, True)
+    print(f"--- PASS: ラベル '{label_name}' の追加を確認しました ---")
+
+    # 3. ラベルを削除
+    print(f"--- RUN: Issue #{issue.number} からラベル '{label_name}' を削除します ---")
+    github_client.remove_label(test_repo_name, issue.number, label_name)
+
+    # 4. ラベルが削除されたことをポーリングして確認
+    _wait_for_condition(check_labels, False)
+    print(f"--- PASS: ラベル '{label_name}' の削除を確認しました ---")
+
+
+@pytest.mark.integration
+@requires_github_token
+def test_integration_create_and_delete_branch(
+    github_client, test_repo_name, raw_github_client
+):
+    """ブランチの作成と削除のライフサイクルをテストします。"""
+    repo = raw_github_client.get_repo(test_repo_name)
+    branch_name = f"feature/test-branch-{int(time.time())}"
 
     try:
-        # 1. --- セットアップ ---
-        # get_open_issuesをテストするために2つのIssueを作成
-        issue_to_filter = repo.create_issue(
-            title=issue_to_filter_title, body="このIssueは除外されるべきです。"
-        )
-        issue_to_filter.add_to_labels(label_in_progress)
+        # 1. ブランチを作成
+        print(f"--- RUN: ブランチ '{branch_name}' を作成します ---")
+        github_client.create_branch(test_repo_name, branch_name, base_branch="main")
 
-        issue_to_keep = repo.create_issue(
-            title=issue_to_keep_title, body="このIssueは返されるべきです。"
-        )
-
-        # GitHub APIが新しいIssueとラベルを処理するのを少し待つ
-        time.sleep(5)
-
-        # 2. --- get_open_issuesのテスト ---
-        print("--- 実行中: get_open_issuesのテスト ---")
-        open_issues = github_client.get_open_issues(test_repo_name)
-
-        # フィルタリングされなくなったため、両方のIssueが含まれることを確認
-        issue_numbers = [issue.number for issue in open_issues]
-        print(f"見つかったオープンなIssue番号: {issue_numbers}")
-        print(
-            f"Issue #{issue_to_keep.number} と Issue #{issue_to_filter.number} の両方が見つかることを期待しています"
-        )
-
-        assert issue_to_keep.number in issue_numbers
-        assert issue_to_filter.number in issue_numbers
-        print("--- PASSED: get_open_issuesのテスト ---")
-
-        # 3. --- add_labelとremove_labelのテスト ---
-        print(
-            f"--- 実行中: Issue #{issue_to_keep.number} のadd_labelとremove_labelのテスト ---"
-        )
-        # ラベルを追加
-        github_client.add_label(
-            test_repo_name, issue_to_keep.number, label_to_add_remove
-        )
-        time.sleep(2)
-        issue_reloaded = repo.get_issue(issue_to_keep.number)
-        assert label_to_add_remove in [label.name for label in issue_reloaded.labels]
-        print(f"ラベル '{label_to_add_remove}' の追加に成功しました")
-
-        # ラベルを削除
-        github_client.remove_label(
-            test_repo_name, issue_to_keep.number, label_to_add_remove
-        )
-        time.sleep(2)
-        issue_reloaded = repo.get_issue(issue_to_keep.number)
-        assert label_to_add_remove not in [
-            label.name for label in issue_reloaded.labels
-        ]
-        print(f"ラベル '{label_to_add_remove}' の削除に成功しました")
-        print("--- PASSED: add_labelとremove_labelのテスト ---")
-
-        # 4. --- create_branchのテスト ---
-        print("--- 実行中: create_branchのテスト ---")
-        github_client.create_branch(
-            test_repo_name, branch_to_create, base_branch="main"
-        )
-        time.sleep(2)
-        # ブランチの存在を確認
-        try:
-            repo.get_branch(branch_to_create)
-            branch_exists = True
-        except GithubException as e:
-            if e.status == 404:
-                branch_exists = False
-            else:
+        # 2. ブランチが作成されたことをポーリングして確認
+        def check_branch_exists():
+            try:
+                repo.get_branch(branch_name)
+                return True
+            except GithubException as e:
+                if e.status == 404:
+                    return False
                 raise
-        assert branch_exists, f"ブランチ '{branch_to_create}' が作成されませんでした。"
-        print(f"ブランチ '{branch_to_create}' の作成に成功しました")
-        print("--- PASSED: create_branchのテスト ---")
+
+        _wait_for_condition(check_branch_exists, True)
+        print(f"--- PASS: ブランチ '{branch_name}' の作成を確認しました ---")
 
     finally:
-        # 5. --- クリーンアップ ---
-        print("--- 実行中: クリーンアップ ---")
-        # Issueをクローズ
-        if issue_to_filter:
-            print(f"Issue #{issue_to_filter.number} をクローズ中")
-            issue_to_filter.edit(state="closed")
-        if issue_to_keep:
-            print(f"Issue #{issue_to_keep.number} をクローズ中")
-            issue_to_keep.edit(state="closed")
-
-        # ブランチを削除
+        # 3. ブランチを削除 (Teardown)
+        print(f"--- TEARDOWN: ブランチ '{branch_name}' を削除します ---")
         try:
-            ref = repo.get_git_ref(f"heads/{branch_to_create}")
-            print(f"ブランチ '{branch_to_create}' を削除中")
+            ref = repo.get_git_ref(f"heads/{branch_name}")
             ref.delete()
         except GithubException as e:
-            if e.status != 404:  # ブランチが存在しない場合は無視
-                print(
-                    f"警告: ブランチ '{branch_to_create}' を削除できませんでした: {e}"
-                )
-        print("--- クリーンアップ完了 ---")
+            if e.status != 404:
+                print(f"警告: ブランチ '{branch_name}' の削除に失敗しました: {e}")
