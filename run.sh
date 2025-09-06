@@ -12,6 +12,9 @@ pip install -U -r .build/repositories.txt && pip install -e .
 # エージェント切り替え変更
 bash .build/update_gemini_context.sh
 
+# pre-commitの設定
+pre-commit install --install-hooks
+
 # # ファイルの存在を確認
 # if [ -f "main.py" ]; then
 #     echo "main process start"
