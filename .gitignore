@@ -211,3 +211,6 @@ messages/
 
 # Track package-lock.json
 !package-lock.json
+
+# Secrets for local development
+secrets/
