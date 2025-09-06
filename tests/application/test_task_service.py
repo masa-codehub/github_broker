@@ -162,3 +162,127 @@ def test_request_task_no_matching_issue_no_wait(
 
     # Assert
     assert result is None
+
+
+@patch("time.sleep", return_value=None)
+def test_complete_previous_task_updates_issues(mock_sleep, task_service, mock_github_client):
+    """
+    complete_previous_taskが、in-progressとagent_idラベルを持つIssueを更新することをテストします。
+    """
+    # Arrange
+    mock_issue = create_mock_issue(
+        number=101,
+        title="Test Issue",
+        body="",
+        labels=["in-progress", "test-agent"],
+    )
+    mock_github_client.find_issues_by_labels.return_value = [mock_issue]
+
+    agent_id = "test-agent"
+
+    # Act
+    task_service.complete_previous_task(agent_id)
+
+    # Assert
+    mock_github_client.find_issues_by_labels.assert_called_once_with(
+        repo_name="test/repo", labels=["in-progress", agent_id]
+    )
+    mock_github_client.update_issue.assert_called_once_with(
+        repo_name="test/repo",
+        issue_id=mock_issue.number,
+        remove_labels=["in-progress", agent_id],
+        add_labels=["needs-review"],
+    )
+
+
+@patch("time.sleep", return_value=None)
+def test_find_first_assignable_task_exception_releases_lock(
+    mock_sleep, task_service, mock_github_client, mock_redis_client
+):
+    """
+    _find_first_assignable_task内で例外が発生した場合にロックが解放されることをテストします。
+    """
+    # Arrange
+    issue = create_mock_issue(
+        number=1,
+        title="Test Task",
+        body="## 成果物\n- test.py",
+        labels=["BACKENDCODER"],
+    )
+    mock_redis_client.acquire_lock.return_value = True
+    mock_github_client.add_label.side_effect = Exception("GitHub API Error")
+
+    candidate_issues = [issue]
+    agent_id = "test-agent"
+
+    # Act & Assert
+    with pytest.raises(Exception, match="GitHub API Error"):
+        task_service._find_first_assignable_task(candidate_issues, agent_id)
+
+    mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
+
+
+@patch("time.sleep", return_value=None)
+def test_find_first_assignable_task_create_branch_exception_releases_lock(
+    mock_sleep, task_service, mock_github_client, mock_redis_client
+):
+    """
+    _find_first_assignable_task内でcreate_branchが例外を発生させた場合にロックが解放されることをテストします。
+    """
+    # Arrange
+    issue = create_mock_issue(
+        number=1,
+        title="Test Task",
+        body="## 成果物\n- test.py",
+        labels=["BACKENDCODER"],
+    )
+    mock_redis_client.acquire_lock.return_value = True
+    mock_github_client.create_branch.side_effect = Exception("Branch Creation Error")
+
+    candidate_issues = [issue]
+    agent_id = "test-agent"
+
+    # Act & Assert
+    with pytest.raises(Exception, match="Branch Creation Error"):
+        task_service._find_first_assignable_task(candidate_issues, agent_id)
+
+    mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
+
+
+@patch("time.sleep", return_value=None)
+def test_request_task_no_open_issues(mock_sleep, task_service, mock_github_client):
+    """
+    request_taskでget_open_issuesが空のリストを返した場合にNoneが返されることをテストします。
+    """
+    # Arrange
+    mock_github_client.get_open_issues.return_value = []
+    agent_id = "test-agent"
+    agent_role = "BACKENDCODER"
+
+    # Act
+    result = task_service.request_task(agent_id, agent_role)
+
+    # Assert
+    assert result is None
+    mock_github_client.get_open_issues.assert_called_once_with("test/repo")
+    mock_github_client.find_issues_by_labels.assert_called_once_with(
+        repo_name="test/repo", labels=["in-progress", agent_id]
+    )
+
+
+def test_task_service_init_no_github_repository_env():
+    """
+    GITHUB_REPOSITORY環境変数が設定されていない場合にValueErrorが発生することをテストします。
+    """
+    # Arrange
+    original_env = os.environ.copy()
+    if "GITHUB_REPOSITORY" in os.environ:
+        del os.environ["GITHUB_REPOSITORY"]
+
+    # Act & Assert
+    with pytest.raises(ValueError, match="GITHUB_REPOSITORY環境変数が設定されていません。"):
+        TaskService(redis_client=MagicMock(), github_client=MagicMock())
+
+    # Cleanup
+    os.environ.clear()
+    os.environ.update(original_env)
