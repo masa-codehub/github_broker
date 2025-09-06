@@ -51,7 +51,7 @@ test = [
 dev = [
     "black",         # コードフォーマッター
     "isort",         # importソート
-    "ruff",          # 高速リンター
+    "ruff==0.5.0",          # 高速リンター
     "pytest",
     "pytest-cov",
     "pre-commit",    # Git フック管理
