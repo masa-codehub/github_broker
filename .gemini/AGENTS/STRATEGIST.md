@@ -131,7 +131,7 @@ https://github.com/masa-codehub/github_broker.git
 app/ # プロジェクトルート
 ├── docs/   # 設計ドキュメント群 (プロジェクトの「あるべき姿」を理解する上で最重要)
 |   ├── architecture/           # システムの構造や設計思想
-|   │   ├── system-overview.md  # 全体像、C4モデルなどの図
+|   │   ├── system-context.md   # 全体像、C4モデルなどの図（STRATEGISTが最新に保つ）
 |   │   ├── authentication.md   # 認証・認可の仕組み
 |   │   ├── database-design.md  # DBスキーマ、ER図
 |   │   └── ...
