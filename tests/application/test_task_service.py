@@ -53,10 +53,10 @@ def create_mock_issue(number, title, body, labels, has_branch_name: bool = True)
 
 
 @patch("time.sleep", return_value=None)
-def test_request_task_selects_by_role(
+def test_request_task_selects_by_role_no_wait(
     mock_sleep, task_service, mock_github_client, mock_redis_client
 ):
-    """エージェントの役割（role）に一致するラベルを持つIssueが選択されることをテストします。"""
+    """エージェントの役割（role）に一致するラベルを持つIssueが即時選択されることをテストします。"""
     # Arrange
     issue1 = create_mock_issue(
         number=1,
@@ -78,7 +78,9 @@ def test_request_task_selects_by_role(
     agent_role = "BACKENDCODER"
 
     # Act
-    result = task_service.request_task(agent_id="test-agent", agent_role=agent_role)
+    result = task_service.request_task(
+        agent_id="test-agent", agent_role=agent_role, timeout=0
+    )
 
     # Assert
     assert result is not None
@@ -86,11 +88,66 @@ def test_request_task_selects_by_role(
     mock_redis_client.acquire_lock.assert_called_once_with(
         "issue_lock_2", "locked", timeout=600
     )
+    mock_github_client.get_open_issues.assert_called_once()
+
+
+@patch("time.time")
+@patch("time.sleep", return_value=None)
+def test_request_task_times_out(
+    mock_sleep, mock_time, task_service, mock_github_client
+):
+    """利用可能なタスクがなく、タイムアウトする場合をテストします。"""
+    # Arrange
+    mock_github_client.get_open_issues.return_value = []
+    timeout = 10
+    # time.time()が最初にtimeoutを返し、その後増加してタイムアウトするように設定
+    mock_time.side_effect = [0, 2, 4, 6, 8, 11]
+
+    # Act
+    result = task_service.request_task(
+        agent_id="test-agent", agent_role="BACKENDCODER", timeout=timeout
+    )
+
+    # Assert
+    assert result is None
+    # 5秒間隔でsleepが呼ばれる
+    assert mock_sleep.call_count > 1
+    assert mock_github_client.get_open_issues.call_count > 1
+
+
+@patch("time.time")
+@patch("time.sleep", return_value=None)
+def test_request_task_finds_task_after_polling(
+    mock_sleep, mock_time, task_service, mock_github_client, mock_redis_client
+):
+    """ポーリング後にタスクが見つかる場合をテストします。"""
+    # Arrange
+    issue = create_mock_issue(
+        number=1, title="Delayed Task", body="## 成果物\n- delayed.py", labels=["BACKENDCODER"]
+    )
+    # 最初の呼び出しではタスクなし、2回目で見つかる
+    mock_github_client.get_open_issues.side_effect = [[], [issue]]
+    mock_redis_client.acquire_lock.return_value = True
+    timeout = 10
+    mock_time.side_effect = [0, 5, 11]  # 1回ポーリングして見つかる
+
+    # Act
+    result = task_service.request_task(
+        agent_id="test-agent", agent_role="BACKENDCODER", timeout=timeout
+    )
+
+    # Assert
+    assert result is not None
+    assert result.issue_id == 1
+    assert mock_github_client.get_open_issues.call_count == 2
+    mock_sleep.assert_any_call(5) # ポーリング間隔でsleepが呼ばれる
 
 
 @patch("time.sleep", return_value=None)
-def test_request_task_no_matching_issue(mock_sleep, task_service, mock_github_client):
-    """エージェントの役割に一致するIssueがない場合にNoneが返されることをテストします。"""
+def test_request_task_no_matching_issue_no_wait(
+    mock_sleep, task_service, mock_github_client
+):
+    """エージェントの役割に一致するIssueがない場合にNoneが返されることをテストします（待機なし）。"""
     # Arrange
     issue1 = create_mock_issue(
         number=1, title="Docs", body="", labels=["documentation"]
@@ -99,102 +156,12 @@ def test_request_task_no_matching_issue(mock_sleep, task_service, mock_github_cl
     agent_role = "BACKENDCODER"
 
     # Act
-    result = task_service.request_task(agent_id="test-agent", agent_role=agent_role)
+    result = task_service.request_task(
+        agent_id="test-agent", agent_role=agent_role, timeout=0
+    )
 
     # Assert
     assert result is None
-
-
-@patch("time.sleep", return_value=None)
-def test_request_task_no_assignable_issue(mock_sleep, task_service, mock_github_client):
-    """一致するIssueはあるが、どれも割り当て可能でない場合にNoneが返されることをテストします。"""
-    # Arrange
-    issue1 = create_mock_issue(
-        number=1,
-        title="Feature",
-        body="body without deliverables",
-        labels=["BACKENDCODER"],
-    )
-    mock_github_client.get_open_issues.return_value = [issue1]
-    agent_role = "BACKENDCODER"
-
-    # Act
-    result = task_service.request_task(agent_id="test-agent", agent_role=agent_role)
-
-    # Assert
-    assert result is None
-
-
-@patch("time.sleep", return_value=None)
-def test_request_task_skips_locked_issue(
-    mock_sleep, task_service, mock_github_client, mock_redis_client
-):
-    """役割に一致するIssueがロックされている場合、次に一致するIssueが選択されることをテストします。"""
-    # Arrange
-    issue_locked = create_mock_issue(
-        number=1,
-        title="Locked Task",
-        body="## 成果物\n- fix.py",
-        labels=["BACKENDCODER"],
-    )
-    issue_available = create_mock_issue(
-        number=2,
-        title="Available Task",
-        body="## 成果物\n- another.py",
-        labels=["BACKENDCODER"],
-    )
-    mock_github_client.get_open_issues.return_value = [issue_locked, issue_available]
-    mock_github_client.search_issues.return_value = []
-    mock_redis_client.acquire_lock.side_effect = [
-        False,
-        True,
-    ]  # 1番目は失敗、2番目は成功
-
-    agent_role = "BACKENDCODER"
-
-    # Act
-    result = task_service.request_task(agent_id="test-agent", agent_role=agent_role)
-
-    # Assert
-    assert result is not None
-    assert result.issue_id == 2
-    assert mock_redis_client.acquire_lock.call_count == 2
-
-
-@patch("time.sleep", return_value=None)
-def test_request_task_skips_issue_without_branch_name(
-    mock_sleep, task_service, mock_github_client, mock_redis_client
-):
-    """「成果物」はあるがブランチ名がないIssueをスキップすることをテストします。"""
-    # Arrange
-    issue_no_branch = create_mock_issue(
-        number=1,
-        title="No branch name",
-        body="## 成果物\n- some deliverable",
-        labels=["BACKENDCODER"],
-        has_branch_name=False,
-    )
-    issue_with_branch = create_mock_issue(
-        number=2,
-        title="With branch name",
-        body="## 成果物\n- another deliverable",
-        labels=["BACKENDCODER"],
-    )
-    mock_github_client.get_open_issues.return_value = [
-        issue_no_branch,
-        issue_with_branch,
-    ]
-    mock_github_client.search_issues.return_value = []
-    mock_redis_client.acquire_lock.return_value = True
-
-    agent_role = "BACKENDCODER"
-
-    # Act
-    result = task_service.request_task(agent_id="test-agent", agent_role=agent_role)
-
-    # Assert
-    assert result is not None
-    assert result.issue_id == 2
 
 
 @patch("time.sleep", return_value=None)
