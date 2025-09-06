@@ -66,10 +66,15 @@ async def github_webhook_endpoint(
     body = await request.body()
 
     try:
-        webhook_service.process_webhook(signature, body)
+        if not webhook_service.verify_signature(signature, body):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid signature")
+        
+        import json
+        payload = json.loads(body.decode('utf-8'))
+        webhook_service.enqueue_payload(payload)
     except ValueError as e:
         logger.warning(f"Webhook processing failed: {e}")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
     logger.info("Webhook payload received and enqueued.")
     return {"message": "Webhook received and enqueued."}

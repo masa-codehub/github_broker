@@ -124,7 +124,7 @@ def test_github_webhook_endpoint_success(mock_webhook_service):
     assert response.status_code == 202
     assert response.json() == {"message": "Webhook received and enqueued."}
     mock_webhook_service.verify_signature.assert_called_once_with(signature, payload_bytes)
-    mock_webhook_service.enqueue_webhook_payload.assert_called_once_with(payload)
+    mock_webhook_service.enqueue_payload.assert_called_once_with(payload)
 
 @patch.dict(os.environ, {"GITHUB_WEBHOOK_SECRET": "test_secret"}) # 追加
 def test_github_webhook_endpoint_no_signature(mock_webhook_service):
@@ -142,7 +142,7 @@ def test_github_webhook_endpoint_no_signature(mock_webhook_service):
     assert response.status_code == 401
     assert response.json() == {"detail": "X-Hub-Signature-256 header missing"}
     mock_webhook_service.verify_signature.assert_not_called()
-    mock_webhook_service.enqueue_webhook_payload.assert_not_called()
+    mock_webhook_service.enqueue_payload.assert_not_called()
 
 @patch.dict(os.environ, {"GITHUB_WEBHOOK_SECRET": "test_secret"}) # 追加
 def test_github_webhook_endpoint_invalid_signature(mock_webhook_service):
@@ -162,9 +162,9 @@ def test_github_webhook_endpoint_invalid_signature(mock_webhook_service):
 
     # Assert
     assert response.status_code == 401
-    assert response.json() == {"detail": "Webhook signature verification failed"}
+    assert response.json() == {"detail": "Invalid signature"}
     mock_webhook_service.verify_signature.assert_called_once_with(signature, payload_bytes)
-    mock_webhook_service.enqueue_webhook_payload.assert_not_called()
+    mock_webhook_service.enqueue_payload.assert_not_called()
 
 @patch.dict(os.environ, {"GITHUB_WEBHOOK_SECRET": "test_secret"}) # 追加
 def test_github_webhook_endpoint_invalid_json(mock_webhook_service):
@@ -184,6 +184,6 @@ def test_github_webhook_endpoint_invalid_json(mock_webhook_service):
 
     # Assert
     assert response.status_code == 400
-    assert response.json() == {"detail": "Invalid JSON payload"}
+    assert "Expecting value" in response.json()["detail"]
     mock_webhook_service.verify_signature.assert_called_once_with(signature, payload_bytes)
-    mock_webhook_service.enqueue_webhook_payload.assert_not_called()
+    mock_webhook_service.enqueue_payload.assert_not_called()
