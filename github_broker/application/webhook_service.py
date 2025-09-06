@@ -46,8 +46,45 @@ class WebhookService:
         if payload_str:
             payload = json.loads(payload_str)
             logger.info(f"Processing webhook payload: {payload.get('action', 'N/A')}")
-            # ここに実際の非同期処理ロジックを実装
-            return payload
+            try:
+                self._process_issue_event(payload)
+                logger.info(f"Successfully processed webhook payload for action: {payload.get('action', 'N/A')}")
+                return payload
+            except Exception as e:
+                logger.error(f"Error processing webhook payload: {e}", exc_info=True)
+                # TODO: エラー処理とリトライ機構（Dead Letter Queueなど）を実装
+                return None
         else:
             logger.info("Webhook queue is empty in Redis.")
             return None
+
+    def _process_issue_event(self, payload: dict):
+        """
+        Issue関連のWebhookイベントを処理し、Redisキャッシュを更新します。
+        """
+        action = payload.get("action")
+        issue = payload.get("issue")
+
+        if not issue:
+            logger.warning(f"Issue data not found in payload for action: {action}")
+            return
+
+        issue_id = issue.get("id")
+        if not issue_id:
+            logger.warning(f"Issue ID not found in payload for action: {action}")
+            return
+
+        if action in ["opened", "edited", "reopened"]:
+            # Issueの作成または更新
+            self.redis_client.set_issue(str(issue_id), json.dumps(issue))
+            logger.info(f"Issue {issue_id} {action} and cached in Redis.")
+        elif action == "closed":
+            # Issueの削除
+            self.redis_client.delete_issue(str(issue_id))
+            logger.info(f"Issue {issue_id} {action} and removed from Redis cache.")
+        elif action == "deleted":
+            # Issueの削除
+            self.redis_client.delete_issue(str(issue_id))
+            logger.info(f"Issue {issue_id} {action} and removed from Redis cache.")
+        else:
+            logger.info(f"Unhandled webhook action: {action}. No cache update performed.")

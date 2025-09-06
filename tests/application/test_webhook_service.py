@@ -80,3 +80,149 @@ def test_process_next_payload_empty_queue(webhook_service, mock_redis_client):
     processed_payload = webhook_service.process_next_payload()
     assert processed_payload is None
     mock_redis_client.lpop_event.assert_called_once_with(webhook_service.webhook_queue_name)
+
+def test_process_next_payload_handles_issue_opened(webhook_service, mock_redis_client):
+    """
+    process_next_payloadがopenedアクションのIssueを正しく処理することをテストします。
+    """
+    issue_payload = {
+        "action": "opened",
+        "issue": {"id": 123, "title": "Test Issue", "state": "open"}
+    }
+    mock_redis_client.lpop_event.return_value = json.dumps(issue_payload)
+
+    processed_payload = webhook_service.process_next_payload()
+
+    assert processed_payload == issue_payload
+    mock_redis_client.set_issue.assert_called_once_with("123", json.dumps(issue_payload["issue"]))
+    mock_redis_client.delete_issue.assert_not_called()
+
+def test_process_next_payload_handles_issue_edited(webhook_service, mock_redis_client):
+    """
+    process_next_payloadがeditedアクションのIssueを正しく処理することをテストします。
+    """
+    issue_payload = {
+        "action": "edited",
+        "issue": {"id": 123, "title": "Edited Test Issue", "state": "open"}
+    }
+    mock_redis_client.lpop_event.return_value = json.dumps(issue_payload)
+
+    processed_payload = webhook_service.process_next_payload()
+
+    assert processed_payload == issue_payload
+    mock_redis_client.set_issue.assert_called_once_with("123", json.dumps(issue_payload["issue"]))
+    mock_redis_client.delete_issue.assert_not_called()
+
+def test_process_next_payload_handles_issue_reopened(webhook_service, mock_redis_client):
+    """
+    process_next_payloadがreopenedアクションのIssueを正しく処理することをテストします。
+    """
+    issue_payload = {
+        "action": "reopened",
+        "issue": {"id": 123, "title": "Reopened Test Issue", "state": "open"}
+    }
+    mock_redis_client.lpop_event.return_value = json.dumps(issue_payload)
+
+    processed_payload = webhook_service.process_next_payload()
+
+    assert processed_payload == issue_payload
+    mock_redis_client.set_issue.assert_called_once_with("123", json.dumps(issue_payload["issue"]))
+    mock_redis_client.delete_issue.assert_not_called()
+
+def test_process_next_payload_handles_issue_closed(webhook_service, mock_redis_client):
+    """
+    process_next_payloadがclosedアクションのIssueを正しく処理することをテストします。
+    """
+    issue_payload = {
+        "action": "closed",
+        "issue": {"id": 123, "title": "Closed Test Issue", "state": "closed"}
+    }
+    mock_redis_client.lpop_event.return_value = json.dumps(issue_payload)
+
+    processed_payload = webhook_service.process_next_payload()
+
+    assert processed_payload == issue_payload
+    mock_redis_client.delete_issue.assert_called_once_with("123")
+    mock_redis_client.set_issue.assert_not_called()
+
+def test_process_next_payload_handles_issue_deleted(webhook_service, mock_redis_client):
+    """
+    process_next_payloadがdeletedアクションのIssueを正しく処理することをテストします。
+    """
+    issue_payload = {
+        "action": "deleted",
+        "issue": {"id": 123, "title": "Deleted Test Issue", "state": "deleted"}
+    }
+    mock_redis_client.lpop_event.return_value = json.dumps(issue_payload)
+
+    processed_payload = webhook_service.process_next_payload()
+
+    assert processed_payload == issue_payload
+    mock_redis_client.delete_issue.assert_called_once_with("123")
+    mock_redis_client.set_issue.assert_not_called()
+
+def test_process_next_payload_handles_unhandled_action(webhook_service, mock_redis_client):
+    """
+    process_next_payloadが未処理のアクションをスキップすることをテストします。
+    """
+    issue_payload = {
+        "action": "assigned", # 未処理のアクション
+        "issue": {"id": 123, "title": "Assigned Test Issue", "state": "open"}
+    }
+    mock_redis_client.lpop_event.return_value = json.dumps(issue_payload)
+
+    processed_payload = webhook_service.process_next_payload()
+
+    assert processed_payload == issue_payload
+    mock_redis_client.set_issue.assert_not_called()
+    mock_redis_client.delete_issue.assert_not_called()
+
+def test_process_next_payload_handles_missing_issue_data(webhook_service, mock_redis_client):
+    """
+    process_next_payloadがissueデータがないペイロードを処理することをテストします。
+    """
+    issue_payload = {
+        "action": "opened",
+        "repository": {"id": 456} # issueデータがない
+    }
+    mock_redis_client.lpop_event.return_value = json.dumps(issue_payload)
+
+    processed_payload = webhook_service.process_next_payload()
+
+    assert processed_payload == issue_payload
+    mock_redis_client.set_issue.assert_not_called()
+    mock_redis_client.delete_issue.assert_not_called()
+
+def test_process_next_payload_handles_missing_issue_id(webhook_service, mock_redis_client):
+    """
+    process_next_payloadがissue_idがないペイロードを処理することをテストします。
+    """
+    issue_payload = {
+        "action": "opened",
+        "issue": {"title": "Test Issue without ID"} # idがない
+    }
+    mock_redis_client.lpop_event.return_value = json.dumps(issue_payload)
+
+    processed_payload = webhook_service.process_next_payload()
+
+    assert processed_payload == issue_payload
+    mock_redis_client.set_issue.assert_not_called()
+    mock_redis_client.delete_issue.assert_not_called()
+
+def test_process_next_payload_error_handling(webhook_service, mock_redis_client):
+    """
+    process_next_payloadが処理中のエラーを適切にハンドリングすることをテストします。
+    """
+    issue_payload = {
+        "action": "opened",
+        "issue": {"id": 123, "title": "Test Issue", "state": "open"}
+    }
+    mock_redis_client.lpop_event.return_value = json.dumps(issue_payload)
+    # set_issueが例外を発生させるように設定
+    mock_redis_client.set_issue.side_effect = Exception("Redis error")
+
+    processed_payload = webhook_service.process_next_payload()
+
+    assert processed_payload is None # エラーが発生したためNoneが返される
+    mock_redis_client.set_issue.assert_called_once_with("123", json.dumps(issue_payload["issue"]))
+    mock_redis_client.delete_issue.assert_not_called()
