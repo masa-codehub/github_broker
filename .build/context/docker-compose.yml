@@ -21,8 +21,8 @@ services:
       - BROKER_PORT=${BROKER_PORT:-8001}
       - GITHUB_TOKEN=${GITHUB_TOKEN:-my_github_token}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-my_gemini_api_key}
-      - GCP_PROJECT_ID=${GCP_PROJECT_ID:-your_gcp_project}
-      - GCP_LOCATION=${GCP_LOCATION:-us-central1}
+      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT:-your_gcp_project}
+      - GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION:-us-central1}
     depends_on:
       - github_broker
       - redis
