@@ -1,6 +1,5 @@
 import logging
 import os
-import threading
 
 import uvicorn
 
@@ -15,11 +14,12 @@ from github_broker.interface.api import app
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
-    # IssueCacheUpdaterServiceを初期化し、別スレッドで実行
+    # IssueCacheUpdaterServiceを初期化し、別スreadで実行
     issue_updater_service = di_container.container.resolve(IssueCacheUpdaterService)
-    updater_thread = threading.Thread(target=issue_updater_service.start)
-    updater_thread.daemon = True  # メインスレッド終了時に一緒に終了
-    updater_thread.start()
+    # updater_thread = threading.Thread(target=issue_updater_service.start)
+    # updater_thread.daemon = True  # メインスレッド終了時に一緒に終了
+    # updater_thread.start()
+    issue_updater_service.start()
 
     # 環境変数 `BROKER_PORT` からポート番号を読み込む。指定がなければデフォルトで8080を使用。
     port = int(os.getenv("BROKER_PORT", 8080))
