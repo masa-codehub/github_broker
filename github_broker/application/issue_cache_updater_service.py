@@ -23,9 +23,10 @@ class IssueCacheUpdaterService:
                 except json.JSONDecodeError as e:
                     logger.error(f"Failed to decode JSON payload: {e} - Payload: {payload_str}")
                 except Exception as e:
-                    logger.error(f"Error processing webhook payload: {e} - Payload: {payload_str}")
-                    # リトライ機構の考慮: 現時点ではエラーをログに記録し、次のイベントに進む
-                    # より堅牢な実装では、Dead Letter Queueへの移動やリトライ回数の管理が必要
+                    logger.error(f"Error processing webhook payload: {e}", exc_info=True)
+                    # エラーが発生したペイロードをDead Letter Queueに格納
+                    self.redis_client.rpush_event("webhook_events_dlq", payload_str)
+                    logger.warning(f"Webhook payload moved to DLQ: {self.webhook_queue_name}_dlq")
             else:
                 time.sleep(1) # キューが空の場合は1秒待機
 
@@ -44,10 +45,10 @@ class IssueCacheUpdaterService:
         issue_id = str(issue.get("id"))
         issue_data = json.dumps(issue)
 
-        if action == "opened" or action == "edited":
+        if action in ["opened", "edited", "reopened"]:
             self.redis_client.set_issue(issue_id, issue_data)
             logger.info(f"Issue {issue_id} ({action}) cached/updated.")
-        elif action == "closed":
+        elif action in ["closed", "deleted"]:
             self.redis_client.delete_issue(issue_id)
             logger.info(f"Issue {issue_id} ({action}) deleted from cache.")
         else:
