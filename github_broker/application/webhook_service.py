@@ -52,7 +52,9 @@ class WebhookService:
                 return payload
             except Exception as e:
                 logger.error(f"Error processing webhook payload: {e}", exc_info=True)
-                # TODO: エラー処理とリトライ機構（Dead Letter Queueなど）を実装
+                # エラーが発生したペイロードをDead Letter Queueに格納
+                self.redis_client.rpush_event("webhook_events_dlq", payload_str)
+                logger.warning(f"Webhook payload moved to DLQ: {self.webhook_queue_name}_dlq")
                 return None
         else:
             logger.info("Webhook queue is empty in Redis.")

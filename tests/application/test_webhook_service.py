@@ -211,13 +211,14 @@ def test_process_next_payload_handles_missing_issue_id(webhook_service, mock_red
 
 def test_process_next_payload_error_handling(webhook_service, mock_redis_client):
     """
-    process_next_payloadが処理中のエラーを適切にハンドリングすることをテストします。
+    process_next_payloadが処理中のエラーを適切にハンドリングし、DLQに移動することをテストします。
     """
     issue_payload = {
         "action": "opened",
         "issue": {"id": 123, "title": "Test Issue", "state": "open"}
     }
-    mock_redis_client.lpop_event.return_value = json.dumps(issue_payload)
+    payload_str = json.dumps(issue_payload)
+    mock_redis_client.lpop_event.return_value = payload_str
     # set_issueが例外を発生させるように設定
     mock_redis_client.set_issue.side_effect = Exception("Redis error")
 
@@ -226,3 +227,4 @@ def test_process_next_payload_error_handling(webhook_service, mock_redis_client)
     assert processed_payload is None # エラーが発生したためNoneが返される
     mock_redis_client.set_issue.assert_called_once_with("123", json.dumps(issue_payload["issue"]))
     mock_redis_client.delete_issue.assert_not_called()
+    mock_redis_client.rpush_event.assert_called_once_with("webhook_events_dlq", payload_str)
