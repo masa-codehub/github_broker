@@ -75,12 +75,11 @@ GitHub のリポジトリ設定で、新しい Webhook を作成します。
 `interface/api.py` に新しいエンドポイントを追加します。
 
 *   **エンドポイント:** `POST /api/v1/webhook/github`
-*   **説明:** GitHub からの `issues` イベントを受信し、Issue Cache を更新します。
+*   **説明:** GitHub からの `issues` イベントを受信し、検証後、非同期処理のためにキューに格納します。
 *   **処理フロー:**
     1.  リクエストの `X-Hub-Signature-256` ヘッダーを検証し、リクエストが GitHub からのものであることを確認します。
-    2.  リクエストボディをパースし、`action` プロパティに応じて処理を分岐します。
-    3.  `opened`, `reopened`, `edited`, `labeled`, `unlabeled`, `assigned`, `unassigned` の場合に、Redis の Issue Cache を更新します。
-    4.  `closed` の場合に、Redis の Issue Cache から該当する Issue を削除します。
+    2.  リクエストボディをパースし、ペイロードをキューに格納します。
+    3.  （今後の実装）キューから取り出したペイロードを基に、Redis の Issue Cache を更新します。
 
 ### 4.3. Issue Cache (Redis)
 
