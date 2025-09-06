@@ -274,3 +274,21 @@ def test_request_task_no_open_issues(mock_sleep, task_service, mock_github_clien
     mock_github_client.find_issues_by_labels.assert_called_once_with(
         repo_name="test/repo", labels=["in-progress", agent_id]
     )
+
+
+def test_task_service_init_no_github_repository_env():
+    """
+    GITHUB_REPOSITORY環境変数が設定されていない場合にValueErrorが発生することをテストします。
+    """
+    # Arrange
+    original_env = os.environ.copy()
+    if "GITHUB_REPOSITORY" in os.environ:
+        del os.environ["GITHUB_REPOSITORY"]
+
+    # Act & Assert
+    with pytest.raises(ValueError, match="GITHUB_REPOSITORY環境変数が設定されていません。"):
+        TaskService(redis_client=MagicMock(), github_client=MagicMock())
+
+    # Cleanup
+    os.environ.clear()
+    os.environ.update(original_env)
