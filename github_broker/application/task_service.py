@@ -32,25 +32,32 @@ class TaskService:
         in-progressとagent_idラベルを持つIssueを検索し、それらのラベルを削除し、needs-reviewラベルを付与します。
         """
         logger.info(f"Completing previous task for agent: {agent_id}")
-        previous_issues = self.github_client.find_issues_by_labels(
-            repo_name=self.repo_name, labels=["in-progress", agent_id]
-        )
+        all_issues = self.redis_client.get_all_issues()
+        if not all_issues:
+            logger.info("No issues found in Redis cache.")
+            return
+
+        previous_issues = []
+        for issue in all_issues:
+            labels = issue.get("labels", [])
+            if "in-progress" in labels and agent_id in labels:
+                previous_issues.append(issue)
 
         for issue in previous_issues:
             logger.info(
-                f"Found previous in-progress issue #{issue.number} for agent {agent_id}."
+                f"Found previous in-progress issue #{issue['number']} for agent {agent_id}."
             )
             remove_labels = ["in-progress", agent_id]
             add_labels = ["needs-review"]
 
             self.github_client.update_issue(
                 repo_name=self.repo_name,
-                issue_id=issue.number,
+                issue_id=issue['number'],
                 remove_labels=remove_labels,
                 add_labels=add_labels,
             )
             logger.info(
-                f"Updated labels for issue #{issue.number}: removed {remove_labels}, added {add_labels}."
+                f"Updated labels for issue #{issue['number']}: removed {remove_labels}, added {add_labels}."
             )
 
     def _find_candidates_by_role(self, issues: list, agent_role: str) -> list:
