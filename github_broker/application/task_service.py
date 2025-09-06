@@ -32,25 +32,32 @@ class TaskService:
         in-progressとagent_idラベルを持つIssueを検索し、それらのラベルを削除し、needs-reviewラベルを付与します。
         """
         logger.info(f"Completing previous task for agent: {agent_id}")
-        previous_issues = self.github_client.find_issues_by_labels(
-            repo_name=self.repo_name, labels=["in-progress", agent_id]
-        )
+        all_issues = self.redis_client.get_all_issues()
+        if not all_issues:
+            logger.info("No issues found in Redis cache.")
+            return
+
+        previous_issues = []
+        for issue in all_issues:
+            labels = [label["name"] for label in issue.get("labels", [])]
+            if "in-progress" in labels and agent_id in labels:
+                previous_issues.append(issue)
 
         for issue in previous_issues:
             logger.info(
-                f"Found previous in-progress issue #{issue.number} for agent {agent_id}."
+                f"Found previous in-progress issue #{issue['number']} for agent {agent_id}."
             )
             remove_labels = ["in-progress", agent_id]
             add_labels = ["needs-review"]
 
             self.github_client.update_issue(
                 repo_name=self.repo_name,
-                issue_id=issue.number,
+                issue_id=issue["number"],
                 remove_labels=remove_labels,
                 add_labels=add_labels,
             )
             logger.info(
-                f"Updated labels for issue #{issue.number}: removed {remove_labels}, added {add_labels}."
+                f"Updated labels for issue #{issue['number']}: removed {remove_labels}, added {add_labels}."
             )
 
     def _find_candidates_by_role(self, issues: list, agent_role: str) -> list:
@@ -58,7 +65,7 @@ class TaskService:
         candidate_issues = [
             issue
             for issue in issues
-            if agent_role in {label.name for label in issue.labels}
+            if agent_role in {label.get("name") for label in issue.get("labels", [])}
         ]
 
         if not candidate_issues:
@@ -70,13 +77,13 @@ class TaskService:
         self, candidate_issues: list, agent_id: str
     ) -> TaskResponse | None:
         """候補リストから、最初に割り当て可能なタスクを見つけます。"""
-        for issue_obj in sorted(candidate_issues, key=lambda i: i.number):
+        for issue_obj in sorted(candidate_issues, key=lambda i: i["number"]):
             task = Task(
-                issue_id=issue_obj.number,
-                title=issue_obj.title,
-                body=issue_obj.body or "",
-                html_url=issue_obj.html_url,
-                labels=[label.name for label in issue_obj.labels],
+                issue_id=issue_obj["number"],
+                title=issue_obj["title"],
+                body=issue_obj["body"] or "",
+                html_url=issue_obj["html_url"],
+                labels=issue_obj["labels"],
             )
 
             if not task.is_assignable():
@@ -116,7 +123,7 @@ class TaskService:
                     issue_url=task.html_url,
                     title=task.title,
                     body=task.body,
-                    labels=task.labels,
+                    labels=[label["name"] for label in task.labels],
                     branch_name=branch_name,
                 )
             except Exception as e:
@@ -167,11 +174,9 @@ class TaskService:
 
         while True:
             logger.info(f"Searching for open issues in repository: {self.repo_name}")
-            all_issues = self.github_client.get_open_issues(self.repo_name)
+            all_issues = self.redis_client.get_all_issues()
             if all_issues:
-                candidate_issues = self._find_candidates_by_role(
-                    all_issues, agent_role
-                )
+                candidate_issues = self._find_candidates_by_role(all_issues, agent_role)
                 if candidate_issues:
                     task = self._find_first_assignable_task(candidate_issues, agent_id)
                     if task:

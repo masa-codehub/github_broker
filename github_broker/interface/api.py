@@ -1,11 +1,12 @@
+import json
 import logging
 
-from fastapi import Depends, FastAPI, Request, Response, status, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 
 from github_broker.application.exceptions import LockAcquisitionError
 from github_broker.application.task_service import TaskService
-from github_broker.application.webhook_service import WebhookService # 追加
+from github_broker.application.webhook_service import WebhookService
 from github_broker.infrastructure.di_container import container
 from github_broker.interface.models import AgentTaskRequest, TaskResponse
 
@@ -18,7 +19,8 @@ app = FastAPI()
 def get_task_service() -> TaskService:
     return container.resolve(TaskService)
 
-def get_webhook_service() -> WebhookService: # 追加
+
+def get_webhook_service() -> WebhookService:
     return container.resolve(WebhookService)
 
 
@@ -53,7 +55,8 @@ async def request_task_endpoint(
     else:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-@app.post("/api/v1/webhook/github", status_code=status.HTTP_202_ACCEPTED) # 追加
+
+@app.post("/api/v1/webhook/github", status_code=status.HTTP_202_ACCEPTED)
 async def github_webhook_endpoint(
     request: Request,
     webhook_service: WebhookService = Depends(get_webhook_service),
@@ -61,19 +64,32 @@ async def github_webhook_endpoint(
     signature = request.headers.get("X-Hub-Signature-256")
     if not signature:
         logger.warning("X-Hub-Signature-256 header missing.")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="X-Hub-Signature-256 header missing")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="X-Hub-Signature-256 header missing",
+        )
 
+    # リクエストボディを一度だけ読み込む
     body = await request.body()
+
+    # 署名を検証
     if not webhook_service.verify_signature(signature, body):
         logger.warning("Webhook signature verification failed.")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Webhook signature verification failed")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Webhook signature verification failed",
+        )
 
+    # ボディをJSONとしてパース
     try:
-        payload = await request.json()
-    except Exception as e:
+        payload = json.loads(body)
+    except json.JSONDecodeError as e:
         logger.error(f"Failed to parse webhook payload as JSON: {e}")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON payload")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON payload"
+        ) from e
 
+    # ペイロードをキューに追加
     webhook_service.enqueue_payload(payload)
     logger.info("Webhook payload received and enqueued.")
     return {"message": "Webhook received and enqueued."}
