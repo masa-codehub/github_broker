@@ -31,8 +31,7 @@ if __name__ == "__main__":
     print("-" * 30)
 
     # AgentClientとExecutorを初期化
-    client = AgentClient(
-        agent_id=agent_id, agent_role=agent_role, host=host, port=port)
+    client = AgentClient(agent_id=agent_id, agent_role=agent_role, host=host, port=port)
     executor = GeminiExecutor(log_dir=gemini_log_dir, model=gemini_model)
 
     while True:
