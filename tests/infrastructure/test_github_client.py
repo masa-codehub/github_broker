@@ -364,7 +364,9 @@ def managed_test_issue(raw_github_client, test_repo_name):
     repo = raw_github_client.get_repo(test_repo_name)
     unique_id = int(time.time())
     issue_title = f"統合テスト用Issue - {unique_id}"
-    issue = repo.create_issue(title=issue_title, body="このIssueはテスト後に自動的にクローズされます。")
+    issue = repo.create_issue(
+        title=issue_title, body="このIssueはテスト後に自動的にクローズされます。"
+    )
     print(f"\n--- SETUP: Issue #{issue.number} ('{issue_title}') を作成しました ---")
 
     yield issue
