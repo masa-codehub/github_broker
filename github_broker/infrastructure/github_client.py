@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import Any
 
 from github import Github, GithubException
 
@@ -9,13 +10,13 @@ class GitHubClient:
     GitHub APIと対話するためのクライアント。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         token = os.getenv("GITHUB_TOKEN")
         if not token:
             raise ValueError("GITHUB_TOKEN環境変数にGitHubトークンが見つかりません。")
         self._client = Github(token)
 
-    def get_open_issues(self, repo_name: str):
+    def get_open_issues(self, repo_name: str) -> list[Any]:
         """
         リポジトリに存在するすべてのオープンなIssueを取得します。
         """
@@ -31,7 +32,7 @@ class GitHubClient:
             )
             raise
 
-    def find_issues_by_labels(self, repo_name: str, labels: list[str]):
+    def find_issues_by_labels(self, repo_name: str, labels: list[str]) -> list[Any]:
         """
         指定されたすべてのラベルを持つIssue（オープンまたはクローズ済み）を検索します。
         この実装は、検索インデックスの遅延を避けるために、すべてのIssueを取得し手動でフィルタリングします。
@@ -61,7 +62,7 @@ class GitHubClient:
             )
             raise
 
-    def add_label(self, repo_name: str, issue_id: int, label: str):
+    def add_label(self, repo_name: str, issue_id: int, label: str) -> bool:
         """
         特定のIssueにラベルを追加します。
         """
@@ -82,7 +83,7 @@ class GitHubClient:
         issue_id: int,
         remove_labels: list[str] | None = None,
         add_labels: list[str] | None = None,
-    ):
+    ) -> bool:
         """
         特定のIssueのラベルを更新します。
         """
@@ -118,7 +119,7 @@ class GitHubClient:
             )
             raise
 
-    def remove_label(self, repo_name: str, issue_id: int, label: str):
+    def remove_label(self, repo_name: str, issue_id: int, label: str) -> bool:
         """
         特定のIssueからラベルを削除します。
         Issueにラベルが存在しない場合、警告をログに記録しますが、エラーは発生させません。
@@ -144,7 +145,7 @@ class GitHubClient:
 
     def create_branch(
         self, repo_name: str, branch_name: str, base_branch: str = "main"
-    ):
+    ) -> bool:
         """
         ベースブランチから新しいブランチを作成します。
         """
