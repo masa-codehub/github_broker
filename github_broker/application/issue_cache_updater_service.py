@@ -24,6 +24,8 @@ class IssueCacheUpdaterService:
                     logger.error(f"Failed to decode JSON payload: {e} - Payload: {payload_str}")
                 except Exception as e:
                     logger.error(f"Error processing webhook payload: {e} - Payload: {payload_str}")
+                    # リトライ機構の考慮: 現時点ではエラーをログに記録し、次のイベントに進む
+                    # より堅牢な実装では、Dead Letter Queueへの移動やリトライ回数の管理が必要
             else:
                 time.sleep(1) # キューが空の場合は1秒待機
 
