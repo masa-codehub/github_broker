@@ -21,13 +21,13 @@ readonly GCP_KEY_SECRET_PATH="/run/secrets/gcp_access_key"
 
 echo "--- サービスアカウントによる認証設定を開始します ---"
 
-# 環境変数 GCP_PROJECT_ID をチェック
-if [ -z "${GCP_PROJECT_ID}" ]; then
-  echo "エラー: 環境変数 GCP_PROJECT_ID が設定されていません。"
+# 環境変数 GOOGLE_CLOUD_PROJECT をチェック
+if [ -z "${GOOGLE_CLOUD_PROJECT}" ]; then
+  echo "エラー: 環境変数 GOOGLE_CLOUD_PROJECT が設定されていません。"
   echo "ヒント: .envファイルで設定してください。"
   exit 1
 fi
-echo "プロジェクトID: ${GCP_PROJECT_ID} を使用します。"
+echo "プロジェクトID: ${GOOGLE_CLOUD_PROJECT} を使用します。"
 
 # 規約で定義した変数を使ってキーファイルの存在を確認
 if [ ! -f "${GCP_KEY_SECRET_PATH}" ]; then
@@ -49,7 +49,7 @@ echo ""
 # ステップ2: CLIの操作対象プロジェクトの設定
 echo "ステップ2/2: 操作対象プロジェクトを設定します..."
 # --quietオプションを追加して、承認プロンプトを自動で承諾
-gcloud config set project "${GCP_PROJECT_ID}" --quiet
+gcloud config set project "${GOOGLE_CLOUD_PROJECT}" --quiet
 echo "✅ ステップ2 完了"
 echo ""
 
