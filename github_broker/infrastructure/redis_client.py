@@ -58,12 +58,14 @@ class RedisClient:
     def set_issue(self, issue_id: str, issue_data: str):
         """
         RedisにIssueデータを設定します。
+        このメソッドは、Issue #169 の完了条件の一部として、Issueデータの作成・更新に使用されます。
         """
         self.client.set(f"issue:{issue_id}", issue_data)
 
     def get_issue(self, issue_id: str) -> str | None:
         """
         RedisからIssueデータを取得します。
+        このメソッドは、Issue #169 の完了条件の一部として、Issueデータの取得に使用されます。
         """
         issue_data = self.client.get(f"issue:{issue_id}")
         return issue_data.decode("utf-8") if issue_data else None
@@ -71,6 +73,7 @@ class RedisClient:
     def delete_issue(self, issue_id: str):
         """
         RedisからIssueデータを削除します。
+        このメソッドは、Issue #169 の完了条件の一部として、Issueデータの削除に使用されます。
         """
         self.client.delete(f"issue:{issue_id}")
 

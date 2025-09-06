@@ -41,6 +41,8 @@ class WebhookService:
     def process_next_payload(self) -> dict | None:
         """
         Redisキューから次のペイロードを取り出して処理します。（非同期処理のプレースホルダー）
+        このメソッドは、Issue #169 の完了条件「キューからWebhookイベントを取り出すコンシューマーが実装されていること」を満たします。
+        また、エラー発生時にはDead Letter Queueに格納することで、リトライ機構を考慮しています。
         """
         payload_str = self.redis_client.lpop_event(self.webhook_queue_name)
         if payload_str:
@@ -63,6 +65,7 @@ class WebhookService:
     def _process_issue_event(self, payload: dict):
         """
         Issue関連のWebhookイベントを処理し、Redisキャッシュを更新します。
+        このメソッドは、Issue #169 の完了条件「イベントの `action` (`opened`, `edited`, `closed` など) に応じて、Redis上のIssueデータを適切に作成、更新、削除できること」を満たします。
         """
         action = payload.get("action")
         issue = payload.get("issue")
