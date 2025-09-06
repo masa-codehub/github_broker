@@ -64,16 +64,12 @@ async def github_webhook_endpoint(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="X-Hub-Signature-256 header missing")
 
     body = await request.body()
-    if not webhook_service.verify_signature(signature, body):
-        logger.warning("Webhook signature verification failed.")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Webhook signature verification failed")
 
     try:
-        payload = await request.json()
-    except Exception as e:
-        logger.error(f"Failed to parse webhook payload as JSON: {e}")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON payload")
+        webhook_service.process_webhook(signature, body)
+    except ValueError as e:
+        logger.warning(f"Webhook processing failed: {e}")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
 
-    webhook_service.enqueue_webhook_payload(payload)
     logger.info("Webhook payload received and enqueued.")
     return {"message": "Webhook received and enqueued."}

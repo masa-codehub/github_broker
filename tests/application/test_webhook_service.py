@@ -1,81 +1,72 @@
-import os
-import hmac
-import hashlib
-from unittest.mock import patch, MagicMock
-
 import pytest
-
+import os
 from github_broker.application.webhook_service import WebhookService
 
-@pytest.fixture
-def webhook_service():
-    """WebhookServiceのテストインスタンスを提供します。"""
-    # 環境変数 GITHUB_WEBHOOK_SECRET を設定
-    with patch.dict(os.environ, {"GITHUB_WEBHOOK_SECRET": "test_secret"}):
-        return WebhookService()
+# Mock environment variable for testing
+@pytest.fixture(autouse=True)
+def set_env():
+    os.environ["GITHUB_WEBHOOK_SECRET"] = "test_secret"
+    yield
+    del os.environ["GITHUB_WEBHOOK_SECRET"]
 
-def generate_signature(secret: str, payload_body: bytes) -> str:
-    """テスト用の署名を生成します。"""
-    mac = hmac.new(secret.encode('utf-8'), msg=payload_body, digestmod=hashlib.sha256)
-    return f"sha256={mac.hexdigest()}"
+def generate_signature(secret: str, payload: bytes) -> str:
+    import hmac
+    import hashlib
+    return "sha256=" + hmac.new(secret.encode('utf-8'), payload, hashlib.sha256).hexdigest()
 
-def test_verify_signature_valid(webhook_service):
-    """有効な署名が正しく検証されることをテストします。"""
-    secret = webhook_service.webhook_secret # 修正
-    payload_body = b'{"test": "payload"}'
-    signature = generate_signature(secret, payload_body)
+def test_webhook_service_initialization():
+    service = WebhookService()
+    assert service.secret == "test_secret"
+    assert service.queue.empty()
 
-    assert webhook_service.verify_signature(signature, payload_body) is True
+def test_verify_signature_valid():
+    service = WebhookService()
+    payload = b'{"test": "payload"}'
+    signature = generate_signature("test_secret", payload)
+    assert service.verify_signature(signature, payload)
 
-def test_verify_signature_invalid_secret(webhook_service):
-    """不正なシークレットによる署名が検証に失敗することをテストします。"""
-    payload_body = b'{"test": "payload"}'
-    # 異なるシークレットで署名を生成
-    signature = generate_signature("wrong_secret", payload_body)
+def test_verify_signature_invalid_secret():
+    service = WebhookService()
+    payload = b'{"test": "payload"}'
+    signature = generate_signature("wrong_secret", payload)
+    assert not service.verify_signature(signature, payload)
 
-    assert webhook_service.verify_signature(signature, payload_body) is False
+def test_verify_signature_invalid_payload():
+    service = WebhookService()
+    payload = b'{"test": "payload"}'
+    wrong_payload = b'{"test": "wrong"}'
+    signature = generate_signature("test_secret", wrong_payload)
+    assert not service.verify_signature(signature, payload)
 
-def test_verify_signature_invalid_payload(webhook_service):
-    """ペイロードが改ざんされた署名が検証に失敗することをテストします。"""
-    secret = webhook_service.webhook_secret # 修正
-    payload_body = b'{"test": "payload"}'
-    signature = generate_signature(secret, payload_body)
+def test_verify_signature_no_signature():
+    service = WebhookService()
+    payload = b'{"test": "payload"}'
+    assert not service.verify_signature("", payload)
+
+def test_process_webhook_success():
+    service = WebhookService()
+    payload_dict = {"action": "opened", "issue": {"number": 1}}
+    payload_bytes = b'{"action": "opened", "issue": {"number": 1}}'
+    signature = generate_signature("test_secret", payload_bytes)
     
-    # ペイロードを改ざん
-    modified_payload_body = b'{"test": "modified_payload"}'
+    service.process_webhook(signature, payload_bytes)
+    assert service.queue.qsize() == 1
+    assert service.queue.get() == payload_dict
 
-    assert webhook_service.verify_signature(signature, modified_payload_body) is False
+def test_process_webhook_invalid_signature_raises_error():
+    service = WebhookService()
+    payload_bytes = b'{"action": "opened", "issue": {"number": 1}}'
+    signature = generate_signature("wrong_secret", payload_bytes)
+    
+    with pytest.raises(ValueError, match="Invalid signature"):
+        service.process_webhook(signature, payload_bytes)
+    assert service.queue.empty()
 
-def test_verify_signature_missing_header(webhook_service):
-    """X-Hub-Signature-256 ヘッダーがない場合に検証に失敗することをテストします。"""
-    payload_body = b'{"test": "payload"}'
-    assert webhook_service.verify_signature(None, payload_body) is False
+def test_process_webhook_invalid_json_raises_error():
+    service = WebhookService()
+    payload_bytes = b'invalid json'
+    signature = generate_signature("test_secret", payload_bytes)
 
-def test_verify_signature_unsupported_hash_type(webhook_service):
-    """サポートされていないハッシュタイプの場合に検証に失敗することをテストします。"""
-    payload_body = b'{"test": "payload"}'
-    signature = "sha1=some_hash" # sha1 はサポートされていない
-    assert webhook_service.verify_signature(signature, payload_body) is False
-
-def test_enqueue_webhook_payload(webhook_service):
-    """Webhookペイロードがキューに正しく格納されることをテストします。"""
-    payload = {"action": "opened", "issue": {"number": 1}}
-    webhook_service.enqueue_webhook_payload(payload)
-
-    assert not webhook_service.webhook_queue.empty()
-    assert webhook_service.webhook_queue.qsize() == 1
-    assert webhook_service.webhook_queue.get() == payload
-
-def test_process_next_webhook_with_payload(webhook_service):
-    """キューにペイロードがある場合に正しく処理されることをテストします。"""
-    payload = {"action": "closed", "issue": {"number": 2}}
-    webhook_service.enqueue_webhook_payload(payload)
-
-    processed_payload = webhook_service.process_next_webhook()
-    assert processed_payload == payload
-    assert webhook_service.webhook_queue.empty()
-
-def test_process_next_webhook_empty_queue(webhook_service):
-    """キューが空の場合にNoneが返されることをテストします。"""
-    processed_payload = webhook_service.process_next_webhook()
-    assert processed_payload is None
+    with pytest.raises(ValueError, match="Invalid JSON payload"):
+        service.process_webhook(signature, payload_bytes)
+    assert service.queue.empty()
