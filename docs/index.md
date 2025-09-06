@@ -11,7 +11,6 @@ This index provides an overview of the documentation for the GitHub Task Broker 
 *   [Operational Requirements](architecture/operational-requirements.md)
 *   [Redis Schema](architecture/redis-schema.md)
 
-
 ## Guides
 
 *   [Agent Client Guide](guides/agent-client-guide.md)
