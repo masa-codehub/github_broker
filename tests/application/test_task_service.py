@@ -28,7 +28,14 @@ def task_service(mock_redis_client, mock_github_client):
         )
 
 
-def create_mock_issue(number, title, body, labels, html_url_base="https://github.com/test/repo/issues", has_branch_name: bool = True):
+def create_mock_issue(
+    number,
+    title,
+    body,
+    labels,
+    html_url_base="https://github.com/test/repo/issues",
+    has_branch_name: bool = True,
+):
     """テスト用のIssue辞書を生成するヘルパー関数。"""
     full_body = body
     if has_branch_name:
@@ -39,7 +46,7 @@ def create_mock_issue(number, title, body, labels, html_url_base="https://github
         "title": title,
         "body": full_body,
         "html_url": f"{html_url_base}/{number}",
-        "labels": labels,
+        "labels": [{"name": label} for label in labels],
     }
 
 
@@ -113,7 +120,10 @@ def test_request_task_finds_task_after_polling(
     """ポーリング後にタスクが見つかる場合をテストします。"""
     # Arrange
     issue = create_mock_issue(
-        number=1, title="Delayed Task", body="## 成果物\n- delayed.py", labels=["BACKENDCODER"]
+        number=1,
+        title="Delayed Task",
+        body="## 成果物\n- delayed.py",
+        labels=["BACKENDCODER"],
     )
     # 最初の呼び出しではタスクなし、2回目で見つかる
     mock_redis_client.get_all_issues.side_effect = [[], [issue]]
@@ -130,7 +140,7 @@ def test_request_task_finds_task_after_polling(
     assert result is not None
     assert result.issue_id == 1
     assert mock_redis_client.get_all_issues.call_count == 2
-    mock_sleep.assert_called() # ポーリング間隔でsleepが呼ばれる
+    mock_sleep.assert_called()  # ポーリング間隔でsleepが呼ばれる
 
 
 @patch("time.sleep", return_value=None)
@@ -155,7 +165,9 @@ def test_request_task_no_matching_issue_no_wait(
 
 
 @patch("time.sleep", return_value=None)
-def test_complete_previous_task_updates_issues(mock_sleep, task_service, mock_redis_client, mock_github_client):
+def test_complete_previous_task_updates_issues(
+    mock_sleep, task_service, mock_redis_client, mock_github_client
+):
     """
     complete_previous_taskが、in-progressとagent_idラベルを持つIssueを更新することをテストします。
     """
@@ -167,7 +179,10 @@ def test_complete_previous_task_updates_issues(mock_sleep, task_service, mock_re
         labels=["in-progress", "test-agent"],
     )
     # RedisからすべてのIssueを取得し、その中からフィルタリングされることを想定
-    mock_redis_client.get_all_issues.return_value = [mock_issue, create_mock_issue(number=102, title="Other Issue", body="", labels=["bug"])]
+    mock_redis_client.get_all_issues.return_value = [
+        mock_issue,
+        create_mock_issue(number=102, title="Other Issue", body="", labels=["bug"]),
+    ]
 
     agent_id = "test-agent"
 
@@ -178,7 +193,7 @@ def test_complete_previous_task_updates_issues(mock_sleep, task_service, mock_re
     mock_redis_client.get_all_issues.assert_called_once()
     mock_github_client.update_issue.assert_called_once_with(
         repo_name="test/repo",
-        issue_id=mock_issue['number'],
+        issue_id=mock_issue["number"],
         remove_labels=["in-progress", agent_id],
         add_labels=["needs-review"],
     )
@@ -238,9 +253,6 @@ def test_find_first_assignable_task_create_branch_exception_releases_lock(
     mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
 
 
-
-
-
 def test_task_service_init_no_github_repository_env():
     """
     GITHUB_REPOSITORY環境変数が設定されていない場合にValueErrorが発生することをテストします。
@@ -251,7 +263,9 @@ def test_task_service_init_no_github_repository_env():
         del os.environ["GITHUB_REPOSITORY"]
 
     # Act & Assert
-    with pytest.raises(ValueError, match="GITHUB_REPOSITORY環境変数が設定されていません。"):
+    with pytest.raises(
+        ValueError, match="GITHUB_REPOSITORY環境変数が設定されていません。"
+    ):
         TaskService(redis_client=MagicMock(), github_client=MagicMock())
 
     # Cleanup

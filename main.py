@@ -4,19 +4,19 @@ import threading
 
 import uvicorn
 
+from github_broker.application.issue_cache_updater_service import (
+    IssueCacheUpdaterService,
+)
+
 # `di_container`モジュールをインポートして、コンテナが初期化されるようにします。
 from github_broker.infrastructure import di_container
 from github_broker.interface.api import app
-from github_broker.application.issue_cache_updater_service import IssueCacheUpdaterService
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
-    # RedisClientのインスタンスを取得
-    redis_client = di_container.redis_client()
-
     # IssueCacheUpdaterServiceを初期化し、別スレッドで実行
-    issue_updater_service = IssueCacheUpdaterService(redis_client)
+    issue_updater_service = di_container.container.resolve(IssueCacheUpdaterService)
     updater_thread = threading.Thread(target=issue_updater_service.start)
     updater_thread.daemon = True  # メインスレッド終了時に一緒に終了
     updater_thread.start()

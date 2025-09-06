@@ -39,7 +39,7 @@ class TaskService:
 
         previous_issues = []
         for issue in all_issues:
-            labels = issue.get("labels", [])
+            labels = [label["name"] for label in issue.get("labels", [])]
             if "in-progress" in labels and agent_id in labels:
                 previous_issues.append(issue)
 
@@ -52,7 +52,7 @@ class TaskService:
 
             self.github_client.update_issue(
                 repo_name=self.repo_name,
-                issue_id=issue['number'],
+                issue_id=issue["number"],
                 remove_labels=remove_labels,
                 add_labels=add_labels,
             )
@@ -65,7 +65,7 @@ class TaskService:
         candidate_issues = [
             issue
             for issue in issues
-            if agent_role in issue["labels"]
+            if agent_role in {label.get("name") for label in issue.get("labels", [])}
         ]
 
         if not candidate_issues:
@@ -123,7 +123,7 @@ class TaskService:
                     issue_url=task.html_url,
                     title=task.title,
                     body=task.body,
-                    labels=task.labels,
+                    labels=[label["name"] for label in task.labels],
                     branch_name=branch_name,
                 )
             except Exception as e:
@@ -176,9 +176,7 @@ class TaskService:
             logger.info(f"Searching for open issues in repository: {self.repo_name}")
             all_issues = self.redis_client.get_all_issues()
             if all_issues:
-                candidate_issues = self._find_candidates_by_role(
-                    all_issues, agent_role
-                )
+                candidate_issues = self._find_candidates_by_role(all_issues, agent_role)
                 if candidate_issues:
                     task = self._find_first_assignable_task(candidate_issues, agent_id)
                     if task:

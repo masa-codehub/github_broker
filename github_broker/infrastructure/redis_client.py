@@ -1,4 +1,5 @@
 import json
+
 import redis
 
 
@@ -56,6 +57,15 @@ class RedisClient:
         event_data = self.client.lpop(queue_name)
         return event_data.decode("utf-8") if event_data else None
 
+    def blpop_event(self, queue_name: str, timeout: int = 1) -> str | None:
+        """
+        指定されたキューからイベントデータをブロッキングで取得します。
+        """
+        event_data_tuple = self.client.blpop(queue_name, timeout=timeout)
+        if event_data_tuple:
+            return event_data_tuple[1].decode("utf-8")
+        return None
+
     def set_issue(self, issue_id: str, issue_data: str):
         """
         RedisにIssueデータを設定します。
@@ -78,14 +88,23 @@ class RedisClient:
         """
         self.client.delete(f"issue:{issue_id}")
 
-    def get_all_issues(self) -> list[str]:
+    def get_all_issues(self) -> list[dict]:
         """
         Redisに保存されているすべてのIssueデータを取得します。
         """
-        issue_keys = self.client.keys("issue:*")
         issues = []
-        for key in issue_keys:
-            issue_data = self.client.get(key)
-            if issue_data:
-                issues.append(json.loads(issue_data.decode("utf-8")))
+        cursor = 0
+        while True:
+            cursor, keys = self.client.scan(cursor, match="issue:*", count=100)
+            if keys:
+                issue_data_list = self.client.mget(keys)
+                for issue_data in issue_data_list:
+                    if issue_data:
+                        try:
+                            issues.append(json.loads(issue_data.decode("utf-8")))
+                        except json.JSONDecodeError:
+                            # 不正なJSONデータは無視するか、ロギングする
+                            pass
+            if cursor == 0:
+                break
         return issues
