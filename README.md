@@ -26,7 +26,16 @@
 ## 1. 設定
 
 アプリケーションの動作には、環境変数の設定が必要です。
-詳細は [運用・デプロイ要件定義書](./docs/architecture/operational-requirements.md#8-環境変数) を参照してください。
+
+### クイックスタート: `.env` ファイルの作成
+
+すぐに試すには、サンプルファイルをコピーして`.env`ファイルを作成します。
+
+```bash
+cp .build/context/.env.sample .env
+```
+
+各変数の詳細な説明や設定値については、[運用・デプロイ要件定義書](./docs/architecture/operational-requirements.md#8-環境変数) を参照してください。
 
 ## 2. 実行方法
 
@@ -61,7 +70,17 @@ APIサーバーは `http://localhost:8080` で利用可能になります。
 
 ## 3. APIの使用方法
 
-APIエンドポイントの仕様やリクエスト・レスポンスの例については、[システム設計書](./docs/architecture/index.md#4-api仕様) を参照してください。
+APIサーバーが起動したら、`POST`リクエストを`/api/v1/request-task`エンドポイントに送信することで、新しいタスクを要求できます。
+
+### クイックスタート: `curl` でタスクをリクエストする
+
+```bash
+curl -X POST "http://localhost:8080/api/v1/request-task" \
+-H "Content-Type: application/json" \
+-d '{ "agent_id": "my-test-agent-1", "agent_role": "CODER" }'
+```
+
+各エンドポイントの詳細な仕様や他のリクエスト例については、[システム設計書](./docs/architecture/index.md#4-api仕様) を参照してください。
 
 
 ## 4. カンバンシステム (タスク状態管理)
