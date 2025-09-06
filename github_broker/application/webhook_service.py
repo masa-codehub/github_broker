@@ -21,6 +21,7 @@ class WebhookService:
         """
         GitHub Webhookの署名を検証します。
         """
+        assert self.webhook_secret is not None
         if not signature:
             return False
 

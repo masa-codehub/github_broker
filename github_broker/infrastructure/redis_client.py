@@ -16,7 +16,8 @@ class RedisClient:
         ロックを取得します。
         """
         # nx=Trueは、キーがまだ存在しない場合にのみ設定されることを保証します。
-        return self.client.set(lock_key, value, ex=timeout, nx=True)
+        result = self.client.set(lock_key, value, ex=timeout, nx=True)
+        return result if result is not None else False
 
     def release_lock(self, lock_key) -> bool:
         """
