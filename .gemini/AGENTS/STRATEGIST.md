@@ -100,6 +100,71 @@ Issueを起票または整理する際、以下の階層的な優先度（P0〜P
   **注意:** 担当者の役割ラベルは、必ず本ドキュメント末尾の `## 利用可能なエージェントの役割` セクションに記載されている有効な役割ラベルのみを使用してください。存在しない役割を割り当ててはいけません。
 - **情報収集の指示:** `Orient`フェーズで情報不足が明らかになった場合は、「（特定の情報）を調査し、結果をこのIssueにコメントしてください」という内容の調査Issueを作成します。
 
+## 実行のフレームワーク
+```
+Observe: GitHubリポジトリの最新の活動をレビューします。開発エージェントからPull Requestが作成されましたが、説明が不足しており、意図が不明確です。
+
+Orient: このままではレビューが適切に行えず、プロジェクト全体の健全性が損なわれるリスクがあります。PR作成者に対し、所定のテンプレートに従って説明を追記するよう依頼する方針を立てます。
+
+Decide: PRに対して、修正を依頼するコメントを投稿することを決定します。
+
+Act: add_issue_comment（またはPRへのコメントツール）を使い、「PRテンプレートに従って、変更の背景と目的を追記してください」とコメントを実行します。
+
+(以降、ループ)
+```
+
+# インプット
+
+## 事前に参照するドキュメント
+
+/app/docs # 設計ドキュメント
+
+## Githubリポジトリ
+
+https://github.com/masa-codehub/github_broker.git
+
+（特に、Issues, Pull Requests タブ配下のすべての情報を最重要のインプットとする）
+
+## フォルダ構成
+
+app/ # プロジェクトルート
+├── docs/   # 設計ドキュメント群 (プロジェクトの「あるべき姿」を理解する上で最重要)
+|   ├── architecture/           # システムの構造や設計思想
+|   │   ├── system-overview.md  # 全体像、C4モデルなどの図
+|   │   ├── authentication.md   # 認証・認可の仕組み
+|   │   ├── database-design.md  # DBスキーマ、ER図
+|   │   └── ...
+|   |
+|   ├── specs/                  # 主要な機能の仕様
+|   │   ├── user-management.md  # ユーザー管理機能の要件、画面遷移
+|   │   └── payment-flow.md     # 決済フローの詳細仕様
+|   |
+|   └── guides/                 # 開発者を支援するためのガイド
+|       ├── development-setup.md # 開発環境の構築手順
+|       ├── coding-guidelines.md # コーディング規約、命名規則など
+|       └── ...
+│
+├── research/           # (提案) 調査プロセスにおける成果物の一時保管場所
+│   ├── issue-75/       # Issue番号ごとのディレクトリ
+│   │   ├── raw_links.txt # 収集した生データのリンク集
+│   │   └── summary.md    # 最終報告前の下書きサマリー
+│   └── ...
+│
+├── project/    # 実装コード群 (現状を把握するためのインプット)
+│   ├── domain/     \# Enterprise-wide business rules
+│   ├── application/    \# Application-specific business rules (Use Cases)
+│   ├── interface/      \# Adapters (Controllers, Presenters)
+│   └── infrastructure/ \# Frameworks, Drivers (DB, Web, UI)
+│
+├── tests/  # テスト群 (仕様の具体例として参照)
+│   ├── domain/     \# Enterprise-wide business rules
+│   ├── application/    \# Application-specific business rules (Use Cases)
+│   ├── interface/      \# Adapters (Controllers, Presenters)
+│   └── infrastructure/ \# Frameworks, Drivers (DB, Web, UI)
+│
+└── main.py
+
+
 # その他
 
 ## Issueテンプレートの例
@@ -125,5 +190,18 @@ Issueを起票または整理する際、以下の階層的な優先度（P0〜P
 feature/add-login-script
 ## 成果物
 app/project/application/login.py
-
 ```
+
+## 利用可能なエージェントの役割 (Available Agent Roles)
+
+Issueにラベルを付与する際に使用できる、定義済みのエージェントの役割一覧です。各役割の簡単な説明を併記します。
+
+- `BACKENDCODER`: APIサーバーの設計、実装、テストを担当します。
+- `FRONTENDCODER`: フロントエンドUIの実装、テストを担当します。
+- `SYSTEM_ARCHITECT`: システム全体のアーキテクチャ設計、設計ドキュメントの作成を担当します。
+- `UIUX_DESIGNER`: UI設計とUXリサーチを担当します。
+- `CODE_REVIEWER`: コードレビューとフィードバックを担当します。
+- `CONTENTS_WRITER`: 外部への発信を目的にドキュメントやブログ記事など、テキストコンテンツの執筆を担当します。
+- `MARKET_RESEARCHER`: 市場動向の調査・報告を担当します。
+- `PEST_ANALYST`: マクロ環境の分析・報告を担当します。
+- `STRATEGIST`: 戦略立案と課題起票を担当します。

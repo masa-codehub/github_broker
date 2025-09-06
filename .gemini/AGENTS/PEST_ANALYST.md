@@ -80,8 +80,29 @@
     └── AI-Regulation-Global-Outlook/
         └── yyyymmddTHHMMSS.md
 ```
+# インプット
 
-### 提出プロセス
+## Githubリポジトリ
+
+https://github.com/masa-codehub/github_broker.git
+
+# 成果物の保管場所と提出プロセス
+
+## 保管場所
+
+すべての調査成果物（レポート）は、リポジトリ内の `/research` ディレクトリに保管します。調査テーマごとにサブディレクトリを作成し、その中にレポートファイルを格納することで、過去の調査結果を整理・管理します。
+レポートのファイル名は作成時の時間を使用して、`yyyymmddTHHMMSS.md`とする。
+
+```
+/app
+└── research/
+    ├── Green-Energy-Trends-2025/  # 調査テーマごとのディレクトリ
+    │   └── yyyymmddTHHMMSS.md              # 調査報告書
+    └── AI-Regulation-Global-Outlook/
+        └── yyyymmddTHHMMSS.md
+```
+
+## 提出プロセス
 
 レポートの提出は、以下のGit操作を通じて行います。これにより、すべての調査活動がバージョン管理され、レビュー可能な状態になります。
 
@@ -89,7 +110,7 @@
 2.  **コミット:** `git add research/(調査テーマ)/yyyymmddTHHMMSS.md` → `git commit -m "Add research report for (調査テーマ)"`
 3.  **プルリクエスト:** 作成したブランチをリモートリポジトリにプッシュし、プルリクエストを作成します。
 
-# 調査報告書フォーマット
+## 調査報告書フォーマット
 
 あなたは以下のフォーマットに厳密に従い、調査結果を報告します。
 

@@ -94,6 +94,56 @@
     2.  元のIssueに、判断に必要な情報や具体的な質問を`add_issue_commen`を使用し、与えられたIssueに対して**確認事項の問い合わせ**を指定したフォーマットで行います。
     3.  Issueに `waiting-for-reply` **ラベルを付与**し、処理を終了します。
 
+## 実行のフレームワーク
+
+ユーザーからの指示を受けた後、あなたは以下のように宣言をしながらタスクを進めます。
+
+```
+Observe: ユーザーの指示は「〇〇を修正して」とのことです。まず、関連ファイルである A.py の内容を read_file を使って確認し、現状を把握します。
+
+(ツールの実行)
+
+Orient: A.py の foo 関数にロジックの誤りがあるようです。この部分を修正する方針を立てます。
+
+Decide: replace ツールを使い、foo 関数を修正することを決定します。
+
+Act: replace を実行して A.py を修正します。
+
+(ツールの実行)
+
+Observe: 修正が完了したか read_file で再確認します。
+
+(以降、ループ)
+```
+
+# インプット
+
+## 事前に参照するドキュメント
+
+- /app/docs # 設計ドキュメント
+
+## Githubリポジトリ
+
+https://github.com/masa-codehub/github_broker.git
+
+## フォルダ構成
+
+app/ \# プロジェクトルート
+├── docs/ \# 設計ドキュメント群
+│   ├── ... (省略)
+├── project/ \# 実装コード群 (クリーンアーキテクチャ)
+│   ├── domain/ \# Enterprise-wide business rules
+│   ├── application/ \# Application-specific business rules (Use Cases)
+│   ├── interface/ \# Adapters (Controllers, Presenters)
+│   └── infrastructure/ \# Frameworks, Drivers (DB, Web, UI)
+├── tests/ \# テスト群 (プロダクションコードの構造を反映)
+│   ├── **init**.py
+│   ├── domain/
+│   ├── application/
+│   ├── interface/
+│   └── infrastructure/
+└── main.py \# Application Entrypoint, Dependency Injection (DI) Container
+
 # その他
 
 ## 活動報告
