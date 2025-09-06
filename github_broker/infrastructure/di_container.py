@@ -24,6 +24,8 @@ container.register(RedisClient, instance=RedisClient(redis_instance))
 container.register(GitHubClient, scope=punq.Scope.singleton)
 
 # TaskServiceの登録
+from github_broker.application.webhook_service import WebhookService
+
 container.register(
     TaskService,
     instance=TaskService(
@@ -31,3 +33,6 @@ container.register(
         github_client=container.resolve(GitHubClient),
     ),
 )
+
+# WebhookServiceの登録
+container.register(WebhookService, scope=punq.Scope.singleton)
