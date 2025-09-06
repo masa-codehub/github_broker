@@ -52,10 +52,14 @@ dev = [
     "black",         # コードフォーマッター
     "isort",         # importソート
     "ruff==0.5.0",          # 高速リンター
+    "mypy==1.10.1",          # 型チェッカー
     "pytest",
     "pytest-cov",
     "pre-commit",    # Git フック管理
     "httpx",
+    "types-PyYAML",
+    "types-requests",
+    "types-redis",
 ]
 ml = [
     "scikit-learn",  # 機械学習ライブラリ
@@ -170,3 +174,12 @@ junit_family = "xunit2"
 where = ["."]  # プロジェクトのルートディレクトリを探す
 include = ["github_broker*"]  # "github_broker"で始まるディレクトリをパッケージとして含める
 exclude = ["tests*"]  # "tests"ディレクトリはパッケージに含めない
+
+# --- mypyの設定 ---
+[tool.mypy]
+python_version = "3.13"
+ignore_missing_imports = false
+
+[[tool.mypy.overrides]]
+module = "punq"
+ignore_missing_imports = true

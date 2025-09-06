@@ -25,6 +25,12 @@ flake8                  # コードスタイルチェックツール
 ruff                     # コードの静的解析ツール
 pre-commit               # コードのコミット前に実行するツール
 
+# 型チェックツールと関連スタブ
+mypy
+types-PyYAML
+types-requests
+types-redis
+
 # 他に必要な開発ツールがあれば以下に追加
 #例:
 # pre-commit

@@ -2,6 +2,8 @@ import logging
 import os
 import time
 
+from pydantic import HttpUrl
+
 from github_broker.domain.task import Task
 from github_broker.infrastructure.github_client import GitHubClient
 from github_broker.infrastructure.redis_client import RedisClient
@@ -31,6 +33,7 @@ class TaskService:
         前タスクの完了処理を行います。
         in-progressとagent_idラベルを持つIssueを検索し、それらのラベルを削除し、needs-reviewラベルを付与します。
         """
+        assert self.repo_name is not None
         logger.info(f"Completing previous task for agent: {agent_id}")
         all_issues = self.redis_client.get_all_issues()
         if not all_issues:
@@ -78,13 +81,14 @@ class TaskService:
         self, candidate_issues: list, agent_id: str
     ) -> TaskResponse | None:
         """候補リストから、最初に割り当て可能なタスクを見つけます。"""
-        for issue_obj in sorted(candidate_issues, key=lambda i: i["number"]):
+        assert self.repo_name is not None
+        for issue_obj in sorted(candidate_issues, key=lambda i: i.get("number", 0)):
             task = Task(
                 issue_id=issue_obj["number"],
                 title=issue_obj["title"],
                 body=issue_obj["body"] or "",
                 html_url=issue_obj["html_url"],
-                labels=issue_obj["labels"],
+                labels=[label["name"] for label in issue_obj.get("labels", [])],
             )
 
             if not task.is_assignable():
@@ -121,10 +125,10 @@ class TaskService:
 
                 return TaskResponse(
                     issue_id=task.issue_id,
-                    issue_url=task.html_url,
+                    issue_url=HttpUrl(task.html_url),
                     title=task.title,
                     body=task.body,
-                    labels=[label["name"] for label in task.labels],
+                    labels=task.labels,
                     branch_name=branch_name,
                 )
             except Exception as e:

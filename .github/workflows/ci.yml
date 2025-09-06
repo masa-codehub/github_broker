@@ -16,17 +16,22 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      - name: Install SQLite dependencies
-        run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev lsb-release
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: '**/pyproject.toml'
+
       - name: Install dependencies
         run: pip install -e .[test,dev]
       - name: Lint with ruff
         run: ruff check .
       - name: Format with ruff
         run: ruff format --check .
+      - name: Type check with mypy
+        run: mypy . --ignore-missing-imports
       - name: Test with pytest
         run: pytest
