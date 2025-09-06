@@ -80,15 +80,12 @@ services:
     secrets:
       - github_token
       - gemini_api_key
-      - github_webhook_secret
 
 secrets:
   github_token:
     file: ./secrets/github_token
   gemini_api_key:
     file: ./secrets/gemini_api_key
-  github_webhook_secret:
-    file: ./secrets/github_webhook_secret
 ```
 ローカル開発用に、プロジェクトルートに `secrets/` ディレクトリを作成し、その中に `github_token` などのファイル名で機密情報を記述します。
 
@@ -122,3 +119,4 @@ class DiContainer:
 - **保守性向上:** 設定が一元管理されるため、変更や追加が容易になります。
 - **開発効率向上:** 型安全な設定アクセスにより、設定名のタイポなどのヒューマンエラーを防ぐことができます。
 - **依存ライブラリの追加:** `pydantic-settings` への依存が新たに追加されます。
+`pydantic-settings` への依存が新たに追加されます。

@@ -10,7 +10,7 @@ This index provides an overview of the documentation for the GitHub Task Broker 
 *   [DI Container](architecture/di-container.md)
 *   [Operational Requirements](architecture/operational-requirements.md)
 *   [Redis Schema](architecture/redis-schema.md)
-*   [Webhook-Based Architecture](architecture/webhook-based-architecture.md)
+
 
 ## Guides
 
