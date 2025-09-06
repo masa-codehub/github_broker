@@ -25,30 +25,8 @@
 
 ## 1. 設定
 
-### 1.1. 環境ファイルの作成
-
-サンプルファイル `.build/context/.env.sample` をコピーして `.env` ファイルを作成します。このファイルにローカル環境変数を設定します。
-
-```bash
-cp .build/context/.env.sample .env
-```
-
-### 1.2. 環境変数の設定
-
-`.env` ファイルを開き、以下の変数を設定してください。
-
--   `GITHUB_TOKEN`: GitHub APIと連携するための、`repo`スコープを持つ個人のGitHubアクセストークン。
--   `GITHUB_REPOSITORY`: ブローカーが管理するリポジトリ名 (例: `your-username/your-repo`)。
--   `GEMINI_API_KEY`: (任意) Google AI Studioで発行したAPIキー。これを設定すると、エージェントの役割（Role）に合致するタスクが複数ある場合に、Geminiが最適なタスクを知的に選択します。設定しない場合、最も古く作成されたIssueを優先するロジックにフォールバックします。
--   `GITHUB_INDEXING_WAIT_SECONDS`: (任意) GitHubの検索インデックスの更新を待つ時間（秒）。デフォルトは `15`。
-
-**.env ファイルの例:**
-```
-GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-GITHUB_REPOSITORY=your_github_account/your_github_repository
-GEMINI_API_KEY=your_gemini_api_key_here
-```
-
+アプリケーションの動作には、環境変数の設定が必要です。
+詳細は [運用・デプロイ要件定義書](./docs/architecture/operational-requirements.md#8-環境変数) を参照してください。
 
 ## 2. 実行方法
 
@@ -83,21 +61,8 @@ APIサーバーは `http://localhost:8080` で利用可能になります。
 
 ## 3. APIの使用方法
 
-`POST`リクエストを`/api/v1/request-task`エンドポイントに送信することで、新しいタスクを要求できます。
+APIエンドポイントの仕様やリクエスト・レスポンスの例については、[システム設計書](./docs/architecture/index.md#4-api仕様) を参照してください。
 
-**`curl`を使用した例:**
-
-```bash
-curl -X POST "http://localhost:8080/api/v1/request-task" \
--H "Content-Type: application/json" \
--d '{ "agent_id": "my-test-agent-1", "agent_role": "CODER" }'
-```
-
-### レスポンス
-
--   **200 OK**: 適切なタスクが見つかり、割り当てられました。レスポンスボディにはIssueの詳細と新しいブランチ名が含まれます。
--   **204 No Content**: 現時点で、エージェントの能力に合った適切なタスクが見つかりませんでした。
--   **503 Service Unavailable**: サーバーが他のエージェントのリクエストを処理中でビジー状態です。後でもう一度お試しください。
 
 ## 4. カンバンシステム (タスク状態管理)
 
