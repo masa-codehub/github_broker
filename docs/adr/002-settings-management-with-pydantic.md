@@ -80,15 +80,12 @@ services:
     secrets:
       - github_token
       - gemini_api_key
-      - github_webhook_secret
 
 secrets:
   github_token:
     file: ./secrets/github_token
   gemini_api_key:
     file: ./secrets/gemini_api_key
-  github_webhook_secret:
-    file: ./secrets/github_webhook_secret
 ```
 ローカル開発用に、プロジェクトルートに `secrets/` ディレクトリを作成し、その中に `github_token` などのファイル名で機密情報を記述します。
 
