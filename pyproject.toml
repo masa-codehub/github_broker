@@ -57,6 +57,9 @@ dev = [
     "pytest-cov",
     "pre-commit",    # Git フック管理
     "httpx",
+    "types-PyYAML",
+    "types-requests",
+    "types-redis",
 ]
 ml = [
     "scikit-learn",  # 機械学習ライブラリ
