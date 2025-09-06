@@ -77,7 +77,7 @@ GitHub のリポジトリ設定で、新しい Webhook を作成します。
 *   **エンドポイント:** `POST /api/v1/webhook/github`
 *   **説明:** GitHub からの `issues` イベントを受信し、検証後、非同期処理のためにキューに格納します。
 *   **処理フロー:**
-    1.  リクエストの `X-Hub-Signature-256` ヘッダーを検証し、リクエストが GitHub からのものであることを確認します。
+    1.  `WebhookService` を使用して、リクエストの `X-Hub-Signature-256` ヘッダーを検証し、リクエストが GitHub からのものであることを確認します。
     2.  リクエストボディをパースし、`WebhookService` の `enqueue_webhook_payload` メソッドを使用してペイロードをキューに格納します。
     3.  キュー（現状はインメモリキュー）に格納されたペイロードは、後続の非同期処理によってRedisのIssue Cacheを更新するために利用されます。
 
