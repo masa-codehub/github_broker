@@ -21,7 +21,17 @@ redis_instance = Redis(host=redis_host, port=redis_port, db=redis_db)
 container.register(RedisClient, instance=RedisClient(redis_instance))
 
 # GitHubClientの登録
+from github_broker.application.webhook_service import WebhookService
+
 container.register(GitHubClient, scope=punq.Scope.singleton)
+
+# WebhookServiceの登録
+container.register(
+    WebhookService,
+    instance=WebhookService(
+        redis_client=container.resolve(RedisClient),
+    ),
+)
 
 # TaskServiceの登録
 container.register(
