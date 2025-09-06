@@ -1,30 +1,43 @@
+import os
 import hmac
 import hashlib
-import os
-import queue
+import json
+from queue import Queue
 
 class WebhookService:
     def __init__(self):
-        self.webhook_secret = os.getenv("GITHUB_WEBHOOK_SECRET")
-        if not self.webhook_secret:
+        self.secret = os.environ.get("GITHUB_WEBHOOK_SECRET")
+        if not self.secret:
             raise ValueError("GITHUB_WEBHOOK_SECRET environment variable not set.")
-        self.payload_queue = queue.Queue()
+        self.queue = Queue()
 
     def verify_signature(self, signature: str, payload: bytes) -> bool:
         if not signature:
             return False
 
-        sha_name, signature = signature.split('=', 1)
-        if sha_name != 'sha256':
+        # Extract the algorithm and hash from the signature
+        try:
+            algorithm, hash_value = signature.split("=", 1)
+        except ValueError:
             return False
 
-        mac = hmac.new(self.webhook_secret.encode('utf-8'), payload, hashlib.sha256)
-        return hmac.compare_digest(mac.hexdigest(), signature)
+        if algorithm != "sha256":
+            return False
 
-    def enqueue_payload(self, payload: dict):
-        self.payload_queue.put(payload)
+        # Calculate the expected signature
+        hmac_obj = hmac.new(self.secret.encode('utf-8'), payload, hashlib.sha256)
+        expected_signature = hmac_obj.hexdigest()
 
-    def get_queued_payload(self):
-        if not self.payload_queue.empty():
-            return self.payload_queue.get()
-        return None
+        # Compare the calculated signature with the provided signature
+        return hmac.compare_digest(expected_signature, hash_value)
+
+    def process_webhook(self, signature: str, payload: bytes):
+        if not self.verify_signature(signature, payload):
+            raise ValueError("Invalid signature")
+
+        try:
+            payload_dict = json.loads(payload)
+        except json.JSONDecodeError:
+            raise ValueError("Invalid JSON payload")
+
+        self.queue.put(payload_dict)
