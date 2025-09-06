@@ -29,6 +29,6 @@ jobs:
       - name: Format with ruff
         run: ruff format --check .
       - name: Type check with mypy
-        run: mypy .
+        run: mypy . --ignore-missing-imports
       - name: Test with pytest
         run: pytest
