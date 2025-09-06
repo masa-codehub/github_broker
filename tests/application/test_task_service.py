@@ -256,6 +256,33 @@ def test_find_first_assignable_task_exception_releases_lock(
 
 
 @patch("time.sleep", return_value=None)
+def test_find_first_assignable_task_create_branch_exception_releases_lock(
+    mock_sleep, task_service, mock_github_client, mock_redis_client
+):
+    """
+    _find_first_assignable_task内でcreate_branchが例外を発生させた場合にロックが解放されることをテストします。
+    """
+    # Arrange
+    issue = create_mock_issue(
+        number=1,
+        title="Test Task",
+        body="## 成果物\n- test.py",
+        labels=["BACKENDCODER"],
+    )
+    mock_redis_client.acquire_lock.return_value = True
+    mock_github_client.create_branch.side_effect = Exception("Branch Creation Error")
+
+    candidate_issues = [issue]
+    agent_id = "test-agent"
+
+    # Act & Assert
+    with pytest.raises(Exception, match="Branch Creation Error"):
+        task_service._find_first_assignable_task(candidate_issues, agent_id)
+
+    mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
+
+
+@patch("time.sleep", return_value=None)
 def test_request_task_no_open_issues(mock_sleep, task_service, mock_github_client):
     """
     request_taskでget_open_issuesが空のリストを返した場合にNoneが返されることをテストします。
