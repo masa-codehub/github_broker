@@ -47,3 +47,7 @@
 `pytest` → `git status` → `git add` → `git status` → `git commit` → `git log` → `git push` → `create_pull_request` → `add_issue_comment`
 
 このシーケンスの途中で問題が発生した場合は、決して次のステップに進まず、問題を修正するか、処理を中断してください。
+
+## 6. MCP利用
+
+利用可能なMCPサーバーとそのツール群（Issue作成、コメント追加など）を積極的に利用する。
