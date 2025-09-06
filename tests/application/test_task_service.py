@@ -125,8 +125,10 @@ def test_request_task_finds_task_after_polling(
         body="## 成果物\n- delayed.py",
         labels=["BACKENDCODER"],
     )
-    # 最初の呼び出しではタスクなし、2回目で見つかる
-    mock_redis_client.get_all_issues.side_effect = [[], [issue]]
+    # 最初の呼び出しではタスクなし、2回目以降は見つかるように設定
+    mock_redis_client.get_all_issues.side_effect = (
+        lambda: [issue] if mock_redis_client.get_all_issues.call_count > 1 else []
+    )
     mock_redis_client.acquire_lock.return_value = True
     timeout = 10
     mock_time.side_effect = [0, 5, 11]  # 1回ポーリングして見つかる
@@ -162,6 +164,37 @@ def test_request_task_no_matching_issue_no_wait(
 
     # Assert
     assert result is None
+
+
+@patch("time.sleep", return_value=None)
+def test_request_task_excludes_needs_review_label(
+    mock_sleep, task_service, mock_redis_client
+):
+    """'needs-review'ラベルを持つIssueがタスク割り当てから除外されることをテストします。"""
+    # Arrange
+    issue1 = create_mock_issue(
+        number=1,
+        title="Task Needs Review",
+        body="## 成果物\n- review.py",
+        labels=["BACKENDCODER", "needs-review"],
+    )
+    issue2 = create_mock_issue(
+        number=2,
+        title="Assignable Task",
+        body="## 成果物\n- assign.py",
+        labels=["BACKENDCODER"],
+    )
+    mock_redis_client.get_all_issues.return_value = [issue1, issue2]
+    mock_redis_client.acquire_lock.return_value = True
+
+    # Act
+    result = task_service.request_task(
+        agent_id="test-agent", agent_role="BACKENDCODER", timeout=0
+    )
+
+    # Assert
+    assert result is not None
+    assert result.issue_id == 2  # issue1は除外され、issue2が選択されるはず
 
 
 @patch("time.sleep", return_value=None)
