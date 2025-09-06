@@ -129,7 +129,9 @@ class TaskService:
         logger.info("No assignable and unlocked issues found.")
         return None
 
-    def request_task(self, agent_id: str, agent_role: str) -> TaskResponse | None:
+    def request_task(
+        self, agent_id: str, agent_role: str, timeout: int | None = 120
+    ) -> TaskResponse | None:
         """
         エージェントの役割（role）に基づいて最適なIssueを探し、タスク情報を返します。
         """

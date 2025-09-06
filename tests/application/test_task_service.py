@@ -78,7 +78,7 @@ def test_request_task_selects_by_role(
     agent_role = "BACKENDCODER"
 
     # Act
-    result = task_service.request_task(agent_id="test-agent", agent_role=agent_role)
+    result = task_service.request_task(agent_id="test-agent", agent_role=agent_role, timeout=120)
 
     # Assert
     assert result is not None
@@ -99,7 +99,7 @@ def test_request_task_no_matching_issue(mock_sleep, task_service, mock_github_cl
     agent_role = "BACKENDCODER"
 
     # Act
-    result = task_service.request_task(agent_id="test-agent", agent_role=agent_role)
+    result = task_service.request_task(agent_id="test-agent", agent_role=agent_role, timeout=120)
 
     # Assert
     assert result is None
@@ -119,7 +119,7 @@ def test_request_task_no_assignable_issue(mock_sleep, task_service, mock_github_
     agent_role = "BACKENDCODER"
 
     # Act
-    result = task_service.request_task(agent_id="test-agent", agent_role=agent_role)
+    result = task_service.request_task(agent_id="test-agent", agent_role=agent_role, timeout=120)
 
     # Assert
     assert result is None
@@ -153,7 +153,7 @@ def test_request_task_skips_locked_issue(
     agent_role = "BACKENDCODER"
 
     # Act
-    result = task_service.request_task(agent_id="test-agent", agent_role=agent_role)
+    result = task_service.request_task(agent_id="test-agent", agent_role=agent_role, timeout=120)
 
     # Assert
     assert result is not None
@@ -190,7 +190,7 @@ def test_request_task_skips_issue_without_branch_name(
     agent_role = "BACKENDCODER"
 
     # Act
-    result = task_service.request_task(agent_id="test-agent", agent_role=agent_role)
+    result = task_service.request_task(agent_id="test-agent", agent_role=agent_role, timeout=120)
 
     # Assert
     assert result is not None
