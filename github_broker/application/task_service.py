@@ -9,6 +9,10 @@ from github_broker.interface.models import TaskResponse
 
 logger = logging.getLogger(__name__)
 
+# --- Constants ---
+_GITHUB_INDEXING_WAIT_SECONDS_ENV = "GITHUB_INDEXING_WAIT_SECONDS"
+_DEFAULT_GITHUB_INDEXING_WAIT_SECONDS = 15
+
 
 class TaskService:
     def __init__(
@@ -51,7 +55,11 @@ class TaskService:
 
     def _find_candidates_by_role(self, issues: list, agent_role: str) -> list:
         """指定された役割（role）ラベルを持つIssueをフィルタリングします。"""
-        candidate_issues = [issue for issue in issues if agent_role in {label.name for label in issue.labels}]
+        candidate_issues = [
+            issue
+            for issue in issues
+            if agent_role in {label.name for label in issue.labels}
+        ]
 
         if not candidate_issues:
             logger.info(f"No issues found with role label: {agent_role}")
@@ -122,22 +130,61 @@ class TaskService:
         return None
 
     def request_task(
-        self, agent_id: str, agent_role: str
+        self, agent_id: str, agent_role: str, timeout: int | None = 120
     ) -> TaskResponse | None:
         """
         エージェントの役割（role）に基づいて最適なIssueを探し、タスク情報を返します。
+        利用可能なタスクがない場合、指定されたタイムアウト時間までタスクの出現を待ち続けます（ロングポーリング）。
+
+        Args:
+            agent_id (str): タスクを要求するエージェントのID。
+            agent_role (str): エージェントの役割。
+            timeout (int | None): ロングポーリングのタイムアウト時間（秒）。Noneの場合、待機せずに即時リターンします。
+                                  デフォルトは120秒です。
+
+        Returns:
+            TaskResponse | None: 見つかったタスクの情報。タイムアウトした場合はNoneを返します。
         """
         self.complete_previous_task(agent_id)
-        time.sleep(15)
 
-        logger.info(f"Searching for open issues in repository: {self.repo_name}")
-        all_issues = self.github_client.get_open_issues(self.repo_name)
-        if not all_issues:
-            logger.info("No open issues found.")
-            return None
+        try:
+            wait_seconds = int(
+                os.getenv(
+                    _GITHUB_INDEXING_WAIT_SECONDS_ENV,
+                    _DEFAULT_GITHUB_INDEXING_WAIT_SECONDS,
+                )
+            )
+        except ValueError:
+            wait_seconds = _DEFAULT_GITHUB_INDEXING_WAIT_SECONDS
+            logger.warning(
+                f"Invalid value for {_GITHUB_INDEXING_WAIT_SECONDS_ENV}. "
+                f"Falling back to default {wait_seconds} seconds."
+            )
+        time.sleep(wait_seconds)
 
-        candidate_issues = self._find_candidates_by_role(all_issues, agent_role)
-        if not candidate_issues:
-            return None
+        polling_timeout = timeout if timeout is not None else 0
+        end_time = time.time() + polling_timeout
 
-        return self._find_first_assignable_task(candidate_issues, agent_id)
+        while True:
+            logger.info(f"Searching for open issues in repository: {self.repo_name}")
+            all_issues = self.github_client.get_open_issues(self.repo_name)
+            if all_issues:
+                candidate_issues = self._find_candidates_by_role(
+                    all_issues, agent_role
+                )
+                if candidate_issues:
+                    task = self._find_first_assignable_task(candidate_issues, agent_id)
+                    if task:
+                        return task  # Task found, return immediately
+
+            if time.time() >= end_time:
+                break  # Timeout reached
+
+            sleep_interval = 5
+            logger.info(
+                f"No assignable task found. Retrying in {sleep_interval} seconds..."
+            )
+            time.sleep(sleep_interval)
+
+        logger.info("Timeout reached. No assignable task found.")
+        return None

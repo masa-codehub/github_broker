@@ -44,7 +44,9 @@ async def request_task_endpoint(
 ):
     logger.info(f"Received task request from agent: {task_request.agent_id}")
     task = task_service.request_task(
-        agent_id=task_request.agent_id, agent_role=task_request.agent_role
+        agent_id=task_request.agent_id,
+        agent_role=task_request.agent_role,
+        timeout=task_request.timeout,
     )
     if task:
         return task
