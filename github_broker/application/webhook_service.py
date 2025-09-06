@@ -1,54 +1,42 @@
 import hmac
 import hashlib
 import os
-import logging
 from collections import deque
-
-logger = logging.getLogger(__name__)
+from typing import Dict, Any
 
 class WebhookService:
     def __init__(self):
         self.webhook_secret = os.getenv("GITHUB_WEBHOOK_SECRET")
         if not self.webhook_secret:
-            raise ValueError("GITHUB_WEBHOOK_SECRET 環境変数が設定されていません。")
-        self.queue = deque()
+            raise ValueError("GITHUB_WEBHOOK_SECRET environment variable not set.")
+        self.queue = deque() # Simple in-memory queue
 
     def verify_signature(self, signature: str, payload: bytes) -> bool:
         """
-        GitHub Webhookの署名を検証します。
+        Verifies the GitHub webhook signature.
         """
         if not signature:
-            logger.warning("X-Hub-Signature-256 ヘッダーがありません。")
             return False
 
-        try:
-            sha_name, signature_hash = signature.split('=', 1)
-            if sha_name != 'sha256':
-                logger.warning(f"不明なハッシュタイプ: {sha_name}")
-                return False
-        except ValueError:
-            logger.warning("X-Hub-Signature-256 ヘッダーの形式が不正です。")
+        sha_name, signature_hash = signature.split('=', 1)
+        if sha_name != 'sha256':
             return False
 
         mac = hmac.new(self.webhook_secret.encode('utf-8'), payload, hashlib.sha256)
         return hmac.compare_digest(mac.hexdigest(), signature_hash)
 
-    def enqueue_payload(self, payload: dict):
+    def enqueue_webhook_payload(self, payload: Dict[str, Any]):
         """
-        受信したWebhookペイロードをキューに格納します。
+        Enqueues the parsed webhook payload for asynchronous processing.
         """
         self.queue.append(payload)
-        logger.info(f"Webhookペイロードをキューに格納しました。現在のキューサイズ: {len(self.queue)}")
+        print(f"Webhook payload enqueued. Current queue size: {len(self.queue)}")
 
-    def process_next_payload(self):
+    def process_next_payload(self) -> Dict[str, Any] | None:
         """
-        キューから次のペイロードを取り出して処理します。（現時点ではログ出力のみ）
+        Retrieves and removes the next payload from the queue.
+        (For demonstration/testing purposes, actual processing would be async)
         """
         if self.queue:
-            payload = self.queue.popleft()
-            logger.info(f"キューからペイロードを取り出しました: {payload.get('action', 'N/A')}")
-            # ここに非同期処理のロジックを追加する
-            return payload
-        else:
-            logger.info("キューは空です。")
-            return None
+            return self.queue.popleft()
+        return None

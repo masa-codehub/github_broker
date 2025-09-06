@@ -74,6 +74,6 @@ async def github_webhook_endpoint(
         logger.error(f"Failed to parse webhook payload as JSON: {e}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON payload")
 
-    webhook_service.enqueue_payload(payload)
+    webhook_service.enqueue_webhook_payload(payload)
     logger.info("Webhook payload received and enqueued.")
     return {"message": "Webhook received and enqueued."}
