@@ -179,3 +179,7 @@ exclude = ["tests*"]  # "tests"ディレクトリはパッケージに含めな�
 [tool.mypy]
 python_version = "3.13"
 ignore_missing_imports = false
+
+[[tool.mypy.overrides]]
+module = "punq"
+ignore_missing_imports = true

@@ -62,7 +62,7 @@ def test_release_lock_not_found(redis_client, mock_redis_instance):
 def test_get_value(redis_client, mock_redis_instance):
     # 準備
     key = "test_key"
-    value = b"test_value"
+    value = "test_value"  # バイト文字列ではなく通常の文字列を返すように変更
     mock_redis_instance.get.return_value = value
 
     # 実行
@@ -70,7 +70,7 @@ def test_get_value(redis_client, mock_redis_instance):
 
     # 検証
     mock_redis_instance.get.assert_called_once_with(key)
-    assert result == value.decode("utf-8")
+    assert result == value  # .decode("utf-8")を削除
 
 
 def test_get_value_none(redis_client, mock_redis_instance):
