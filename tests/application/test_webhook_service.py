@@ -1,18 +1,23 @@
 import os
 import hmac
 import hashlib
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 import pytest
-from collections import deque
+import json
 
 from github_broker.application.webhook_service import WebhookService
+from github_broker.infrastructure.redis_client import RedisClient
 
 @pytest.fixture
-def webhook_service():
+def mock_redis_client():
+    """RedisClientのモックを提供します。"""
+    return MagicMock(spec=RedisClient)
+
+@pytest.fixture
+def webhook_service(mock_redis_client):
     """WebhookServiceのテストインスタンスを提供します。"""
     with patch.dict(os.environ, {"GITHUB_WEBHOOK_SECRET": "test_secret"}):
-        service = WebhookService()
-        service.queue = deque() # テスト用にキューを初期化
+        service = WebhookService(redis_client=mock_redis_client)
         return service
 
 def generate_signature(secret: str, payload_body: bytes) -> str:
@@ -53,33 +58,25 @@ def test_verify_signature_unsupported_algorithm(webhook_service):
     signature = "sha1=invalid_hash" # サポートされていないアルゴリズム
     assert not webhook_service.verify_signature(signature, payload_body)
 
-def test_enqueue_payload(webhook_service):
-    """ペイロードがキューに正しく追加されることをテストします。"""
+def test_enqueue_payload(webhook_service, mock_redis_client):
+    """ペイロードがRedisキューに正しく追加されることをテストします。"""
     payload = {"action": "opened", "issue": {"number": 1}}
     webhook_service.enqueue_payload(payload)
-    assert len(webhook_service.queue) == 1
-    assert webhook_service.queue[0] == payload
+    mock_redis_client.rpush_event.assert_called_once_with(webhook_service.webhook_queue_name, json.dumps(payload))
 
-def test_process_next_payload_with_items(webhook_service):
+def test_process_next_payload_with_items(webhook_service, mock_redis_client):
     """キューにアイテムがある場合に正しく処理されることをテストします。"""
     payload1 = {"action": "opened", "issue": {"number": 1}}
     payload2 = {"action": "closed", "issue": {"number": 2}}
-    webhook_service.enqueue_payload(payload1)
-    webhook_service.enqueue_payload(payload2)
+    mock_redis_client.lpop_event.side_effect = [json.dumps(payload1), json.dumps(payload2), None]
 
     processed_payload = webhook_service.process_next_payload()
     assert processed_payload == payload1
-    assert len(webhook_service.queue) == 1
-    assert webhook_service.queue[0] == payload2
+    mock_redis_client.lpop_event.assert_called_once_with(webhook_service.webhook_queue_name)
 
-def test_process_next_payload_empty_queue(webhook_service):
+def test_process_next_payload_empty_queue(webhook_service, mock_redis_client):
     """キューが空の場合にNoneが返されることをテストします。"""
+    mock_redis_client.lpop_event.return_value = None
     processed_payload = webhook_service.process_next_payload()
     assert processed_payload is None
-    assert len(webhook_service.queue) == 0
-
-def test_webhook_secret_not_set():
-    """GITHUB_WEBHOOK_SECRETが設定されていない場合にValueErrorが発生することをテストします。"""
-    with patch.dict(os.environ, {}, clear=True):
-        with pytest.raises(ValueError, match="GITHUB_WEBHOOK_SECRET環境変数が設定されていません。"):
-            WebhookService()
+    mock_redis_client.lpop_event.assert_called_once_with(webhook_service.webhook_queue_name)

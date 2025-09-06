@@ -41,3 +41,47 @@ class RedisClient:
         Redisからキーを削除します。
         """
         self.client.delete(key)
+
+    def rpush_event(self, queue_name: str, event_data: str):
+        """
+        指定されたキューにイベントデータを追加します。
+        """
+        self.client.rpush(queue_name, event_data)
+
+    def lpop_event(self, queue_name: str) -> str | None:
+        """
+        指定されたキューからイベントデータを取得します。
+        """
+        event_data = self.client.lpop(queue_name)
+        return event_data.decode("utf-8") if event_data else None
+
+    def set_issue(self, issue_id: str, issue_data: str):
+        """
+        RedisにIssueデータを設定します。
+        """
+        self.client.set(f"issue:{issue_id}", issue_data)
+
+    def get_issue(self, issue_id: str) -> str | None:
+        """
+        RedisからIssueデータを取得します。
+        """
+        issue_data = self.client.get(f"issue:{issue_id}")
+        return issue_data.decode("utf-8") if issue_data else None
+
+    def delete_issue(self, issue_id: str):
+        """
+        RedisからIssueデータを削除します。
+        """
+        self.client.delete(f"issue:{issue_id}")
+
+    def get_all_issues(self) -> list[str]:
+        """
+        Redisに保存されているすべてのIssueデータを取得します。
+        """
+        issue_keys = self.client.keys("issue:*")
+        issues = []
+        for key in issue_keys:
+            issue_data = self.client.get(key)
+            if issue_data:
+                issues.append(issue_data.decode("utf-8"))
+        return issues
