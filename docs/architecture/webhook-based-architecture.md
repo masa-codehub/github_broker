@@ -72,16 +72,14 @@ GitHub のリポジトリ設定で、新しい Webhook を作成します。
 
 ### 4.2. Webhook Receiver
 
-### 4.2. Webhook Receiver
-
 `interface/api.py` に新しいエンドポイントを追加します。
 
 *   **エンドポイント:** `POST /api/v1/webhook/github`
 *   **説明:** GitHub からの `issues` イベントを受信し、検証後、非同期処理のためにキューに格納します。
 *   **処理フロー:**
-    1.  `WebhookService` を使用して、リクエストの `X-Hub-Signature-256` ヘッダーとリクエストボディを検証します。この検証には、環境変数 `GITHUB_WEBHOOK_SECRET` から読み込まれるシークレットキーが使用されます。これにより、リクエストが GitHub からのものであることを確認します。
-    2.  検証が成功した場合、`WebhookService` は受信したペイロードをパースし、キュー（現状はインメモリキュー）に格納します。
-    3.  キューに格納されたペイロードは、後続の非同期処理によってRedisのIssue Cacheを更新するために利用されます。
+    1.  `WebhookService` を使用して、リクエストの `X-Hub-Signature-26` ヘッダーとリクエストボディを検証します。この検証には、環境変数 `GITHUB_WEBHOOK_SECRET` から読み込まれるシークレットキーが使用されます。これにより、リクエストが GitHub からのものであることを確認します。
+    2.  検証が成功した場合、リクエストボディをパースし、ペイロードをキュー（Redis）に格納します。
+    3.  （今後の実装）キューから取り出したペイロードを基に、Redis の Issue Cache を更新します。
 
 ### 4.3. Issue Cache (Redis)
 

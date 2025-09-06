@@ -10,7 +10,6 @@ class AgentTaskRequest(BaseModel):
     )
 
 
-
 class TaskResponse(BaseModel):
     issue_id: int
     issue_url: HttpUrl

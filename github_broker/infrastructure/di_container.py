@@ -3,12 +3,19 @@ import os
 import punq
 from redis import Redis
 
+from github_broker.application.issue_cache_updater_service import (
+    IssueCacheUpdaterService,
+)
 from github_broker.application.task_service import TaskService
+from github_broker.application.webhook_service import WebhookService
 from github_broker.infrastructure.github_client import GitHubClient
 from github_broker.infrastructure.redis_client import RedisClient
 
 # DIコンテナの初期化
 container = punq.Container()
+
+# テスト環境かどうかのフラグ
+IS_TESTING = os.getenv("TESTING") == "true"
 
 # RedisClientの登録
 # 環境変数からRedisの接続情報を取得
@@ -23,9 +30,16 @@ container.register(RedisClient, instance=RedisClient(redis_instance))
 # GitHubClientの登録
 container.register(GitHubClient, scope=punq.Scope.singleton)
 
-# TaskServiceの登録
-from github_broker.application.webhook_service import WebhookService
+# WebhookServiceの登録 (テスト環境でない場合のみ)
+if not IS_TESTING:
+    container.register(
+        WebhookService,
+        instance=WebhookService(
+            redis_client=container.resolve(RedisClient),
+        ),
+    )
 
+# TaskServiceの登録
 container.register(
     TaskService,
     instance=TaskService(
@@ -34,5 +48,10 @@ container.register(
     ),
 )
 
-# WebhookServiceの登録
-container.register(WebhookService, scope=punq.Scope.singleton)
+# IssueCacheUpdaterServiceの登録
+container.register(
+    IssueCacheUpdaterService,
+    instance=IssueCacheUpdaterService(
+        redis_client=container.resolve(RedisClient),
+    ),
+)
