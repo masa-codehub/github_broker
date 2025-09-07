@@ -70,6 +70,7 @@ def test_request_task_selects_by_role_no_wait(
     )
 
     mock_github_client.get_open_issues.return_value = [issue1, issue2]
+    mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = True
 
     agent_role = "BACKENDCODER"
@@ -96,6 +97,7 @@ def test_request_task_times_out(
     """利用可能なタスクがなく、タイムアウトする場合をテストします。"""
     # Arrange
     mock_github_client.get_open_issues.return_value = []
+    mock_github_client.find_issues_by_labels.return_value = []
     timeout = 10
     # time.time()が最初にtimeoutを返し、その後増加してタイムアウトするように設定
     mock_time.side_effect = [0, 2, 4, 6, 8, 11]
@@ -127,6 +129,7 @@ def test_request_task_finds_task_after_polling(
     )
     # 最初の呼び出しではタスクなし、2回目以降は見つかるように設定
     mock_github_client.get_open_issues.side_effect = [[], [issue]]
+    mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = True
     timeout = 10
     mock_time.side_effect = [0, 5, 11]  # 1回ポーリングして見つかる
@@ -153,6 +156,7 @@ def test_request_task_no_matching_issue_no_wait(
         number=1, title="Docs", body="", labels=["documentation"]
     )
     mock_github_client.get_open_issues.return_value = [issue1]
+    mock_github_client.find_issues_by_labels.return_value = []
     agent_role = "BACKENDCODER"
 
     # Act
@@ -166,7 +170,7 @@ def test_request_task_no_matching_issue_no_wait(
 
 @patch("time.sleep", return_value=None)
 def test_request_task_excludes_needs_review_label(
-    mock_sleep, task_service, mock_redis_client, mock_github_client
+    mock_sleep, task_service, mock_github_client, mock_redis_client
 ):
     """'needs-review'ラベルを持つIssueがタスク割り当てから除外されることをテストします。"""
     # Arrange
@@ -183,6 +187,7 @@ def test_request_task_excludes_needs_review_label(
         labels=["BACKENDCODER"],
     )
     mock_github_client.get_open_issues.return_value = [issue1, issue2]
+    mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = True
 
     # Act

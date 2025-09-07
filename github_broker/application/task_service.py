@@ -17,8 +17,6 @@ _DEFAULT_GITHUB_INDEXING_WAIT_SECONDS = 15
 
 
 class TaskService:
-    repo_name: str
-
     def __init__(
         self,
         redis_client: RedisClient,
