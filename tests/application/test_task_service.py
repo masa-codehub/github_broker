@@ -325,3 +325,157 @@ def test_task_service_init_no_github_repository_env():
     # Cleanup
     os.environ.clear()
     os.environ.update(original_env)
+
+
+@pytest.mark.unit
+def test_find_first_assignable_task_skips_non_assignable(
+    task_service, mock_redis_client
+):
+    """is_assignable()がFalseを返すIssueをスキップすることをテストします。"""
+    # Arrange
+    issue_not_assignable = create_mock_issue(
+        number=1,
+        title="Not Assignable",
+        body="No deliverables section",
+        labels=["BACKENDCODER"],
+        has_branch_name=True,
+    )
+    issue_assignable = create_mock_issue(
+        number=2, title="Assignable", body="## 成果物\n- work", labels=["BACKENDCODER"]
+    )
+    candidate_issues = [issue_not_assignable, issue_assignable]
+    mock_redis_client.acquire_lock.return_value = True
+
+    # Act
+    result = task_service._find_first_assignable_task(candidate_issues, "test-agent")
+
+    # Assert
+    assert result is not None
+    assert result.issue_id == 2
+    mock_redis_client.acquire_lock.assert_called_once_with(
+        "issue_lock_2", "locked", timeout=600
+    )
+
+
+@pytest.mark.unit
+def test_find_first_assignable_task_skips_no_branch_name(
+    task_service, mock_redis_client
+):
+    """ブランチ名が本文にないIssueをスキップすることをテストします。"""
+    # Arrange
+    issue_no_branch = create_mock_issue(
+        number=1,
+        title="No Branch",
+        body="## 成果物\n- work",
+        labels=["BACKENDCODER"],
+        has_branch_name=False,
+    )
+    issue_with_branch = create_mock_issue(
+        number=2,
+        title="With Branch",
+        body="## 成果物\n- work",
+        labels=["BACKENDCODER"],
+        has_branch_name=True,
+    )
+    candidate_issues = [issue_no_branch, issue_with_branch]
+    mock_redis_client.acquire_lock.return_value = True
+
+    # Act
+    result = task_service._find_first_assignable_task(candidate_issues, "test-agent")
+
+    # Assert
+    assert result is not None
+    assert result.issue_id == 2
+    mock_redis_client.acquire_lock.assert_called_once_with(
+        "issue_lock_2", "locked", timeout=600
+    )
+
+
+@pytest.mark.unit
+def test_find_first_assignable_task_skips_locked_issue(task_service, mock_redis_client):
+    """RedisでロックされているIssueをスキップすることをテストします。"""
+    # Arrange
+    issue_locked = create_mock_issue(
+        number=1,
+        title="Locked Issue",
+        body="## 成果物\n- work",
+        labels=["BACKENDCODER"],
+    )
+    issue_unlocked = create_mock_issue(
+        number=2,
+        title="Unlocked Issue",
+        body="## 成果物\n- work",
+        labels=["BACKENDCODER"],
+    )
+    candidate_issues = [issue_locked, issue_unlocked]
+    # 最初のacquire_lockはFalse、2回目はTrueを返すように設定
+    mock_redis_client.acquire_lock.side_effect = [False, True]
+
+    # Act
+    result = task_service._find_first_assignable_task(candidate_issues, "test-agent")
+
+    # Assert
+    assert result is not None
+    assert result.issue_id == 2
+    assert mock_redis_client.acquire_lock.call_count == 2
+    mock_redis_client.acquire_lock.assert_any_call(
+        "issue_lock_1", "locked", timeout=600
+    )
+    mock_redis_client.acquire_lock.assert_any_call(
+        "issue_lock_2", "locked", timeout=600
+    )
+
+
+@pytest.mark.unit
+@patch("time.sleep", return_value=None)
+def test_invalid_wait_seconds_uses_default(
+    mock_sleep, mock_redis_client, mock_github_client
+):
+    """GITHUB_INDEXING_WAIT_SECONDSが不正な値の場合にデフォルト値にフォールバックすることをテストします。"""
+    # Arrange
+    with patch("os.getenv") as mock_getenv:
+
+        def getenv_side_effect(key, default=None):
+            if key == "GITHUB_REPOSITORY":
+                return "test/repo"
+            if key == "GITHUB_INDEXING_WAIT_SECONDS":
+                return "invalid"
+            return default
+
+        mock_getenv.side_effect = getenv_side_effect
+        mock_github_client.get_open_issues.return_value = []
+        mock_github_client.find_issues_by_labels.return_value = []
+
+        # Act
+        task_service = TaskService(
+            redis_client=mock_redis_client, github_client=mock_github_client
+        )
+        task_service.request_task(
+            agent_id="test-agent", agent_role="BACKENDCODER", timeout=0
+        )
+
+        # Assert
+        mock_sleep.assert_any_call(15)
+
+
+@pytest.mark.unit
+@patch("time.sleep", return_value=None)
+def test_no_matching_role_candidates(mock_sleep, task_service, mock_github_client):
+    """オープンなIssueはあるが、役割に合う候補がない場合のテスト。"""
+    # Arrange
+    issue_other_role = create_mock_issue(
+        number=1,
+        title="Other Role Task",
+        body="## 成果物\n- work",
+        labels=["FRONTENDCODER"],
+    )
+    mock_github_client.get_open_issues.return_value = [issue_other_role]
+    mock_github_client.find_issues_by_labels.return_value = []
+
+    # Act
+    result = task_service.request_task(
+        agent_id="test-agent", agent_role="BACKENDCODER", timeout=0
+    )
+
+    # Assert
+    assert result is None
