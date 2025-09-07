@@ -8,6 +8,7 @@ from github import Github, GithubException
 from github_broker.infrastructure.github_client import GitHubClient
 
 
+@pytest.mark.unit
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
 def test_add_label_success(mock_github, mock_getenv):
@@ -38,6 +39,7 @@ def test_add_label_success(mock_github, mock_getenv):
     assert result is True
 
 
+@pytest.mark.unit
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
 def test_remove_label_success(mock_github, mock_getenv):
@@ -68,6 +70,7 @@ def test_remove_label_success(mock_github, mock_getenv):
     assert result is True
 
 
+@pytest.mark.unit
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
 def test_create_branch_success(mock_github, mock_getenv):
@@ -101,6 +104,7 @@ def test_create_branch_success(mock_github, mock_getenv):
     assert result is True
 
 
+@pytest.mark.unit
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
 def test_find_issues_by_labels_found(mock_github, mock_getenv):
@@ -134,6 +138,7 @@ def test_find_issues_by_labels_found(mock_github, mock_getenv):
     )
 
 
+@pytest.mark.unit
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
 def test_find_issues_by_labels_not_found(mock_github, mock_getenv):
@@ -165,6 +170,7 @@ def test_find_issues_by_labels_not_found(mock_github, mock_getenv):
     assert found_issues == []
 
 
+@pytest.mark.unit
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
 def test_get_open_issues_raises_exception(mock_github, mock_getenv):
@@ -181,6 +187,7 @@ def test_get_open_issues_raises_exception(mock_github, mock_getenv):
         client.get_open_issues("test/repo")
 
 
+@pytest.mark.unit
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
 def test_find_issues_by_labels_raises_exception(mock_github, mock_getenv):
@@ -197,6 +204,7 @@ def test_find_issues_by_labels_raises_exception(mock_github, mock_getenv):
         client.find_issues_by_labels("test/repo", ["label"])
 
 
+@pytest.mark.unit
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
 def test_add_label_raises_exception(mock_github, mock_getenv):
@@ -213,6 +221,7 @@ def test_add_label_raises_exception(mock_github, mock_getenv):
         client.add_label("test/repo", 123, "label")
 
 
+@pytest.mark.unit
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
 def test_remove_label_raises_exception(mock_github, mock_getenv):
@@ -231,6 +240,7 @@ def test_remove_label_raises_exception(mock_github, mock_getenv):
         client.remove_label("test/repo", 123, "label")
 
 
+@pytest.mark.unit
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
 def test_create_branch_raises_exception(mock_github, mock_getenv):
@@ -249,6 +259,7 @@ def test_create_branch_raises_exception(mock_github, mock_getenv):
         client.create_branch("test/repo", "branch")
 
 
+@pytest.mark.unit
 @patch("os.getenv")
 def test_init_raises_value_error_if_no_token(mock_getenv):
     """__init__がGITHUB_TOKEN未設定時にValueErrorを送出することをテストします。"""
@@ -259,6 +270,7 @@ def test_init_raises_value_error_if_no_token(mock_getenv):
         GitHubClient()
 
 
+@pytest.mark.unit
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
 def test_remove_label_handles_404(mock_github, mock_getenv):
@@ -279,6 +291,7 @@ def test_remove_label_handles_404(mock_github, mock_getenv):
     assert result is True  # 例外を送出しないはず
 
 
+@pytest.mark.unit
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
 def test_create_branch_handles_422(mock_github, mock_getenv):
@@ -352,12 +365,14 @@ def managed_test_issue(raw_github_client, test_repo_name):
     issue = repo.create_issue(
         title=issue_title, body="このIssueはテスト後に自動的にクローズされます。"
     )
-    print(f"\n--- SETUP: Issue #{issue.number} ('{issue_title}') を作成しました ---")
+    print(f"""
+--- SETUP: Issue #{issue.number} ('{issue_title}') を作成しました ---""")
 
     yield issue
 
     # --- Teardown ---
-    print(f"\n--- TEARDOWN: Issue #{issue.number} をクローズします ---")
+    print(f"""
+--- TEARDOWN: Issue #{issue.number} をクローズします ---""")
     try:
         issue.edit(state="closed")
     except GithubException as e:

@@ -34,6 +34,7 @@ def executor(mock_prompts):
         return GeminiExecutor(log_dir="/app/logs")
 
 
+@pytest.mark.unit
 def test_init_loads_prompts_from_file(mock_prompts):
     """__init__がプロンプトファイルを正しく読み込むことをテストします"""
     # Arrange
@@ -52,24 +53,38 @@ def test_init_loads_prompts_from_file(mock_prompts):
         assert executor_instance.review_prompt_template == mock_prompts["review_prompt"]
 
 
+@pytest.mark.unit
 def test_build_prompt(executor):
     """_build_promptがテンプレートに基づいてプロンプトを正しく構築することをテストします"""
     # Act
     prompt = executor._build_prompt("Test Title", "Test Body", "feature/test")
 
     # Assert
-    assert prompt == "Title: Test Title\nBranch: feature/test\nBody: Test Body\n"
+    assert (
+        prompt
+        == """Title: Test Title
+Branch: feature/test
+Body: Test Body
+"""
+    )
 
 
+@pytest.mark.unit
 def test_build_review_prompt(executor):
     """_build_review_promptがテンプレートに基づいてプロンプトを正しく構築することをテストします"""
     # Act
     review_prompt = executor._build_review_prompt("Original", "Output")
 
     # Assert
-    assert review_prompt == "Original: Original\nOutput: Output\n"
+    assert (
+        review_prompt
+        == """Original: Original
+Output: Output
+"""
+    )
 
 
+@pytest.mark.unit
 @patch(
     "github_broker.infrastructure.executors.gemini_executor.GeminiExecutor._run_sub_process"
 )
@@ -92,6 +107,7 @@ def test_execute_success(mock_run_sub_process, executor):
     assert mock_run_sub_process.call_count == 2
 
 
+@pytest.mark.unit
 @patch(
     "github_broker.infrastructure.executors.gemini_executor.GeminiExecutor._run_sub_process"
 )
@@ -108,6 +124,7 @@ def test_execute_first_run_fails(mock_run_sub_process, executor):
     mock_run_sub_process.assert_called_once()
 
 
+@pytest.mark.unit
 @patch(
     "github_broker.infrastructure.executors.gemini_executor.GeminiExecutor._run_sub_process"
 )
@@ -128,6 +145,7 @@ def test_execute_handles_log_read_error(mock_run_sub_process, executor):
     mock_run_sub_process.assert_called_once()
 
 
+@pytest.mark.unit
 @patch("subprocess.Popen")
 def test_run_sub_process_handles_file_not_found(mock_popen, executor):
     """_run_sub_processがFileNotFoundErrorを処理することをテストします"""
@@ -141,6 +159,7 @@ def test_run_sub_process_handles_file_not_found(mock_popen, executor):
     assert result is False
 
 
+@pytest.mark.unit
 @patch("subprocess.Popen")
 def test_run_sub_process_handles_generic_exception(mock_popen, executor):
     """_run_sub_processが一般的な例外を処理することをテストします"""

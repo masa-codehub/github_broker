@@ -5,6 +5,7 @@ import pytest
 from github_broker.infrastructure.gemini_client import GeminiClient
 
 
+@pytest.mark.unit
 @patch("os.getenv")
 def test_gemini_client_init_success(mock_getenv):
     """
@@ -16,6 +17,7 @@ def test_gemini_client_init_success(mock_getenv):
     mock_getenv.assert_called_once_with("GEMINI_API_KEY")
 
 
+@pytest.mark.unit
 @patch("os.getenv")
 def test_gemini_client_init_no_api_key(mock_getenv):
     """
@@ -30,6 +32,7 @@ def test_gemini_client_init_no_api_key(mock_getenv):
     mock_getenv.assert_called_once_with("GEMINI_API_KEY")
 
 
+@pytest.mark.unit
 @patch("os.getenv")
 def test_select_best_issue_id_no_issues(mock_getenv):
     """
@@ -46,6 +49,7 @@ def test_select_best_issue_id_no_issues(mock_getenv):
     assert selected_id is None
 
 
+@pytest.mark.unit
 @patch("os.getenv")
 @patch("github_broker.infrastructure.gemini_client.genai.GenerativeModel")
 def test_select_best_issue_id_with_gemini_api_call(mock_generative_model, mock_getenv):
@@ -108,6 +112,7 @@ def test_select_best_issue_id_with_gemini_api_call(mock_generative_model, mock_g
     assert selected_id == 101
 
 
+@pytest.mark.unit
 @patch("os.getenv")
 @patch("github_broker.infrastructure.gemini_client.genai.GenerativeModel")
 def test_select_best_issue_id_fallback_on_api_error(mock_generative_model, mock_getenv):
