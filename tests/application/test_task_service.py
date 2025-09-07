@@ -338,7 +338,7 @@ def test_find_first_assignable_task_skips_non_assignable(
         title="Not Assignable",
         body="No deliverables section",
         labels=["BACKENDCODER"],
-        has_branch_name=False,
+        has_branch_name=True,
     )
     issue_assignable = create_mock_issue(
         number=2, title="Assignable", body="## 成果物\n- work", labels=["BACKENDCODER"]
@@ -428,7 +428,7 @@ def test_find_first_assignable_task_skips_locked_issue(task_service, mock_redis_
 
 @pytest.mark.unit
 @patch("time.sleep", return_value=None)
-def test_request_task_invalid_wait_seconds_env(
+def test_invalid_wait_seconds_uses_default(
     mock_sleep, mock_redis_client, mock_github_client
 ):
     """GITHUB_INDEXING_WAIT_SECONDSが不正な値の場合にデフォルト値にフォールバックすることをテストします。"""
@@ -460,9 +460,7 @@ def test_request_task_invalid_wait_seconds_env(
 
 @pytest.mark.unit
 @patch("time.sleep", return_value=None)
-def test_request_task_no_candidates_after_filtering(
-    mock_sleep, task_service, mock_github_client
-):
+def test_no_matching_role_candidates(mock_sleep, task_service, mock_github_client):
     """オープンなIssueはあるが、役割に合う候補がない場合のテスト。"""
     # Arrange
     issue_other_role = create_mock_issue(
