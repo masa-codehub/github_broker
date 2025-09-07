@@ -191,6 +191,33 @@ def test_get_open_issues_raises_exception(mock_github, mock_getenv):
 @pytest.mark.unit
 @patch("os.getenv")
 @patch("github_broker.infrastructure.github_client.Github")
+def test_get_open_issues_success(mock_github, mock_getenv):
+    """get_open_issuesが正常にIssueを返すことをテストします。"""
+    # Arrange
+    mock_getenv.return_value = "fake_token"
+    mock_issue = MagicMock()
+    mock_results = MagicMock()
+    mock_results.totalCount = 1
+    mock_results.__iter__.return_value = [mock_issue]
+    mock_github_instance = MagicMock()
+    mock_github_instance.search_issues.return_value = mock_results
+    mock_github.return_value = mock_github_instance
+
+    client = GitHubClient()
+
+    # Act
+    issues = client.get_open_issues("test/repo")
+
+    # Assert
+    assert issues == [mock_issue]
+    mock_github_instance.search_issues.assert_called_once_with(
+        query='repo:test/repo is:issue is:open -label:"needs-review"'
+    )
+
+
+@pytest.mark.unit
+@patch("os.getenv")
+@patch("github_broker.infrastructure.github_client.Github")
 def test_find_issues_by_labels_raises_exception(mock_github, mock_getenv):
     """find_issues_by_labelsがAPI呼び出し失敗時に例外を送出することをテストします。"""
     mock_getenv.return_value = "fake_token"
@@ -447,3 +474,91 @@ def test_integration_create_and_delete_branch(
         except GithubException as e:
             if e.status != 404:
                 print(f"警告: ブランチ '{branch_name}' の削除に失敗しました: {e}")
+
+
+@pytest.mark.unit
+@patch("os.getenv")
+@patch("github_broker.infrastructure.github_client.Github")
+def test_update_issue_add_and_remove_labels(mock_github, mock_getenv):
+    """update_issueがラベルの追加と削除を正しく行うことをテストします。"""
+    # Arrange
+    mock_getenv.return_value = "fake_token"
+    mock_issue = MagicMock()
+    mock_repo = MagicMock()
+    mock_repo.get_issue.return_value = mock_issue
+    mock_github_instance = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_github.return_value = mock_github_instance
+
+    client = GitHubClient()
+    repo_name = "test/repo"
+    issue_id = 123
+    remove_labels = ["old-label"]
+    add_labels = ["new-label"]
+
+    # Act
+    result = client.update_issue(repo_name, issue_id, remove_labels, add_labels)
+
+    # Assert
+    assert result is True
+    mock_repo.get_issue.assert_called_once_with(number=issue_id)
+    mock_issue.remove_from_labels.assert_called_once_with("old-label")
+    mock_issue.add_to_labels.assert_called_once_with("new-label")
+
+
+@pytest.mark.unit
+@patch("os.getenv")
+@patch("github_broker.infrastructure.github_client.Github")
+def test_update_issue_remove_nonexistent_label_handles_404(mock_github, mock_getenv):
+    """update_issueが404エラーをハンドルし、警告をログに出力することをテストします。"""
+    # Arrange
+    mock_getenv.return_value = "fake_token"
+    mock_issue = MagicMock()
+    mock_issue.remove_from_labels.side_effect = GithubException(
+        status=404, data={}, headers=None
+    )
+    mock_repo = MagicMock()
+    mock_repo.get_issue.return_value = mock_issue
+    mock_github_instance = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_github.return_value = mock_github_instance
+
+    client = GitHubClient()
+    repo_name = "test/repo"
+    issue_id = 123
+    remove_labels = ["nonexistent-label"]
+
+    # Act
+    with patch("logging.warning") as mock_log_warning:
+        result = client.update_issue(repo_name, issue_id, remove_labels=remove_labels)
+
+    # Assert
+    assert result is True
+    mock_log_warning.assert_called_once()
+
+
+@pytest.mark.unit
+@patch("os.getenv")
+@patch("github_broker.infrastructure.github_client.Github")
+def test_update_issue_remove_label_raises_exception(mock_github, mock_getenv):
+    """update_issueがラベル削除時に404以外のエラーで例外を送出することをテストします。"""
+    # Arrange
+    mock_getenv.return_value = "fake_token"
+    mock_issue = MagicMock()
+    mock_issue.remove_from_labels.side_effect = GithubException(
+        status=500, data={}, headers=None
+    )
+    mock_repo = MagicMock()
+    mock_repo.get_issue.return_value = mock_issue
+    mock_github_instance = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_github.return_value = mock_github_instance
+
+    client = GitHubClient()
+    repo_name = "test/repo"
+    issue_id = 123
+    remove_labels = ["any-label"]
+
+    # Act & Assert
+    with pytest.raises(GithubException):
+        client.update_issue(repo_name, issue_id, remove_labels=remove_labels)

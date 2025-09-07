@@ -1,5 +1,5 @@
 import os
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -103,3 +103,18 @@ def test_request_task_lock_error(mock_task_service):
         agent_role=request_body["agent_role"],
         timeout=request_body["timeout"],
     )
+
+
+@pytest.mark.unit
+def test_get_task_service_resolves_instance():
+    """get_task_serviceがDIコンテナからTaskServiceのインスタンスを解決できることをテストします。"""
+    # Arrange
+    # DIコンテナがテスト環境用に設定されていることを確認
+    with patch.dict(
+        os.environ, {"GITHUB_REPOSITORY": "test/repo", "GITHUB_TOKEN": "fake-token"}
+    ):
+        # Act
+        service = get_task_service()
+
+        # Assert
+        assert isinstance(service, TaskService)
