@@ -17,6 +17,7 @@ def redis_client(mock_redis_instance):
     return RedisClient(mock_redis_instance)
 
 
+@pytest.mark.unit
 def test_acquire_lock(redis_client, mock_redis_instance):
     # 準備
     lock_key = "test_lock"
@@ -34,6 +35,7 @@ def test_acquire_lock(redis_client, mock_redis_instance):
     assert result is True
 
 
+@pytest.mark.unit
 def test_release_lock(redis_client, mock_redis_instance):
     # 準備
     lock_key = "test_lock"
@@ -47,6 +49,7 @@ def test_release_lock(redis_client, mock_redis_instance):
     assert result is True
 
 
+@pytest.mark.unit
 def test_release_lock_not_found(redis_client, mock_redis_instance):
     # 準備
     lock_key = "test_lock"
@@ -59,6 +62,7 @@ def test_release_lock_not_found(redis_client, mock_redis_instance):
     assert result is False
 
 
+@pytest.mark.unit
 def test_get_value(redis_client, mock_redis_instance):
     # 準備
     key = "test_key"
@@ -73,6 +77,7 @@ def test_get_value(redis_client, mock_redis_instance):
     assert result == value  # .decode("utf-8")を削除
 
 
+@pytest.mark.unit
 def test_get_value_none(redis_client, mock_redis_instance):
     # 準備
     key = "test_key"
@@ -85,6 +90,7 @@ def test_get_value_none(redis_client, mock_redis_instance):
     assert result is None
 
 
+@pytest.mark.unit
 def test_set_value(redis_client, mock_redis_instance):
     # 準備
     key = "test_key"
@@ -98,6 +104,7 @@ def test_set_value(redis_client, mock_redis_instance):
     mock_redis_instance.set.assert_called_once_with(key, value, ex=timeout)
 
 
+@pytest.mark.unit
 def test_delete_key(redis_client, mock_redis_instance):
     # 準備
     key = "test_key"

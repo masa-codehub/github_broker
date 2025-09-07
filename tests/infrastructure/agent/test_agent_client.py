@@ -13,6 +13,7 @@ def agent_client():
     return AgentClient(agent_id="test-agent", agent_role="BACKENDCODER")
 
 
+@pytest.mark.unit
 @patch("requests.post")
 def test_request_task_success(mock_post, agent_client):
     """
@@ -44,6 +45,7 @@ def test_request_task_success(mock_post, agent_client):
     assert task == mock_task_data
 
 
+@pytest.mark.unit
 @patch("requests.post")
 def test_request_task_with_custom_timeout(mock_post, agent_client):
     """
@@ -75,6 +77,7 @@ def test_request_task_with_custom_timeout(mock_post, agent_client):
     )
 
 
+@pytest.mark.unit
 @patch("requests.post")
 def test_request_task_no_content(mock_post, agent_client):
     """
@@ -93,6 +96,7 @@ def test_request_task_no_content(mock_post, agent_client):
     mock_response.raise_for_status.assert_not_called()
 
 
+@pytest.mark.unit
 @patch("requests.post")
 def test_request_task_server_error(mock_post, agent_client):
     """
@@ -113,6 +117,7 @@ def test_request_task_server_error(mock_post, agent_client):
     assert task is None
 
 
+@pytest.mark.unit
 @patch(
     "requests.post",
     side_effect=requests.exceptions.ConnectionError("Connection refused"),
@@ -128,6 +133,7 @@ def test_request_task_connection_error(mock_post, agent_client):
     assert task is None
 
 
+@pytest.mark.unit
 def test_agent_client_initialization_with_port():
     """
     特定のポートでAgentClientが初期化されることをテストします。
@@ -136,6 +142,7 @@ def test_agent_client_initialization_with_port():
     assert client.port == 9000
 
 
+@pytest.mark.unit
 @patch.dict(os.environ, {"BROKER_PORT": "9999"})
 def test_agent_client_initialization_with_env_var():
     """
@@ -145,6 +152,7 @@ def test_agent_client_initialization_with_env_var():
     assert client.port == 9999
 
 
+@pytest.mark.unit
 def test_agent_client_initialization_default_port(monkeypatch):
     """
     環境変数が設定されていない場合に、AgentClientがデフォルトポートで初期化されることをテストします。

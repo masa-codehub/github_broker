@@ -5,6 +5,7 @@ import pytest
 from github_broker.domain.task import Task
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize(
     "body, expected",
     [
@@ -36,6 +37,7 @@ def test_is_assignable(body, expected):
     assert result == expected
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize(
     "body, expected_branch_name",
     [

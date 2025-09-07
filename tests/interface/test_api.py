@@ -25,6 +25,7 @@ def mock_task_service():
     del app.dependency_overrides[get_task_service]
 
 
+@pytest.mark.unit
 def test_request_task_success(mock_task_service):
     """/request-taskエンドポイントへの成功したタスクリクエストをテストします。"""
     # Arrange
@@ -56,6 +57,7 @@ def test_request_task_success(mock_task_service):
     )
 
 
+@pytest.mark.unit
 def test_request_task_no_task_available(mock_task_service):
     """利用可能なタスクがない場合（204 No Content）の/request-taskエンドポイントをテストします。"""
     # Arrange
@@ -78,6 +80,7 @@ def test_request_task_no_task_available(mock_task_service):
     )
 
 
+@pytest.mark.unit
 def test_request_task_lock_error(mock_task_service):
     """LockAcquisitionErrorが発生した場合の/request-taskエンドポイントをテストします。"""
     # Arrange

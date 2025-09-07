@@ -39,7 +39,10 @@ def create_mock_issue(
     """テスト用のIssue辞書を生成するヘルパー関数。"""
     full_body = body
     if has_branch_name:
-        full_body += f"\n\n## ブランチ名\n`feature/issue-{number}`"
+        full_body += f"""
+
+## ブランチ名
+`feature/issue-{number}`"""
 
     return {
         "number": number,
@@ -50,6 +53,7 @@ def create_mock_issue(
     }
 
 
+@pytest.mark.unit
 @patch("time.sleep", return_value=None)
 def test_request_task_selects_by_role_no_wait(
     mock_sleep, task_service, mock_github_client, mock_redis_client
@@ -59,13 +63,15 @@ def test_request_task_selects_by_role_no_wait(
     issue1 = create_mock_issue(
         number=1,
         title="Irrelevant Task",
-        body="## 成果物\n- README.md",
+        body="""## 成果物
+- README.md""",
         labels=["documentation"],
     )
     issue2 = create_mock_issue(
         number=2,
         title="Backend Task",
-        body="## 成果物\n- feature.py",
+        body="""## 成果物
+- feature.py""",
         labels=["feature", "BACKENDCODER"],
     )
 
@@ -89,6 +95,7 @@ def test_request_task_selects_by_role_no_wait(
     assert mock_github_client.get_open_issues.call_count == 1
 
 
+@pytest.mark.unit
 @patch("time.time")
 @patch("time.sleep", return_value=None)
 def test_request_task_times_out(
@@ -114,6 +121,7 @@ def test_request_task_times_out(
     assert mock_github_client.get_open_issues.call_count > 1
 
 
+@pytest.mark.unit
 @patch("time.time")
 @patch("time.sleep", return_value=None)
 def test_request_task_finds_task_after_polling(
@@ -124,7 +132,8 @@ def test_request_task_finds_task_after_polling(
     issue = create_mock_issue(
         number=1,
         title="Delayed Task",
-        body="## 成果物\n- delayed.py",
+        body="""## 成果物
+- delayed.py""",
         labels=["BACKENDCODER"],
     )
     # 最初の呼び出しではタスクなし、2回目以降は見つかるように設定
@@ -146,6 +155,7 @@ def test_request_task_finds_task_after_polling(
     mock_sleep.assert_called()  # ポーリング間隔でsleepが呼ばれる
 
 
+@pytest.mark.unit
 @patch("time.sleep", return_value=None)
 def test_request_task_no_matching_issue_no_wait(
     mock_sleep, task_service, mock_github_client
@@ -168,6 +178,7 @@ def test_request_task_no_matching_issue_no_wait(
     assert result is None
 
 
+@pytest.mark.unit
 @patch("time.sleep", return_value=None)
 def test_request_task_excludes_needs_review_label(
     mock_sleep, task_service, mock_github_client, mock_redis_client
@@ -177,13 +188,15 @@ def test_request_task_excludes_needs_review_label(
     issue1 = create_mock_issue(
         number=1,
         title="Task Needs Review",
-        body="## 成果物\n- review.py",
+        body="""## 成果物
+- review.py""",
         labels=["BACKENDCODER", "needs-review"],
     )
     issue2 = create_mock_issue(
         number=2,
         title="Assignable Task",
-        body="## 成果物\n- assign.py",
+        body="""## 成果物
+- assign.py""",
         labels=["BACKENDCODER"],
     )
     mock_github_client.get_open_issues.return_value = [issue1, issue2]
@@ -200,6 +213,7 @@ def test_request_task_excludes_needs_review_label(
     assert result.issue_id == 2  # issue1は除外され、issue2が選択されるはず
 
 
+@pytest.mark.unit
 @patch("time.sleep", return_value=None)
 def test_complete_previous_task_updates_issues(
     mock_sleep, task_service, mock_github_client
@@ -234,6 +248,7 @@ def test_complete_previous_task_updates_issues(
     )
 
 
+@pytest.mark.unit
 @patch("time.sleep", return_value=None)
 def test_find_first_assignable_task_exception_releases_lock(
     mock_sleep, task_service, mock_github_client, mock_redis_client
@@ -245,7 +260,8 @@ def test_find_first_assignable_task_exception_releases_lock(
     issue = create_mock_issue(
         number=1,
         title="Test Task",
-        body="## 成果物\n- test.py",
+        body="""## 成果物
+- test.py""",
         labels=["BACKENDCODER"],
     )
     mock_redis_client.acquire_lock.return_value = True
@@ -261,6 +277,7 @@ def test_find_first_assignable_task_exception_releases_lock(
     mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
 
 
+@pytest.mark.unit
 @patch("time.sleep", return_value=None)
 def test_find_first_assignable_task_create_branch_exception_releases_lock(
     mock_sleep, task_service, mock_github_client, mock_redis_client
@@ -272,7 +289,8 @@ def test_find_first_assignable_task_create_branch_exception_releases_lock(
     issue = create_mock_issue(
         number=1,
         title="Test Task",
-        body="## 成果物\n- test.py",
+        body="""## 成果物
+- test.py""",
         labels=["BACKENDCODER"],
     )
     mock_redis_client.acquire_lock.return_value = True
@@ -288,6 +306,7 @@ def test_find_first_assignable_task_create_branch_exception_releases_lock(
     mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
 
 
+@pytest.mark.unit
 def test_task_service_init_no_github_repository_env():
     """
     GITHUB_REPOSITORY環境変数が設定されていない場合にValueErrorが発生することをテストします。
