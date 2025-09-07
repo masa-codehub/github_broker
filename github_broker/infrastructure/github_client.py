@@ -34,27 +34,14 @@ class GitHubClient:
     def find_issues_by_labels(self, repo_name: str, labels: list[str]):
         """
         指定されたすべてのラベルを持つIssue（オープンまたはクローズ済み）を検索します。
-        この実装は、検索インデックスの遅延を避けるために、すべてのIssueを取得し手動でフィルタリングします。
         """
         try:
-            repo = self._client.get_repo(repo_name)
-            all_issues = repo.get_issues(state="all")
-            required_labels = set(labels)
-            found_issues = []
-
-            for issue in all_issues:
-                issue_labels = {label.name for label in issue.labels}
-                if required_labels.issubset(issue_labels):
-                    logging.info(
-                        f"Found matching issue #{issue.number} with labels {issue_labels}"
-                    )
-                    found_issues.append(issue)
-
-            if not found_issues:
-                logging.info(f"No issues found with the required labels: {labels}")
-
-            return found_issues
-
+            labels_query = " ".join([f'label:"{label}"' for label in labels])
+            query = f"repo:{repo_name} is:issue {labels_query}"
+            logging.info(f"クエリ: {query} でIssueを検索中")
+            issues = self._client.search_issues(query=query)
+            logging.info(f"{issues.totalCount} 件のIssueが見つかりました。")
+            return list(issues)
         except GithubException as e:
             logging.error(
                 f"An error occurred while searching for issues by labels in repo {repo_name}: {e}"

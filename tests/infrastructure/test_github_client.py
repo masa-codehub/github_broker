@@ -108,32 +108,16 @@ def test_find_issues_by_labels_found(mock_github, mock_getenv):
     # Arrange
     mock_getenv.return_value = "fake_token"
 
-    # モックラベルを作成
-    mock_label_a = MagicMock()
-    mock_label_a.name = "label-a"
-    mock_label_b = MagicMock()
-    mock_label_b.name = "label-b"
-    mock_label_c = MagicMock()
-    mock_label_c.name = "label-c"
-
     # モックIssueを作成
-    issue1 = MagicMock()
-    issue1.number = 1
-    issue1.labels = [mock_label_a]
-
     issue2 = MagicMock()
     issue2.number = 2
-    issue2.labels = [mock_label_a, mock_label_b]  # これが探しているもの
 
-    issue3 = MagicMock()
-    issue3.number = 3
-    issue3.labels = [mock_label_b, mock_label_c]
-
-    mock_repo = MagicMock()
-    mock_repo.get_issues.return_value = [issue1, issue2, issue3]
+    mock_search_results = MagicMock()
+    mock_search_results.totalCount = 1
+    mock_search_results.__iter__.return_value = [issue2]
 
     mock_github_instance = MagicMock()
-    mock_github_instance.get_repo.return_value = mock_repo
+    mock_github_instance.search_issues.return_value = mock_search_results
     mock_github.return_value = mock_github_instance
 
     client = GitHubClient()
@@ -145,8 +129,9 @@ def test_find_issues_by_labels_found(mock_github, mock_getenv):
     assert found_issues is not None
     assert len(found_issues) == 1
     assert found_issues[0].number == 2
-    mock_github_instance.get_repo.assert_called_once_with("test/repo")
-    mock_repo.get_issues.assert_called_once_with(state="all")
+    mock_github_instance.search_issues.assert_called_once_with(
+        query='repo:test/repo is:issue label:"label-a" label:"label-b"'
+    )
 
 
 @patch("os.getenv")
@@ -202,7 +187,7 @@ def test_find_issues_by_labels_raises_exception(mock_github, mock_getenv):
     """find_issues_by_labelsがAPI呼び出し失敗時に例外を送出することをテストします。"""
     mock_getenv.return_value = "fake_token"
     mock_github_instance = MagicMock()
-    mock_github_instance.get_repo.side_effect = GithubException(
+    mock_github_instance.search_issues.side_effect = GithubException(
         status=500, data={}, headers=None
     )
     mock_github.return_value = mock_github_instance

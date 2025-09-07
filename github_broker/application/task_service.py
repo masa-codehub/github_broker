@@ -17,6 +17,8 @@ _DEFAULT_GITHUB_INDEXING_WAIT_SECONDS = 15
 
 
 class TaskService:
+    repo_name: str
+
     def __init__(
         self,
         redis_client: RedisClient,
@@ -24,9 +26,10 @@ class TaskService:
     ):
         self.redis_client = redis_client
         self.github_client = github_client
-        self.repo_name = os.getenv("GITHUB_REPOSITORY")
-        if not self.repo_name:
+        repo_name_str = os.getenv("GITHUB_REPOSITORY")
+        if not repo_name_str:
             raise ValueError("GITHUB_REPOSITORY環境変数が設定されていません。")
+        self.repo_name = repo_name_str
 
     def complete_previous_task(self, agent_id: str):
         """
@@ -154,8 +157,6 @@ class TaskService:
             TaskResponse | None: 見つかったタスクの情報。タイムアウトした場合はNoneを返します。
         """
         self.complete_previous_task(agent_id)
-
-        assert self.repo_name is not None
 
         try:
             wait_seconds = int(

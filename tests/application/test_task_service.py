@@ -126,11 +126,7 @@ def test_request_task_finds_task_after_polling(
         labels=["BACKENDCODER"],
     )
     # 最初の呼び出しではタスクなし、2回目以降は見つかるように設定
-    mock_github_client.get_open_issues.side_effect = (
-        lambda repo_name: [issue]
-        if mock_github_client.get_open_issues.call_count > 1
-        else []
-    )
+    mock_github_client.get_open_issues.side_effect = [[], [issue]]
     mock_redis_client.acquire_lock.return_value = True
     timeout = 10
     mock_time.side_effect = [0, 5, 11]  # 1回ポーリングして見つかる
