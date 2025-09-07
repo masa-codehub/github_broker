@@ -69,7 +69,7 @@ def test_request_task_selects_by_role_no_wait(
         labels=["feature", "BACKENDCODER"],
     )
 
-    mock_redis_client.get_all_issues.return_value = [issue1, issue2]
+    mock_github_client.get_open_issues.return_value = [issue1, issue2]
     mock_redis_client.acquire_lock.return_value = True
 
     agent_role = "BACKENDCODER"
@@ -85,7 +85,7 @@ def test_request_task_selects_by_role_no_wait(
     mock_redis_client.acquire_lock.assert_called_once_with(
         "issue_lock_2", "locked", timeout=600
     )
-    assert mock_redis_client.get_all_issues.call_count == 2
+    assert mock_github_client.get_open_issues.call_count == 1
 
 
 @patch("time.time")
@@ -95,7 +95,7 @@ def test_request_task_times_out(
 ):
     """利用可能なタスクがなく、タイムアウトする場合をテストします。"""
     # Arrange
-    mock_redis_client.get_all_issues.return_value = []
+    mock_github_client.get_open_issues.return_value = []
     timeout = 10
     # time.time()が最初にtimeoutを返し、その後増加してタイムアウトするように設定
     mock_time.side_effect = [0, 2, 4, 6, 8, 11]
@@ -109,7 +109,7 @@ def test_request_task_times_out(
     assert result is None
     # 5秒間隔でsleepが呼ばれる
     assert mock_sleep.call_count > 1
-    assert mock_redis_client.get_all_issues.call_count > 1
+    assert mock_github_client.get_open_issues.call_count > 1
 
 
 @patch("time.time")
@@ -126,8 +126,10 @@ def test_request_task_finds_task_after_polling(
         labels=["BACKENDCODER"],
     )
     # 最初の呼び出しではタスクなし、2回目以降は見つかるように設定
-    mock_redis_client.get_all_issues.side_effect = (
-        lambda: [issue] if mock_redis_client.get_all_issues.call_count > 1 else []
+    mock_github_client.get_open_issues.side_effect = (
+        lambda repo_name: [issue]
+        if mock_github_client.get_open_issues.call_count > 1
+        else []
     )
     mock_redis_client.acquire_lock.return_value = True
     timeout = 10
@@ -141,7 +143,7 @@ def test_request_task_finds_task_after_polling(
     # Assert
     assert result is not None
     assert result.issue_id == 1
-    assert mock_redis_client.get_all_issues.call_count == 2
+    assert mock_github_client.get_open_issues.call_count == 2
     mock_sleep.assert_called()  # ポーリング間隔でsleepが呼ばれる
 
 
@@ -154,7 +156,7 @@ def test_request_task_no_matching_issue_no_wait(
     issue1 = create_mock_issue(
         number=1, title="Docs", body="", labels=["documentation"]
     )
-    mock_redis_client.get_all_issues.return_value = [issue1]
+    mock_github_client.get_open_issues.return_value = [issue1]
     agent_role = "BACKENDCODER"
 
     # Act
@@ -168,7 +170,7 @@ def test_request_task_no_matching_issue_no_wait(
 
 @patch("time.sleep", return_value=None)
 def test_request_task_excludes_needs_review_label(
-    mock_sleep, task_service, mock_redis_client
+    mock_sleep, task_service, mock_redis_client, mock_github_client
 ):
     """'needs-review'ラベルを持つIssueがタスク割り当てから除外されることをテストします。"""
     # Arrange
@@ -184,7 +186,7 @@ def test_request_task_excludes_needs_review_label(
         body="## 成果物\n- assign.py",
         labels=["BACKENDCODER"],
     )
-    mock_redis_client.get_all_issues.return_value = [issue1, issue2]
+    mock_github_client.get_open_issues.return_value = [issue1, issue2]
     mock_redis_client.acquire_lock.return_value = True
 
     # Act
@@ -211,11 +213,8 @@ def test_complete_previous_task_updates_issues(
         body="",
         labels=["in-progress", "test-agent"],
     )
-    # RedisからすべてのIssueを取得し、その中からフィルタリングされることを想定
-    mock_redis_client.get_all_issues.return_value = [
-        mock_issue,
-        create_mock_issue(number=102, title="Other Issue", body="", labels=["bug"]),
-    ]
+    # GitHubからin-progressとagent_idラベルを持つIssueを取得することを想定
+    mock_github_client.find_issues_by_labels.return_value = [mock_issue]
 
     agent_id = "test-agent"
 
@@ -223,7 +222,9 @@ def test_complete_previous_task_updates_issues(
     task_service.complete_previous_task(agent_id)
 
     # Assert
-    mock_redis_client.get_all_issues.assert_called_once()
+    mock_github_client.find_issues_by_labels.assert_called_once_with(
+        repo_name="test/repo", labels=["in-progress", agent_id]
+    )
     mock_github_client.update_issue.assert_called_once_with(
         repo_name="test/repo",
         issue_id=mock_issue["number"],

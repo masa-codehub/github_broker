@@ -35,16 +35,12 @@ class TaskService:
         """
         assert self.repo_name is not None
         logger.info(f"Completing previous task for agent: {agent_id}")
-        all_issues = self.redis_client.get_all_issues()
-        if not all_issues:
-            logger.info("No issues found in Redis cache.")
+        previous_issues = self.github_client.find_issues_by_labels(
+            repo_name=self.repo_name, labels=["in-progress", agent_id]
+        )
+        if not previous_issues:
+            logger.info("No in-progress issues found for this agent.")
             return
-
-        previous_issues = []
-        for issue in all_issues:
-            labels = [label["name"] for label in issue.get("labels", [])]
-            if "in-progress" in labels and agent_id in labels:
-                previous_issues.append(issue)
 
         for issue in previous_issues:
             logger.info(
@@ -159,6 +155,8 @@ class TaskService:
         """
         self.complete_previous_task(agent_id)
 
+        assert self.repo_name is not None
+
         try:
             wait_seconds = int(
                 os.getenv(
@@ -179,7 +177,7 @@ class TaskService:
 
         while True:
             logger.info(f"Searching for open issues in repository: {self.repo_name}")
-            all_issues = self.redis_client.get_all_issues()
+            all_issues = self.github_client.get_open_issues(self.repo_name)
             if all_issues:
                 candidate_issues = self._find_candidates_by_role(all_issues, agent_role)
                 if candidate_issues:
