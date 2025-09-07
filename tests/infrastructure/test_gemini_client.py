@@ -115,6 +115,30 @@ def test_select_best_issue_id_with_gemini_api_call(mock_generative_model, mock_g
 @pytest.mark.unit
 @patch("os.getenv")
 @patch("github_broker.infrastructure.gemini_client.genai.GenerativeModel")
+def test_select_best_issue_id_handles_null_id(mock_generative_model, mock_getenv):
+    """Geminiがnullのissue_idを返した場合にNoneを返すことをテストします。"""
+    # Arrange
+    mock_getenv.return_value = "fake_gemini_api_key"
+    mock_gemini_response = MagicMock()
+    mock_gemini_response.text = '{"issue_id": null}'
+    mock_model_instance = MagicMock()
+    mock_model_instance.generate_content.return_value = mock_gemini_response
+    mock_generative_model.return_value = mock_model_instance
+
+    client = GeminiClient()
+    issues = [{"id": 1, "title": "Test"}]
+    capabilities = ["test"]
+
+    # Act
+    selected_id = client.select_best_issue_id(issues, capabilities)
+
+    # Assert
+    assert selected_id is None
+
+
+@pytest.mark.unit
+@patch("os.getenv")
+@patch("github_broker.infrastructure.gemini_client.genai.GenerativeModel")
 def test_select_best_issue_id_fallback_on_api_error(mock_generative_model, mock_getenv):
     """
     API呼び出しが失敗した場合にselect_best_issue_idが最初のIssueにフォールバックすることをテストします。

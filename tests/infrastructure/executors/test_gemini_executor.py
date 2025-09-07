@@ -1,4 +1,4 @@
-from unittest.mock import mock_open, patch
+from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 import yaml
@@ -51,6 +51,21 @@ def test_init_loads_prompts_from_file(mock_prompts):
         mock_safe_load.assert_called_once()
         assert executor_instance.build_prompt_template == mock_prompts["build_prompt"]
         assert executor_instance.review_prompt_template == mock_prompts["review_prompt"]
+
+
+@pytest.mark.unit
+def test_init_handles_prompt_file_error():
+    """__init__がプロンプトファイルのFileNotFoundErrorを処理することをテストします。"""
+    # Arrange
+    with patch("builtins.open", mock_open()) as mock_file:
+        mock_file.side_effect = FileNotFoundError
+
+        # Act
+        executor_instance = GeminiExecutor(prompt_file="nonexistent.yml")
+
+        # Assert
+        assert executor_instance.build_prompt_template == ""
+        assert executor_instance.review_prompt_template == ""
 
 
 @pytest.mark.unit
@@ -160,3 +175,48 @@ def test_run_sub_process_handles_generic_exception(mock_popen, executor):
 
     # Assert
     assert result is False
+
+
+@pytest.mark.unit
+def test_get_log_filepath_no_log_dir():
+    """_get_log_filepathがlog_dirなしでNoneを返すことをテストします。"""
+    # Arrange
+    executor = GeminiExecutor(log_dir=None)
+    # Act
+    filepath = executor._get_log_filepath("test-agent")
+    # Assert
+    assert filepath is None
+
+
+@pytest.mark.unit
+def test_get_log_filepath_no_agent_id(executor):
+    """_get_log_filepathがagent_idなしでNoneを返すことをテストします。"""
+    # Act
+    with patch("logging.warning") as mock_log_warning:
+        filepath = executor._get_log_filepath(None)
+    # Assert
+    assert filepath is None
+    mock_log_warning.assert_called_once()
+
+
+@pytest.mark.unit
+@patch("subprocess.Popen")
+def test_run_sub_process_captures_output(mock_popen, executor):
+    """_run_sub_processがサブプロセスの出力を正しくキャプチャすることをテストします。"""
+    # Arrange
+    mock_process = MagicMock()
+    mock_process.stdout = ["line 1\n", "line 2\n"]
+    mock_process.returncode = 0
+    mock_popen.return_value.__enter__.return_value = mock_process
+
+    mock_log_file = mock_open()
+
+    # Act
+    with patch("builtins.open", mock_log_file):
+        result = executor._run_sub_process(["dummy_command"], "/dummy/log.txt")
+
+    # Assert
+    assert result is True
+    handle = mock_log_file()
+    handle.write.assert_any_call("line 1\n")
+    handle.write.assert_any_call("line 2\n")
