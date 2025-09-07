@@ -1,3 +1,4 @@
+import logging
 import os
 import time
 from unittest.mock import MagicMock, patch
@@ -365,14 +366,14 @@ def managed_test_issue(raw_github_client, test_repo_name):
     issue = repo.create_issue(
         title=issue_title, body="このIssueはテスト後に自動的にクローズされます。"
     )
-    print(f"""
---- SETUP: Issue #{issue.number} ('{issue_title}') を作成しました ---""")
+    logging.info(
+        f"--- SETUP: Issue #{issue.number} ('{issue_title}') を作成しました ---"
+    )
 
     yield issue
 
     # --- Teardown ---
-    print(f"""
---- TEARDOWN: Issue #{issue.number} をクローズします ---""")
+    logging.info(f"--- TEARDOWN: Issue #{issue.number} をクローズします ---")
     try:
         issue.edit(state="closed")
     except GithubException as e:

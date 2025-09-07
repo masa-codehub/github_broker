@@ -60,13 +60,7 @@ def test_build_prompt(executor):
     prompt = executor._build_prompt("Test Title", "Test Body", "feature/test")
 
     # Assert
-    assert (
-        prompt
-        == """Title: Test Title
-Branch: feature/test
-Body: Test Body
-"""
-    )
+    assert prompt == "Title: Test Title\nBranch: feature/test\nBody: Test Body\n"
 
 
 @pytest.mark.unit
@@ -76,12 +70,7 @@ def test_build_review_prompt(executor):
     review_prompt = executor._build_review_prompt("Original", "Output")
 
     # Assert
-    assert (
-        review_prompt
-        == """Original: Original
-Output: Output
-"""
-    )
+    assert review_prompt == "Original: Original\nOutput: Output\n"
 
 
 @pytest.mark.unit
