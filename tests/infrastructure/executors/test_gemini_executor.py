@@ -218,5 +218,6 @@ def test_run_sub_process_captures_output(mock_popen, executor):
     # Assert
     assert result is True
     handle = mock_log_file()
-    handle.write.assert_any_call("line 1\n")
-    handle.write.assert_any_call("line 2\n")
+    assert handle.write.call_count == 2
+    assert handle.write.call_args_list[0].args == ("line 1\n",)
+    assert handle.write.call_args_list[1].args == ("line 2\n",)
