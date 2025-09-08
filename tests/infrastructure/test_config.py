@@ -20,6 +20,7 @@ def clear_env_vars():
         "REDIS_PORT",
         "REDIS_DB",
         "TESTING",
+        "GITHUB_INDEXING_WAIT_SECONDS",
     ]
     for key in keys_to_clear:
         if key in os.environ:

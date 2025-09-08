@@ -9,7 +9,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         # Docker Secretsのパスを指定
-        secrets_dir="/run/secrets" if os.path.exists("/.dockerenv") else None,
+        secrets_dir="/run/secrets" if os.path.exists("/run/secrets") else None,
         extra="ignore",
     )
 

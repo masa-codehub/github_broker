@@ -3,8 +3,14 @@ from unittest.mock import patch
 
 import pytest
 
+import github_broker.infrastructure.di_container as di_container_module
 from github_broker.application.task_service import TaskService
-from github_broker.infrastructure.di_container import create_container
+
+
+@pytest.fixture(autouse=True)
+def reset_container():
+    """Ensures each test gets a fresh DI container."""
+    di_container_module._container = None
 
 
 @pytest.mark.integration
@@ -27,7 +33,7 @@ def test_di_container_resolves_task_service_instance():
     with patch.dict(os.environ, test_env):
         # Act
         # 環境変数が設定されたコンテキスト内でコンテナを生成・解決
-        container = create_container()
+        container = di_container_module.get_container()
         service = container.resolve(TaskService)
 
         # Assert

@@ -416,34 +416,6 @@ def test_find_first_assignable_task_skips_locked_issue(task_service, mock_redis_
 
 @pytest.mark.unit
 @patch("time.sleep", return_value=None)
-def test_invalid_wait_seconds_uses_default(
-    mock_sleep, mock_redis_client, mock_github_client, mock_gemini_client
-):
-    """GITHUB_INDEXING_WAIT_SECONDSが不正な値の場合にデフォルト値にフォールバックすることをテストします。"""
-    # Arrange
-    mock_github_client.get_open_issues.return_value = []
-    mock_github_client.find_issues_by_labels.return_value = []
-    mock_settings = MagicMock()
-    mock_settings.GITHUB_REPOSITORY = "test/repo"
-    mock_settings.GITHUB_INDEXING_WAIT_SECONDS = 15
-
-    # Act
-    task_service = TaskService(
-        redis_client=mock_redis_client,
-        github_client=mock_github_client,
-        gemini_client=mock_gemini_client,
-        settings=mock_settings,
-    )
-    task_service.request_task(
-        agent_id="test-agent", agent_role="BACKENDCODER", timeout=0
-    )
-
-    # Assert
-    mock_sleep.assert_any_call(15)
-
-
-@pytest.mark.unit
-@patch("time.sleep", return_value=None)
 def test_no_matching_role_candidates(mock_sleep, task_service, mock_github_client):
     """オープンなIssueはあるが、役割に合う候補がない場合のテスト。"""
     # Arrange

@@ -7,11 +7,13 @@ from github_broker.infrastructure.gemini_client import GeminiClient
 from github_broker.infrastructure.github_client import GitHubClient
 from github_broker.infrastructure.redis_client import RedisClient
 
+_container: punq.Container | None = None
 
-def create_container() -> punq.Container:
+
+def _create_container() -> punq.Container:
     """
-    DIコンテナを初期化し、TaskServiceに必要な依存関係を手動で構築して登録します。
-    punqの自動解決機能は使用しません。
+    DIコンテナを初期化し、依存関係を手動で構築して登録します。
+    punqの自動解決機能は使用せず、明示的な依存性注入を行います。
     """
     container = punq.Container()
 
@@ -42,7 +44,25 @@ def create_container() -> punq.Container:
         settings=settings,
     )
 
-    # 4. 最終的に必要となるTaskServiceのインスタンスのみをコンテナに登録
+    # 4. すべての主要なインスタンスをコンテナに登録
+    container.register(Settings, instance=settings)
+    container.register(RedisClient, instance=redis_client)
+    container.register(GitHubClient, instance=github_client)
+    container.register(GeminiClient, instance=gemini_client)
     container.register(TaskService, instance=task_service)
 
     return container
+
+
+def get_container() -> punq.Container:
+    """
+    シングルトンDIコンテナを返します。
+
+    コンテナがまだ初期化されていない場合は、この関数が最初の呼び出しで
+    コンテナを生成します。これにより、テスト中に環境変数を設定した後に
+    コンテナを初期化するなどの柔軟な対応が可能になります。
+    """
+    global _container
+    if _container is None:
+        _container = _create_container()
+    return _container

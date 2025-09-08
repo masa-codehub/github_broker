@@ -159,15 +159,7 @@ class TaskService:
         """
         self.complete_previous_task(agent_id)
 
-        try:
-            wait_seconds = self.github_indexing_wait_seconds
-        except ValueError:
-            wait_seconds = _DEFAULT_GITHUB_INDEXING_WAIT_SECONDS
-            logger.warning(
-                f"Invalid value for github_indexing_wait_seconds. "
-                f"Falling back to default {wait_seconds} seconds."
-            )
-        time.sleep(wait_seconds)
+        time.sleep(self.github_indexing_wait_seconds)
 
         polling_timeout = timeout if timeout is not None else 0
         end_time = time.time() + polling_timeout
