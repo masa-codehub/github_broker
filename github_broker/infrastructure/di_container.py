@@ -1,38 +1,48 @@
-import os
-
 import punq
 from redis import Redis
 
 from github_broker.application.task_service import TaskService
+from github_broker.infrastructure.config import Settings
+from github_broker.infrastructure.gemini_client import GeminiClient
 from github_broker.infrastructure.github_client import GitHubClient
 from github_broker.infrastructure.redis_client import RedisClient
 
-# DIコンテナの初期化
-container = punq.Container()
 
-# テスト環境かどうかのフラグ
-IS_TESTING = os.getenv("TESTING") == "true"
+def create_container() -> punq.Container:
+    """
+    DIコンテナを初期化し、TaskServiceに必要な依存関係を手動で構築して登録します。
+    punqの自動解決機能は使用しません。
+    """
+    container = punq.Container()
 
-# RedisClientの登録
-# 環境変数からRedisの接続情報を取得
-redis_host = os.getenv("REDIS_HOST", "localhost")
-redis_port = int(os.getenv("REDIS_PORT", 6379))
-redis_db = int(os.getenv("REDIS_DB", 0))
-# Redisインスタンスを作成
-redis_instance = Redis(
-    host=redis_host, port=redis_port, db=redis_db, decode_responses=True
-)
-# RedisClientをシングルトンとしてコンテナに登録
-container.register(RedisClient, instance=RedisClient(redis_instance))
+    # 1. 依存関係のトップレベルであるSettingsをインスタンス化
+    settings = Settings()  # type: ignore
 
-# GitHubClientの登録
-container.register(GitHubClient, scope=punq.Scope.singleton)
+    # 2. Settingsを使って、下位の依存関係を構築
+    redis_instance = Redis(
+        host=settings.REDIS_HOST,
+        port=settings.REDIS_PORT,
+        db=settings.REDIS_DB,
+        decode_responses=True,
+    )
+    redis_client = RedisClient(redis=redis_instance)
 
-# TaskServiceの登録
-container.register(
-    TaskService,
-    instance=TaskService(
-        redis_client=container.resolve(RedisClient),
-        github_client=container.resolve(GitHubClient),
-    ),
-)
+    github_client = GitHubClient(
+        github_repository=settings.GITHUB_REPOSITORY,
+        github_token=settings.GITHUB_TOKEN,
+    )
+
+    gemini_client = GeminiClient(gemini_api_key=settings.GEMINI_API_KEY)
+
+    # 3. 構築した依存関係をすべて使ってTaskServiceをインスタンス化
+    task_service = TaskService(
+        redis_client=redis_client,
+        github_client=github_client,
+        gemini_client=gemini_client,
+        settings=settings,
+    )
+
+    # 4. 最終的に必要となるTaskServiceのインスタンスのみをコンテナに登録
+    container.register(TaskService, instance=task_service)
+
+    return container

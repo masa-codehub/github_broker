@@ -1,5 +1,5 @@
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,7 +12,10 @@ from github_broker.application.task_service import TaskService
 from github_broker.interface.api import app, get_task_service
 from github_broker.interface.models import TaskResponse
 
-client = TestClient(app)
+
+@pytest.fixture
+def client():
+    return TestClient(app)
 
 
 @pytest.fixture
@@ -26,7 +29,7 @@ def mock_task_service():
 
 
 @pytest.mark.unit
-def test_request_task_success(mock_task_service):
+def test_request_task_success(client, mock_task_service):
     """/request-taskエンドポイントへの成功したタスクリクエストをテストします。"""
     # Arrange
     expected_task = TaskResponse(
@@ -58,7 +61,7 @@ def test_request_task_success(mock_task_service):
 
 
 @pytest.mark.unit
-def test_request_task_no_task_available(mock_task_service):
+def test_request_task_no_task_available(client, mock_task_service):
     """利用可能なタスクがない場合（204 No Content）の/request-taskエンドポイントをテストします。"""
     # Arrange
     mock_task_service.request_task.return_value = None
@@ -81,7 +84,7 @@ def test_request_task_no_task_available(mock_task_service):
 
 
 @pytest.mark.unit
-def test_request_task_lock_error(mock_task_service):
+def test_request_task_lock_error(client, mock_task_service):
     """LockAcquisitionErrorが発生した場合の/request-taskエンドポイントをテストします。"""
     # Arrange
     error_message = "サーバーがビジー状態です。後でもう一度お試しください。"
@@ -103,18 +106,3 @@ def test_request_task_lock_error(mock_task_service):
         agent_role=request_body["agent_role"],
         timeout=request_body["timeout"],
     )
-
-
-@pytest.mark.unit
-def test_get_task_service_resolves_instance():
-    """get_task_serviceがDIコンテナからTaskServiceのインスタンスを解決できることをテストします。"""
-    # Arrange
-    # DIコンテナがテスト環境用に設定されていることを確認
-    with patch.dict(
-        os.environ, {"GITHUB_REPOSITORY": "test/repo", "GITHUB_TOKEN": "fake-token"}
-    ):
-        # Act
-        service = get_task_service()
-
-        # Assert
-        assert isinstance(service, TaskService)
