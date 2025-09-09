@@ -53,7 +53,7 @@ fi
 
 # ~/.gemini/GEMINI.md の設定
 USER_GEMINI_MD_PATH="$HOME/.gemini/GEMINI.md"
-AGENTS_GEMINI_MD_PATH="/app/.gemini/AGENTS/GEMINI.md"
+AGENTS_GEMINI_MD_PATH="/app/.gemini/AGENTS/_GEMINI.md"
 
 if [ -f "$AGENTS_GEMINI_MD_PATH" ]; then
     if [ ! -d "$(dirname "$USER_GEMINI_MD_PATH")" ]; then

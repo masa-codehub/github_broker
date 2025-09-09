@@ -1,9 +1,9 @@
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from github_broker.application.task_service import TaskService
+from github_broker.infrastructure.gemini_client import GeminiClient
 
 
 @pytest.fixture
@@ -19,13 +19,23 @@ def mock_github_client():
 
 
 @pytest.fixture
-def task_service(mock_redis_client, mock_github_client):
+def mock_gemini_client():
+    """Geminiクライアントのモックを提供します。"""
+    return MagicMock(spec=GeminiClient)
+
+
+@pytest.fixture
+def task_service(mock_redis_client, mock_github_client, mock_gemini_client):
     """TaskServiceのテストインスタンスを提供します。"""
-    with patch.dict(os.environ, {"GITHUB_REPOSITORY": "test/repo"}):
-        return TaskService(
-            redis_client=mock_redis_client,
-            github_client=mock_github_client,
-        )
+    mock_settings = MagicMock()
+    mock_settings.GITHUB_REPOSITORY = "test/repo"
+    mock_settings.GITHUB_INDEXING_WAIT_SECONDS = 15
+    return TaskService(
+        redis_client=mock_redis_client,
+        github_client=mock_github_client,
+        gemini_client=mock_gemini_client,
+        settings=mock_settings,
+    )
 
 
 def create_mock_issue(
@@ -238,10 +248,9 @@ def test_complete_previous_task_updates_issues(
 
     # Assert
     mock_github_client.find_issues_by_labels.assert_called_once_with(
-        repo_name="test/repo", labels=["in-progress", agent_id]
+        labels=["in-progress", agent_id]
     )
     mock_github_client.update_issue.assert_called_once_with(
-        repo_name="test/repo",
         issue_id=mock_issue["number"],
         remove_labels=["in-progress", agent_id],
         add_labels=["needs-review"],
@@ -304,27 +313,6 @@ def test_find_first_assignable_task_create_branch_exception_releases_lock(
         task_service._find_first_assignable_task(candidate_issues, agent_id)
 
     mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
-
-
-@pytest.mark.unit
-def test_task_service_init_no_github_repository_env():
-    """
-    GITHUB_REPOSITORY環境変数が設定されていない場合にValueErrorが発生することをテストします。
-    """
-    # Arrange
-    original_env = os.environ.copy()
-    if "GITHUB_REPOSITORY" in os.environ:
-        del os.environ["GITHUB_REPOSITORY"]
-
-    # Act & Assert
-    with pytest.raises(
-        ValueError, match="GITHUB_REPOSITORY環境変数が設定されていません。"
-    ):
-        TaskService(redis_client=MagicMock(), github_client=MagicMock())
-
-    # Cleanup
-    os.environ.clear()
-    os.environ.update(original_env)
 
 
 @pytest.mark.unit
@@ -424,38 +412,6 @@ def test_find_first_assignable_task_skips_locked_issue(task_service, mock_redis_
     mock_redis_client.acquire_lock.assert_any_call(
         "issue_lock_2", "locked", timeout=600
     )
-
-
-@pytest.mark.unit
-@patch("time.sleep", return_value=None)
-def test_invalid_wait_seconds_uses_default(
-    mock_sleep, mock_redis_client, mock_github_client
-):
-    """GITHUB_INDEXING_WAIT_SECONDSが不正な値の場合にデフォルト値にフォールバックすることをテストします。"""
-    # Arrange
-    with patch("os.getenv") as mock_getenv:
-
-        def getenv_side_effect(key, default=None):
-            if key == "GITHUB_REPOSITORY":
-                return "test/repo"
-            if key == "GITHUB_INDEXING_WAIT_SECONDS":
-                return "invalid"
-            return default
-
-        mock_getenv.side_effect = getenv_side_effect
-        mock_github_client.get_open_issues.return_value = []
-        mock_github_client.find_issues_by_labels.return_value = []
-
-        # Act
-        task_service = TaskService(
-            redis_client=mock_redis_client, github_client=mock_github_client
-        )
-        task_service.request_task(
-            agent_id="test-agent", agent_role="BACKENDCODER", timeout=0
-        )
-
-        # Assert
-        mock_sleep.assert_any_call(15)
 
 
 @pytest.mark.unit

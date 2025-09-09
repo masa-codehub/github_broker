@@ -6,8 +6,8 @@ class RedisClient:
     Redisクライアント。分散ロックに使用されます。
     """
 
-    def __init__(self, redis_instance: redis.Redis):
-        self.client = redis_instance
+    def __init__(self, redis: redis.Redis):
+        self.client = redis
 
     def acquire_lock(self, lock_key: str, value: str, timeout: int = 600) -> bool:
         """
