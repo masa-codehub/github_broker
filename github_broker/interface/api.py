@@ -46,5 +46,4 @@ async def request_task_endpoint(
     )
     if task:
         return task
-    else:
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

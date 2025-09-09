@@ -28,7 +28,7 @@ if __name__ == "__main__":
     logging.info(f"サーバー {host}:{port} に接続しています。")
     logging.info(f"ログディレクトリ: {gemini_log_dir}")
     logging.info(f"ロール: {agent_role}")
-    print("-" * 30)
+    logging.info("-" * 30)
 
     # AgentClientとExecutorを初期化
     client = AgentClient(agent_id=agent_id, agent_role=agent_role, host=host, port=port)

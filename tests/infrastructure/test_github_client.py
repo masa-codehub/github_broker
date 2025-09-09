@@ -404,7 +404,7 @@ def managed_test_issue(raw_github_client, test_repo_name):
     try:
         issue.edit(state="closed")
     except GithubException as e:
-        print(f"警告: Issue #{issue.number} のクローズに失敗しました: {e}")
+        logging.warning(f"警告: Issue #{issue.number} のクローズに失敗しました: {e}")
 
 
 @pytest.mark.integration
@@ -418,7 +418,9 @@ def test_integration_add_and_remove_label(
     label_name = f"test-label-{int(time.time())}"
 
     # 1. ラベルを追加
-    print(f"--- RUN: Issue #{issue.number} にラベル '{label_name}' を追加します ---")
+    logging.info(
+        f"--- RUN: Issue #{issue.number} にラベル '{label_name}' を追加します ---"
+    )
     github_client.add_label(test_repo_name, issue.number, label_name)
 
     # 2. ラベルが追加されたことをポーリングして確認
@@ -427,15 +429,17 @@ def test_integration_add_and_remove_label(
         return label_name in [label.name for label in reloaded_issue.labels]
 
     _wait_for_condition(check_labels, True)
-    print(f"--- PASS: ラベル '{label_name}' の追加を確認しました ---")
+    logging.info(f"--- PASS: ラベル '{label_name}' の追加を確認しました ---")
 
     # 3. ラベルを削除
-    print(f"--- RUN: Issue #{issue.number} からラベル '{label_name}' を削除します ---")
+    logging.info(
+        f"--- RUN: Issue #{issue.number} からラベル '{label_name}' を削除します ---"
+    )
     github_client.remove_label(test_repo_name, issue.number, label_name)
 
     # 4. ラベルが削除されたことをポーリングして確認
     _wait_for_condition(check_labels, False)
-    print(f"--- PASS: ラベル '{label_name}' の削除を確認しました ---")
+    logging.info(f"--- PASS: ラベル '{label_name}' の削除を確認しました ---")
 
 
 @pytest.mark.integration
@@ -449,7 +453,7 @@ def test_integration_create_and_delete_branch(
 
     try:
         # 1. ブランチを作成
-        print(f"--- RUN: ブランチ '{branch_name}' を作成します ---")
+        logging.info(f"--- RUN: ブランチ '{branch_name}' を作成します ---")
         github_client.create_branch(test_repo_name, branch_name, base_branch="main")
 
         # 2. ブランチが作成されたことをポーリングして確認
@@ -463,17 +467,19 @@ def test_integration_create_and_delete_branch(
                 raise
 
         _wait_for_condition(check_branch_exists, True)
-        print(f"--- PASS: ブランチ '{branch_name}' の作成を確認しました ---")
+        logging.info(f"--- PASS: ブランチ '{branch_name}' の作成を確認しました ---")
 
     finally:
         # 3. ブランチを削除 (Teardown)
-        print(f"--- TEARDOWN: ブランチ '{branch_name}' を削除します ---")
+        logging.info(f"--- TEARDOWN: ブランチ '{branch_name}' を削除します ---")
         try:
             ref = repo.get_git_ref(f"heads/{branch_name}")
             ref.delete()
         except GithubException as e:
             if e.status != 404:
-                print(f"警告: ブランチ '{branch_name}' の削除に失敗しました: {e}")
+                logging.warning(
+                    f"警告: ブランチ '{branch_name}' の削除に失敗しました: {e}"
+                )
 
 
 @pytest.mark.unit
