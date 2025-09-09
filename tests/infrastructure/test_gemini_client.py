@@ -6,40 +6,20 @@ from github_broker.infrastructure.gemini_client import GeminiClient
 
 
 @pytest.mark.unit
-@patch("os.getenv")
-def test_gemini_client_init_success(mock_getenv):
+def test_gemini_client_init_success():
     """
     GEMINI_API_KEYが設定されている場合にGeminiClientが正常に初期化されることをテストします。
     """
-    mock_getenv.return_value = "fake_gemini_api_key"
-    client = GeminiClient()
+    client = GeminiClient("fake_gemini_api_key")
     assert client._api_key == "fake_gemini_api_key"
-    mock_getenv.assert_called_once_with("GEMINI_API_KEY")
 
 
 @pytest.mark.unit
-@patch("os.getenv")
-def test_gemini_client_init_no_api_key(mock_getenv):
-    """
-    GEMINI_API_KEYが設定されていない場合にGeminiClientがValueErrorを送出することをテストします。
-    """
-    mock_getenv.return_value = None
-    with pytest.raises(
-        ValueError,
-        match="GEMINI_API_KEY環境変数にGemini APIキーが見つかりません。",
-    ):
-        GeminiClient()
-    mock_getenv.assert_called_once_with("GEMINI_API_KEY")
-
-
-@pytest.mark.unit
-@patch("os.getenv")
-def test_select_best_issue_id_no_issues(mock_getenv):
+def test_select_best_issue_id_no_issues():
     """
     Issueが提供されない場合にselect_best_issue_idがNoneを返すことをテストします。
     """
-    mock_getenv.return_value = "fake_gemini_api_key"
-    client = GeminiClient()
+    client = GeminiClient("fake_gemini_api_key")
 
     issues = []
     capabilities = ["python"]
@@ -50,15 +30,12 @@ def test_select_best_issue_id_no_issues(mock_getenv):
 
 
 @pytest.mark.unit
-@patch("os.getenv")
 @patch("github_broker.infrastructure.gemini_client.genai.GenerativeModel")
-def test_select_best_issue_id_with_gemini_api_call(mock_generative_model, mock_getenv):
+def test_select_best_issue_id_with_gemini_api_call(mock_generative_model):
     """
     select_best_issue_idがGemini APIを正しく呼び出し、プロンプトを生成し、レスポンスを解析することをテストします。
     """
     # Arrange
-    mock_getenv.return_value = "fake_gemini_api_key"
-
     # Gemini APIからのレスポンスをモック
     mock_gemini_response = MagicMock()
     # レスポンスのテキストはJSON文字列であるべき
@@ -69,7 +46,7 @@ def test_select_best_issue_id_with_gemini_api_call(mock_generative_model, mock_g
     mock_model_instance.generate_content.return_value = mock_gemini_response
     mock_generative_model.return_value = mock_model_instance
 
-    client = GeminiClient()
+    client = GeminiClient("fake_gemini_api_key")
 
     issues = [
         {
@@ -113,19 +90,17 @@ def test_select_best_issue_id_with_gemini_api_call(mock_generative_model, mock_g
 
 
 @pytest.mark.unit
-@patch("os.getenv")
 @patch("github_broker.infrastructure.gemini_client.genai.GenerativeModel")
-def test_select_best_issue_id_handles_null_id(mock_generative_model, mock_getenv):
+def test_select_best_issue_id_handles_null_id(mock_generative_model):
     """Geminiがnullのissue_idを返した場合にNoneを返すことをテストします。"""
     # Arrange
-    mock_getenv.return_value = "fake_gemini_api_key"
     mock_gemini_response = MagicMock()
     mock_gemini_response.text = '{"issue_id": null}'
     mock_model_instance = MagicMock()
     mock_model_instance.generate_content.return_value = mock_gemini_response
     mock_generative_model.return_value = mock_model_instance
 
-    client = GeminiClient()
+    client = GeminiClient("fake_gemini_api_key")
     issues = [{"id": 1, "title": "Test"}]
     capabilities = ["test"]
 
@@ -137,21 +112,18 @@ def test_select_best_issue_id_handles_null_id(mock_generative_model, mock_getenv
 
 
 @pytest.mark.unit
-@patch("os.getenv")
 @patch("github_broker.infrastructure.gemini_client.genai.GenerativeModel")
-def test_select_best_issue_id_fallback_on_api_error(mock_generative_model, mock_getenv):
+def test_select_best_issue_id_fallback_on_api_error(mock_generative_model):
     """
     API呼び出しが失敗した場合にselect_best_issue_idが最初のIssueにフォールバックすることをテストします。
     """
     # Arrange
-    mock_getenv.return_value = "fake_gemini_api_key"
-
     # API呼び出しが例外を発生させるようにモック
     mock_model_instance = MagicMock()
     mock_model_instance.generate_content.side_effect = Exception("API Key Invalid")
     mock_generative_model.return_value = mock_model_instance
 
-    client = GeminiClient()
+    client = GeminiClient("fake_gemini_api_key")
 
     issues = [
         {"id": 201, "title": "最初のIssue"},
