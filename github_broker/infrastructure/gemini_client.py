@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import textwrap
 
 import google.generativeai as genai
@@ -11,15 +10,8 @@ class GeminiClient:
     最適なIssueを選択するためにGoogle Gemini APIと対話するクライアント。
     """
 
-    def __init__(self):
-        """
-        GeminiClientを初期化し、APIキーを設定し、モデルをセットアップします。
-        # 例外:
-            ValueError: GEMINI_API_KEY環境変数が設定されていない場合。
-        """
-        self._api_key = os.getenv("GEMINI_API_KEY")
-        if not self._api_key:
-            raise ValueError("GEMINI_API_KEY環境変数にGemini APIキーが見つかりません。")
+    def __init__(self, gemini_api_key: str):
+        self._api_key = gemini_api_key
 
         genai.configure(api_key=self._api_key)
         self._model = genai.GenerativeModel("gemini-2.5-flash")

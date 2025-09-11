@@ -5,17 +5,17 @@ from fastapi.responses import JSONResponse
 
 from github_broker.application.exceptions import LockAcquisitionError
 from github_broker.application.task_service import TaskService
-from github_broker.infrastructure.di_container import container
+from github_broker.infrastructure.di_container import get_container
 from github_broker.interface.models import AgentTaskRequest, TaskResponse
 
 logger = logging.getLogger(__name__)
 
 
-app = FastAPI()
-
-
 def get_task_service() -> TaskService:
-    return container.resolve(TaskService)
+    return get_container().resolve(TaskService)
+
+
+app = FastAPI()
 
 
 @app.exception_handler(LockAcquisitionError)

@@ -1,18 +1,21 @@
 import logging
-import os
 import time
+from typing import TYPE_CHECKING
 
 from pydantic import HttpUrl
 
 from github_broker.domain.task import Task
+from github_broker.infrastructure.gemini_client import GeminiClient
 from github_broker.infrastructure.github_client import GitHubClient
 from github_broker.infrastructure.redis_client import RedisClient
 from github_broker.interface.models import TaskResponse
 
+if TYPE_CHECKING:
+    from github_broker.infrastructure.config import Settings
+
 logger = logging.getLogger(__name__)
 
 # --- Constants ---
-_GITHUB_INDEXING_WAIT_SECONDS_ENV = "GITHUB_INDEXING_WAIT_SECONDS"
 _DEFAULT_GITHUB_INDEXING_WAIT_SECONDS = 15
 
 
@@ -23,13 +26,14 @@ class TaskService:
         self,
         redis_client: RedisClient,
         github_client: GitHubClient,
+        gemini_client: GeminiClient,
+        settings: "Settings",
     ):
         self.redis_client = redis_client
         self.github_client = github_client
-        repo_name_str = os.getenv("GITHUB_REPOSITORY")
-        if not repo_name_str:
-            raise ValueError("GITHUB_REPOSITORY環境変数が設定されていません。")
-        self.repo_name = repo_name_str
+        self.gemini_client = gemini_client
+        self.repo_name = settings.GITHUB_REPOSITORY
+        self.github_indexing_wait_seconds = settings.GITHUB_INDEXING_WAIT_SECONDS
 
     def complete_previous_task(self, agent_id: str):
         """
@@ -39,7 +43,7 @@ class TaskService:
         assert self.repo_name is not None
         logger.info(f"Completing previous task for agent: {agent_id}")
         previous_issues = self.github_client.find_issues_by_labels(
-            repo_name=self.repo_name, labels=["in-progress", agent_id]
+            labels=["in-progress", agent_id]
         )
         if not previous_issues:
             logger.info("No in-progress issues found for this agent.")
@@ -53,7 +57,6 @@ class TaskService:
             add_labels = ["needs-review"]
 
             self.github_client.update_issue(
-                repo_name=self.repo_name,
                 issue_id=issue["number"],
                 remove_labels=remove_labels,
                 add_labels=add_labels,
@@ -114,13 +117,11 @@ class TaskService:
                 logger.info(
                     f"Lock acquired for issue #{task.issue_id}. Assigning task."
                 )
-                self.github_client.add_label(
-                    self.repo_name, task.issue_id, "in-progress"
-                )
-                self.github_client.add_label(self.repo_name, task.issue_id, agent_id)
+                self.github_client.add_label(task.issue_id, "in-progress")
+                self.github_client.add_label(task.issue_id, agent_id)
                 logger.info(f"Assigned agent '{agent_id}' to issue #{task.issue_id}.")
 
-                self.github_client.create_branch(self.repo_name, branch_name)
+                self.github_client.create_branch(branch_name)
 
                 return TaskResponse(
                     issue_id=task.issue_id,
@@ -158,27 +159,14 @@ class TaskService:
         """
         self.complete_previous_task(agent_id)
 
-        try:
-            wait_seconds = int(
-                os.getenv(
-                    _GITHUB_INDEXING_WAIT_SECONDS_ENV,
-                    _DEFAULT_GITHUB_INDEXING_WAIT_SECONDS,
-                )
-            )
-        except ValueError:
-            wait_seconds = _DEFAULT_GITHUB_INDEXING_WAIT_SECONDS
-            logger.warning(
-                f"Invalid value for {_GITHUB_INDEXING_WAIT_SECONDS_ENV}. "
-                f"Falling back to default {wait_seconds} seconds."
-            )
-        time.sleep(wait_seconds)
+        time.sleep(self.github_indexing_wait_seconds)
 
         polling_timeout = timeout if timeout is not None else 0
         end_time = time.time() + polling_timeout
 
         while True:
             logger.info(f"Searching for open issues in repository: {self.repo_name}")
-            all_issues = self.github_client.get_open_issues(self.repo_name)
+            all_issues = self.github_client.get_open_issues()
             if all_issues:
                 candidate_issues = self._find_candidates_by_role(all_issues, agent_role)
                 if candidate_issues:
