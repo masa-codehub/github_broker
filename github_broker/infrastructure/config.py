@@ -18,7 +18,6 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str
     GITHUB_WEBHOOK_SECRET: str
 
-    # 一般的な設定 (環境変数から読み込む)
     BROKER_PORT: int = 8000
     GITHUB_REPOSITORY: str
     REDIS_HOST: str = "localhost"

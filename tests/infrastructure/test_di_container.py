@@ -19,7 +19,7 @@ def test_di_container_resolves_task_service_instance():
     DIコンテナが設定と依存関係を解決し、TaskServiceのインスタンスを
     正常に作成できることを検証する統合テスト。
     """
-    # Arrange: 実際のインスタンス化に必要な環境変数をすべて設定
+
     test_env = {
         "GITHUB_REPOSITORY": "test/repo",
         "GITHUB_TOKEN": "fake-token",

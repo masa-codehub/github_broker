@@ -96,28 +96,25 @@ class GeminiExecutor:
         """コマンドをサブプロセスとして実行し、その出力を指定されたファイルに記録します。"""
         try:
             logging.info(f"コマンドを実行します: {' '.join(command)}")
-            log_file = (
-                open(log_filepath, "a", encoding="utf-8") if log_filepath else None
-            )
 
-            try:
-                with subprocess.Popen(
-                    command,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    bufsize=1,
-                ) as proc:
-                    if proc.stdout:
-                        for line in proc.stdout:
-                            # コンソールにリアルタイムで出力
-                            print(line, end="", flush=True)
-                            if log_file:
+            with subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            ) as proc:
+                if proc.stdout:
+                    if log_filepath:
+                        with open(log_filepath, "a", encoding="utf-8") as log_file:
+                            for line in proc.stdout:
+                                logging.info(line.strip())
                                 log_file.write(line)
-                return proc.returncode == 0
-            finally:
-                if log_file:
-                    log_file.close()
+                    else:
+                        for line in proc.stdout:
+                            logging.info(line.strip())
+
+            return proc.returncode == 0
 
         except FileNotFoundError:
             logging.error(

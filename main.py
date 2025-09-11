@@ -10,5 +10,5 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     settings = get_container().resolve(Settings)
-    print(f"GITHUB_REPOSITORY: {settings.GITHUB_REPOSITORY}")
+    logging.info(f"GITHUB_REPOSITORY: {settings.GITHUB_REPOSITORY}")
     uvicorn.run(app, host="0.0.0.0", port=settings.BROKER_PORT)

@@ -93,13 +93,7 @@ extend-exclude = '''
 )/
 '''
 
-# --- isort (importソート) の設定 ---
-[tool.isort]
-profile = "black"
-multi_line_output = 3
-line_length = 88
-known_first_party = ["ai_worker"]
-known_third_party = ["pandas", "numpy", "talib", "joblib", "pydantic", "yaml", "numba"]
+
 
 # --- Ruff (高速リンター) の設定 ---
 [tool.ruff]
@@ -117,6 +111,10 @@ select = [
     "C4",  # flake8-comprehensions
     "UP",  # pyupgrade
     "N",   # pep8-naming
+    "T20", # flake8-print
+    "SIM", # flake8-simplify
+    "RET", # flake8-return
+    "ERA", # eradicate
 ]
 
 # 無視するルール
