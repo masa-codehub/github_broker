@@ -1,8 +1,12 @@
+import json
 import logging
+import threading
 import time
 from typing import TYPE_CHECKING
 
+from github import GithubException
 from pydantic import HttpUrl
+from redis.exceptions import RedisError
 
 from github_broker.domain.task import Task
 from github_broker.infrastructure.gemini_client import GeminiClient
@@ -17,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 # --- Constants ---
 _DEFAULT_GITHUB_INDEXING_WAIT_SECONDS = 15
+OPEN_ISSUES_CACHE_KEY = "open_issues"
 
 
 class TaskService:
@@ -34,6 +39,42 @@ class TaskService:
         self.gemini_client = gemini_client
         self.repo_name = settings.GITHUB_REPOSITORY
         self.github_indexing_wait_seconds = settings.GITHUB_INDEXING_WAIT_SECONDS
+        self.polling_interval_seconds = settings.POLLING_INTERVAL_SECONDS
+
+    def start_polling(self, stop_event: "threading.Event | None" = None):
+        """
+        GitHubリポジトリから定期的にオープンなIssueを取得し、Redisにキャッシュします。
+        stop_eventがセットされるまでポーリングを続けます。
+        """
+        logger.info("Starting issue polling...")
+        while not (stop_event and stop_event.is_set()):
+            try:
+                logger.info(f"Fetching open issues from {self.repo_name}...")
+                issues = self.github_client.get_open_issues()
+                if issues:
+                    logger.info(
+                        f"Found {len(issues)} open issues. Caching them in Redis."
+                    )
+                    self.redis_client.set_value(
+                        OPEN_ISSUES_CACHE_KEY, json.dumps(issues)
+                    )
+                    logger.info("Finished caching all open issues under a single key.")
+                else:
+                    # Issueが0件の場合も空のリストをキャッシュに保存することで、
+                    # クローズされたIssueがキャッシュに残り続けるのを防ぐ
+                    self.redis_client.set_value(OPEN_ISSUES_CACHE_KEY, json.dumps([]))
+                    logger.info("No open issues found. Cached an empty list.")
+
+            except (GithubException, RedisError) as e:
+                logger.error(f"An error occurred during polling: {e}", exc_info=True)
+            except Exception as e:
+                logger.error(
+                    f"An unexpected error occurred during polling: {e}", exc_info=True
+                )
+
+            time.sleep(self.polling_interval_seconds)
+
+        logger.info("Polling stopped.")
 
     def complete_previous_task(self, agent_id: str):
         """
