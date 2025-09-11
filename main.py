@@ -1,14 +1,18 @@
 import logging
 
-import uvicorn
-
-from github_broker.infrastructure.config import Settings
+# TaskServiceは、GitHubリポジトリを定期的にポーリングしてIssueをキャッシュする主要なサービスです。
+from github_broker.application.task_service import TaskService
 from github_broker.infrastructure.di_container import get_container
-from github_broker.interface.api import app
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
+    logging.info("Starting the GitHub Broker polling service...")
 
-    settings = get_container().resolve(Settings)
-    logging.info(f"GITHUB_REPOSITORY: {settings.GITHUB_REPOSITORY}")
-    uvicorn.run(app, host="0.0.0.0", port=settings.BROKER_PORT)
+    container = get_container()
+    task_service = container.resolve(TaskService)
+
+    logging.info(f"Target Repository: {task_service.repo_name}")
+    logging.info("Starting task polling...")
+    # start_polling() はブロッキング呼び出しで、ポーリングサービスを開始します。
+    # サービスは中断されるまで（例: Ctrl+C）、実行され続けます。
+    task_service.start_polling()
