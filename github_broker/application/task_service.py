@@ -4,7 +4,9 @@ import threading
 import time
 from typing import TYPE_CHECKING
 
+from github import GithubException
 from pydantic import HttpUrl
+from redis.exceptions import RedisError
 
 from github_broker.domain.task import Task
 from github_broker.infrastructure.gemini_client import GeminiClient
@@ -19,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 # --- Constants ---
 _DEFAULT_GITHUB_INDEXING_WAIT_SECONDS = 15
+OPEN_ISSUES_CACHE_KEY = "open_issues"
 
 
 class TaskService:
@@ -52,15 +55,22 @@ class TaskService:
                     logger.info(
                         f"Found {len(issues)} open issues. Caching them in Redis."
                     )
-                    for issue in issues:
-                        issue_key = f"issue:{issue['number']}"
-                        self.redis_client.set_value(issue_key, json.dumps(issue))
-                    logger.info("Finished caching issues.")
+                    self.redis_client.set_value(
+                        OPEN_ISSUES_CACHE_KEY, json.dumps(issues)
+                    )
+                    logger.info("Finished caching all open issues under a single key.")
                 else:
-                    logger.info("No open issues found.")
+                    # Issueが0件の場合も空のリストをキャッシュに保存することで、
+                    # クローズされたIssueがキャッシュに残り続けるのを防ぐ
+                    self.redis_client.set_value(OPEN_ISSUES_CACHE_KEY, json.dumps([]))
+                    logger.info("No open issues found. Cached an empty list.")
 
-            except Exception as e:
+            except (GithubException, RedisError) as e:
                 logger.error(f"An error occurred during polling: {e}", exc_info=True)
+            except Exception as e:
+                logger.error(
+                    f"An unexpected error occurred during polling: {e}", exc_info=True
+                )
 
             time.sleep(self.polling_interval_seconds)
 

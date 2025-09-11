@@ -1,10 +1,10 @@
 import json
 import threading
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from github_broker.application.task_service import TaskService
+from github_broker.application.task_service import OPEN_ISSUES_CACHE_KEY, TaskService
 from github_broker.infrastructure.gemini_client import GeminiClient
 
 
@@ -31,8 +31,8 @@ def task_service(mock_redis_client, mock_github_client, mock_gemini_client):
     """TaskServiceのテストインスタンスを提供します。"""
     mock_settings = MagicMock()
     mock_settings.GITHUB_REPOSITORY = "test/repo"
-    mock_settings.GITHUB_INDEXING_WAIT_SECONDS = 0  # テスト中は待機しない
-    mock_settings.POLLING_INTERVAL_SECONDS = 0.1  # テスト用に短い間隔
+    mock_settings.GITHUB_INDEXING_WAIT_SECONDS = 0
+    mock_settings.POLLING_INTERVAL_SECONDS = 0.1
     return TaskService(
         redis_client=mock_redis_client,
         github_client=mock_github_client,
@@ -52,7 +52,10 @@ def create_mock_issue(
     """テスト用のIssue辞書を生成するヘルパー関数。"""
     full_body = body
     if has_branch_name:
-        full_body += f"""\n\n## ブランチ名\n`feature/issue-{number}`"""
+        full_body += f"""
+
+## ブランチ名
+`feature/issue-{number}`"""
 
     return {
         "number": number,
@@ -67,22 +70,21 @@ def create_mock_issue(
 def test_start_polling_fetches_and_caches_issues(
     task_service, mock_github_client, mock_redis_client
 ):
-    """start_pollingがIssueを取得し、Redisにキャッシュすることをテストします。"""
+    """start_pollingがIssueを取得し、単一キーでRedisにキャッシュすることをテストします。"""
     # Arrange
     issue1 = create_mock_issue(number=1, title="Poll Task 1", body="", labels=["bug"])
     issue2 = create_mock_issue(
         number=2, title="Poll Task 2", body="", labels=["feature"]
     )
-    mock_github_client.get_open_issues.return_value = [issue1, issue2]
+    mock_issues = [issue1, issue2]
+    mock_github_client.get_open_issues.return_value = mock_issues
 
     stop_event = threading.Event()
 
-    # get_open_issuesが呼ばれたらループを止める
     def stop_loop(*args, **kwargs):
-        # 1回目の呼び出しでループを停止させる
         if mock_github_client.get_open_issues.call_count == 1:
             stop_event.set()
-        return [issue1, issue2]
+        return mock_issues
 
     mock_github_client.get_open_issues.side_effect = stop_loop
 
@@ -91,16 +93,43 @@ def test_start_polling_fetches_and_caches_issues(
         target=task_service.start_polling, args=(stop_event,)
     )
     polling_thread.start()
-    polling_thread.join(timeout=5)  # タイムアウトを設定して無限ループを防ぐ
+    polling_thread.join(timeout=5)
 
     # Assert
     mock_github_client.get_open_issues.assert_called_once()
+    mock_redis_client.set_value.assert_called_once_with(
+        OPEN_ISSUES_CACHE_KEY, json.dumps(mock_issues)
+    )
 
-    expected_calls = [
-        call(f"issue:{issue1['number']}", json.dumps(issue1)),
-        call(f"issue:{issue2['number']}", json.dumps(issue2)),
-    ]
-    mock_redis_client.set_value.assert_has_calls(expected_calls, any_order=True)
+
+@pytest.mark.unit
+def test_start_polling_caches_empty_list_when_no_issues(
+    task_service, mock_github_client, mock_redis_client
+):
+    """start_pollingがIssueがない場合に空のリストをキャッシュすることをテストします。"""
+    # Arrange
+    mock_github_client.get_open_issues.return_value = []
+    stop_event = threading.Event()
+
+    def stop_loop(*args, **kwargs):
+        if mock_github_client.get_open_issues.call_count == 1:
+            stop_event.set()
+        return []
+
+    mock_github_client.get_open_issues.side_effect = stop_loop
+
+    # Act
+    polling_thread = threading.Thread(
+        target=task_service.start_polling, args=(stop_event,)
+    )
+    polling_thread.start()
+    polling_thread.join(timeout=5)
+
+    # Assert
+    mock_github_client.get_open_issues.assert_called_once()
+    mock_redis_client.set_value.assert_called_once_with(
+        OPEN_ISSUES_CACHE_KEY, json.dumps([])
+    )
 
 
 @pytest.mark.unit
@@ -113,14 +142,16 @@ def test_request_task_selects_by_role_no_wait(
     issue1 = create_mock_issue(
         number=1,
         title="Irrelevant Task",
-        body="""## 成果物
+        body="""
+## 成果物
 - README.md""",
         labels=["documentation"],
     )
     issue2 = create_mock_issue(
         number=2,
         title="Backend Task",
-        body="""## 成果物
+        body="""
+## 成果物
 - feature.py""",
         labels=["feature", "BACKENDCODER"],
     )
@@ -156,7 +187,6 @@ def test_request_task_times_out(
     mock_github_client.get_open_issues.return_value = []
     mock_github_client.find_issues_by_labels.return_value = []
     timeout = 10
-    # time.time()が最初にtimeoutを返し、その後増加してタイムアウトするように設定
     mock_time.side_effect = [0, 2, 4, 6, 8, 11]
 
     # Act
@@ -166,7 +196,6 @@ def test_request_task_times_out(
 
     # Assert
     assert result is None
-    # 5秒間隔でsleepが呼ばれる
     assert mock_sleep.call_count > 1
     assert mock_github_client.get_open_issues.call_count > 1
 
@@ -182,16 +211,16 @@ def test_request_task_finds_task_after_polling(
     issue = create_mock_issue(
         number=1,
         title="Delayed Task",
-        body="""## 成果物
+        body="""
+## 成果物
 - delayed.py""",
         labels=["BACKENDCODER"],
     )
-    # 最初の呼び出しではタスクなし、2回目以降は見つかるように設定
     mock_github_client.get_open_issues.side_effect = [[], [issue]]
     mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = True
     timeout = 10
-    mock_time.side_effect = [0, 5, 11]  # 1回ポーリングして見つかる
+    mock_time.side_effect = [0, 5, 11]
 
     # Act
     result = task_service.request_task(
@@ -202,7 +231,7 @@ def test_request_task_finds_task_after_polling(
     assert result is not None
     assert result.issue_id == 1
     assert mock_github_client.get_open_issues.call_count == 2
-    mock_sleep.assert_called()  # ポーリング間隔でsleepが呼ばれる
+    mock_sleep.assert_called()
 
 
 @pytest.mark.unit
@@ -238,14 +267,16 @@ def test_request_task_excludes_needs_review_label(
     issue1 = create_mock_issue(
         number=1,
         title="Task Needs Review",
-        body="""## 成果物
+        body="""
+## 成果物
 - review.py""",
         labels=["BACKENDCODER", "needs-review"],
     )
     issue2 = create_mock_issue(
         number=2,
         title="Assignable Task",
-        body="""## 成果物
+        body="""
+## 成果物
 - assign.py""",
         labels=["BACKENDCODER"],
     )
@@ -260,7 +291,7 @@ def test_request_task_excludes_needs_review_label(
 
     # Assert
     assert result is not None
-    assert result.issue_id == 2  # issue1は除外され、issue2が選択されるはず
+    assert result.issue_id == 2
 
 
 @pytest.mark.unit
@@ -278,7 +309,6 @@ def test_complete_previous_task_updates_issues(
         body="",
         labels=["in-progress", "test-agent"],
     )
-    # GitHubからin-progressとagent_idラベルを持つIssueを取得することを想定
     mock_github_client.find_issues_by_labels.return_value = [mock_issue]
 
     agent_id = "test-agent"
@@ -309,7 +339,8 @@ def test_find_first_assignable_task_exception_releases_lock(
     issue = create_mock_issue(
         number=1,
         title="Test Task",
-        body="""## 成果物
+        body="""
+## 成果物
 - test.py""",
         labels=["BACKENDCODER"],
     )
@@ -338,7 +369,8 @@ def test_find_first_assignable_task_create_branch_exception_releases_lock(
     issue = create_mock_issue(
         number=1,
         title="Test Task",
-        body="""## 成果物
+        body="""
+## 成果物
 - test.py""",
         labels=["BACKENDCODER"],
     )
@@ -436,7 +468,6 @@ def test_find_first_assignable_task_skips_locked_issue(task_service, mock_redis_
         labels=["BACKENDCODER"],
     )
     candidate_issues = [issue_locked, issue_unlocked]
-    # 最初のacquire_lockはFalse、2回目はTrueを返すように設定
     mock_redis_client.acquire_lock.side_effect = [False, True]
 
     # Act
