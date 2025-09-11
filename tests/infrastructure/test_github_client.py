@@ -103,7 +103,7 @@ def test_find_issues_by_labels_found(mock_github):
     # Arrange
     # モックIssueを作成
     issue2 = MagicMock()
-    issue2.number = 2
+    issue2.raw_data = {"number": 2}
 
     mock_search_results = MagicMock()
     mock_search_results.totalCount = 1
@@ -122,7 +122,7 @@ def test_find_issues_by_labels_found(mock_github):
     # Assert
     assert found_issues is not None
     assert len(found_issues) == 1
-    assert found_issues[0].number == 2
+    assert found_issues[0]["number"] == 2
     mock_github_instance.search_issues.assert_called_once_with(
         query='repo:test/repo is:issue label:"label-a" label:"label-b"'
     )
@@ -180,6 +180,7 @@ def test_get_open_issues_success(mock_github):
     """get_open_issuesが正常にIssueを返すことをテストします。"""
     # Arrange
     mock_issue = MagicMock()
+    mock_issue.raw_data = {"number": 1, "title": "Test Issue"}
     mock_results = MagicMock()
     mock_results.totalCount = 1
     mock_results.__iter__.return_value = [mock_issue]
@@ -194,7 +195,7 @@ def test_get_open_issues_success(mock_github):
     issues = client.get_open_issues()
 
     # Assert
-    assert issues == [mock_issue]
+    assert issues == [mock_issue.raw_data]
     mock_github_instance.search_issues.assert_called_once_with(
         query='repo:test/repo is:issue is:open -label:"needs-review"'
     )

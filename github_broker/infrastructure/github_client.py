@@ -21,7 +21,7 @@ class GitHubClient:
             logging.info(f"クエリ: {query} でオープンなIssueを検索中")
             issues = self._client.search_issues(query=query)
             logging.info(f"オープンなIssueが {issues.totalCount} 件見つかりました。")
-            return list(issues)
+            return [issue.raw_data for issue in issues]
         except GithubException as e:
             logging.error(
                 f"リポジトリ {self._repo_name} のIssue検索中にエラーが発生しました: {e}"
@@ -38,7 +38,7 @@ class GitHubClient:
             logging.info(f"クエリ: {query} でIssueを検索中")
             issues = self._client.search_issues(query=query)
             logging.info(f"{issues.totalCount} 件のIssueが見つかりました。")
-            return list(issues)
+            return [issue.raw_data for issue in issues]
         except GithubException as e:
             logging.error(
                 f"An error occurred while searching for issues by labels in repo {self._repo_name}: {e}"

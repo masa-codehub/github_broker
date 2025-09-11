@@ -44,8 +44,6 @@ def test_settings_loads_from_env_vars():
     settings = Settings()
 
     assert settings.GITHUB_TOKEN == "test_github_token"
-    assert settings.GEMINI_API_KEY == "test_gemini_api_key"
-    assert settings.GITHUB_WEBHOOK_SECRET == "test_webhook_secret"
     assert settings.GITHUB_REPOSITORY == "test_owner/test_repo"
     assert settings.BROKER_PORT == 9000
     assert settings.REDIS_HOST == "test_redis_host"
@@ -76,12 +74,7 @@ def test_settings_raises_error_if_required_env_vars_missing():
         Settings()
 
     os.environ["GITHUB_TOKEN"] = "dummy_github_token"
-    # GEMINI_API_KEYが欠けている場合
-    with pytest.raises(ValidationError):
-        Settings()
-
-    os.environ["GEMINI_API_KEY"] = "dummy_gemini_api_key"
-    # GITHUB_WEBHOOK_SECRETが欠けている場合
+    # GITHUB_REPOSITORYが欠けている場合
     with pytest.raises(ValidationError):
         Settings()
 

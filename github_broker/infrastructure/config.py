@@ -15,8 +15,6 @@ class Settings(BaseSettings):
 
     # 機密情報 (Docker Secretsから読み込む)
     GITHUB_TOKEN: str
-    GEMINI_API_KEY: str
-    GITHUB_WEBHOOK_SECRET: str
 
     BROKER_PORT: int = 8000
     GITHUB_REPOSITORY: str
