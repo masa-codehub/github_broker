@@ -221,3 +221,26 @@ def test_run_sub_process_captures_output(mock_popen, executor):
     assert handle.write.call_count == 2
     assert handle.write.call_args_list[0].args == ("line 1\n",)
     assert handle.write.call_args_list[1].args == ("line 2\n",)
+
+
+@pytest.mark.unit
+@patch("subprocess.Popen")
+@patch("logging.info")
+def test_run_sub_process_no_log_filepath(mock_logging_info, mock_popen, executor):
+    """_run_sub_processがlog_filepathなしで正しく動作することをテストします。"""
+    # Arrange
+    mock_process = MagicMock()
+    mock_process.stdout = ["line 1\n", "line 2\n"]
+    mock_process.returncode = 0
+    mock_popen.return_value.__enter__.return_value = mock_process
+
+    mock_log_file = mock_open()
+
+    # Act
+    with patch("builtins.open", mock_log_file):
+        result = executor._run_sub_process(["dummy_command"], None)
+
+    # Assert
+    assert result is True
+    mock_log_file.assert_not_called()  # ファイルは開かれないはず
+    assert mock_logging_info.call_count == 3  # コマンド実行ログ + 2行の出力ログ
