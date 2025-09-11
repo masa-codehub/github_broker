@@ -1,14 +1,17 @@
 import logging
 
-import uvicorn
-
+from github_broker.application.task_service import TaskService
 from github_broker.infrastructure.config import Settings
 from github_broker.infrastructure.di_container import get_container
-from github_broker.interface.api import app
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
+    logging.info("Starting the GitHub Broker polling service...")
 
-    settings = get_container().resolve(Settings)
-    logging.info(f"GITHUB_REPOSITORY: {settings.GITHUB_REPOSITORY}")
-    uvicorn.run(app, host="0.0.0.0", port=settings.BROKER_PORT)
+    container = get_container()
+    settings = container.resolve(Settings)
+    task_service = container.resolve(TaskService)
+
+    logging.info(f"Target Repository: {settings.GITHUB_REPOSITORY}")
+    logging.info("Starting task polling...")
+    task_service.start_polling()
