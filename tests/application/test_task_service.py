@@ -1,4 +1,6 @@
-from unittest.mock import MagicMock, patch
+import json
+import threading
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -29,7 +31,8 @@ def task_service(mock_redis_client, mock_github_client, mock_gemini_client):
     """TaskServiceのテストインスタンスを提供します。"""
     mock_settings = MagicMock()
     mock_settings.GITHUB_REPOSITORY = "test/repo"
-    mock_settings.GITHUB_INDEXING_WAIT_SECONDS = 15
+    mock_settings.GITHUB_INDEXING_WAIT_SECONDS = 0  # テスト中は待機しない
+    mock_settings.POLLING_INTERVAL_SECONDS = 0.1  # テスト用に短い間隔
     return TaskService(
         redis_client=mock_redis_client,
         github_client=mock_github_client,
@@ -49,10 +52,7 @@ def create_mock_issue(
     """テスト用のIssue辞書を生成するヘルパー関数。"""
     full_body = body
     if has_branch_name:
-        full_body += f"""
-
-## ブランチ名
-`feature/issue-{number}`"""
+        full_body += f"""\n\n## ブランチ名\n`feature/issue-{number}`"""
 
     return {
         "number": number,
@@ -61,6 +61,46 @@ def create_mock_issue(
         "html_url": f"{html_url_base}/{number}",
         "labels": [{"name": label} for label in labels],
     }
+
+
+@pytest.mark.unit
+def test_start_polling_fetches_and_caches_issues(
+    task_service, mock_github_client, mock_redis_client
+):
+    """start_pollingがIssueを取得し、Redisにキャッシュすることをテストします。"""
+    # Arrange
+    issue1 = create_mock_issue(number=1, title="Poll Task 1", body="", labels=["bug"])
+    issue2 = create_mock_issue(
+        number=2, title="Poll Task 2", body="", labels=["feature"]
+    )
+    mock_github_client.get_open_issues.return_value = [issue1, issue2]
+
+    stop_event = threading.Event()
+
+    # get_open_issuesが呼ばれたらループを止める
+    def stop_loop(*args, **kwargs):
+        # 1回目の呼び出しでループを停止させる
+        if mock_github_client.get_open_issues.call_count == 1:
+            stop_event.set()
+        return [issue1, issue2]
+
+    mock_github_client.get_open_issues.side_effect = stop_loop
+
+    # Act
+    polling_thread = threading.Thread(
+        target=task_service.start_polling, args=(stop_event,)
+    )
+    polling_thread.start()
+    polling_thread.join(timeout=5)  # タイムアウトを設定して無限ループを防ぐ
+
+    # Assert
+    mock_github_client.get_open_issues.assert_called_once()
+
+    expected_calls = [
+        call(f"issue:{issue1['number']}", json.dumps(issue1)),
+        call(f"issue:{issue2['number']}", json.dumps(issue2)),
+    ]
+    mock_redis_client.set_value.assert_has_calls(expected_calls, any_order=True)
 
 
 @pytest.mark.unit

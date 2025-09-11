@@ -1,4 +1,6 @@
+import json
 import logging
+import threading
 import time
 from typing import TYPE_CHECKING
 
@@ -34,6 +36,35 @@ class TaskService:
         self.gemini_client = gemini_client
         self.repo_name = settings.GITHUB_REPOSITORY
         self.github_indexing_wait_seconds = settings.GITHUB_INDEXING_WAIT_SECONDS
+        self.polling_interval_seconds = settings.POLLING_INTERVAL_SECONDS
+
+    def start_polling(self, stop_event: "threading.Event | None" = None):
+        """
+        GitHubリポジトリから定期的にオープンなIssueを取得し、Redisにキャッシュします。
+        stop_eventがセットされるまでポーリングを続けます。
+        """
+        logger.info("Starting issue polling...")
+        while not (stop_event and stop_event.is_set()):
+            try:
+                logger.info(f"Fetching open issues from {self.repo_name}...")
+                issues = self.github_client.get_open_issues()
+                if issues:
+                    logger.info(
+                        f"Found {len(issues)} open issues. Caching them in Redis."
+                    )
+                    for issue in issues:
+                        issue_key = f"issue:{issue['number']}"
+                        self.redis_client.set_value(issue_key, json.dumps(issue))
+                    logger.info("Finished caching issues.")
+                else:
+                    logger.info("No open issues found.")
+
+            except Exception as e:
+                logger.error(f"An error occurred during polling: {e}", exc_info=True)
+
+            time.sleep(self.polling_interval_seconds)
+
+        logger.info("Polling stopped.")
 
     def complete_previous_task(self, agent_id: str):
         """
