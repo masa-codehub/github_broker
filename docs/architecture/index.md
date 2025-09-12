@@ -37,13 +37,10 @@ C4Context
   Person(Developer, "AI Developer Agent", "An autonomous agent responsible for developing software.")
   System(GitHub, "GitHub", "Provides repository hosting and issue tracking.")
 
-  System_Ext(Gemini, "Google Gemini API", "Provides intelligent task selection capabilities.")
-
   System(Broker, "GitHub Task Broker", "Orchestrates task assignments to prevent conflicts.")
 
   Rel(Developer, Broker, "Requests a new task to work on", "HTTPS/JSON")
   Rel(Broker, GitHub, "Fetches issue data and assigns tasks by applying labels", "GitHub API")
-  Rel(Broker, Gemini, "Sends issue list for intelligent selection", "HTTPS/JSON")
 ```
 
 -----
@@ -121,7 +118,7 @@ C4Context
 
     1.  **Issueの取得:** GitHubクライアントを介して、リポジトリのオープンなIssueを全て取得する。
     2.  **候補のフィルタリング:** 取得したIssueの中から、リクエストの`agent_role`と一致するラベルを持つIssueをタスク候補として抽出する。
-    3.  **優先順位付け:** 役割に一致するタスクが複数ある場合、`GEMINI_API_KEY`が設定されていればGeminiを用いて最適なタスクを選択する。未設定の場合は、最も古く作成されたIssueを優先する。
+    3.  **優先順位付け:** 役割に一致するタスクが複数ある場合、最も古く作成されたIssueを優先する。
     4.  **前提条件チェック:** 優先順位の高い順に各候補Issueの本文をチェックし、「成果物」セクションが正しく定義されている最初のIssueを選択する。
     5.  **ブランチ作成：**
           * 選択したIssueに対応するブランチを**GitHubクライアント**経由で作成する。
@@ -197,7 +194,6 @@ services:
     environment:
       GITHUB_TOKEN: ${GITHUB_TOKEN}
       GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
       APP_PORT: 8080
     depends_on:
       - redis
