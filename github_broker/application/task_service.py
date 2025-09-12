@@ -9,7 +9,6 @@ from pydantic import HttpUrl
 from redis.exceptions import RedisError
 
 from github_broker.domain.task import Task
-from github_broker.infrastructure.gemini_client import GeminiClient
 from github_broker.infrastructure.github_client import GitHubClient
 from github_broker.infrastructure.redis_client import RedisClient
 from github_broker.interface.models import TaskResponse
@@ -31,12 +30,10 @@ class TaskService:
         self,
         redis_client: RedisClient,
         github_client: GitHubClient,
-        gemini_client: GeminiClient,
         settings: "Settings",
     ):
         self.redis_client = redis_client
         self.github_client = github_client
-        self.gemini_client = gemini_client
         self.repo_name = settings.GITHUB_REPOSITORY
         self.github_indexing_wait_seconds = settings.GITHUB_INDEXING_WAIT_SECONDS
         self.polling_interval_seconds = settings.POLLING_INTERVAL_SECONDS

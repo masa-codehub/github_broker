@@ -3,7 +3,6 @@ from redis import Redis
 
 from github_broker.application.task_service import TaskService
 from github_broker.infrastructure.config import Settings
-from github_broker.infrastructure.gemini_client import GeminiClient
 from github_broker.infrastructure.github_client import GitHubClient
 from github_broker.infrastructure.redis_client import RedisClient
 
@@ -34,13 +33,10 @@ def _create_container() -> punq.Container:
         github_token=settings.GITHUB_TOKEN,
     )
 
-    gemini_client = GeminiClient(gemini_api_key=settings.GEMINI_API_KEY)
-
     # 3. 構築した依存関係をすべて使ってTaskServiceをインスタンス化
     task_service = TaskService(
         redis_client=redis_client,
         github_client=github_client,
-        gemini_client=gemini_client,
         settings=settings,
     )
 
@@ -48,7 +44,6 @@ def _create_container() -> punq.Container:
     container.register(Settings, instance=settings)
     container.register(RedisClient, instance=redis_client)
     container.register(GitHubClient, instance=github_client)
-    container.register(GeminiClient, instance=gemini_client)
     container.register(TaskService, instance=task_service)
 
     return container

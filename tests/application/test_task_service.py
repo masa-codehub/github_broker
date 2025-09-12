@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from github_broker.application.task_service import OPEN_ISSUES_CACHE_KEY, TaskService
-from github_broker.infrastructure.gemini_client import GeminiClient
 
 
 @pytest.fixture
@@ -21,13 +20,7 @@ def mock_github_client():
 
 
 @pytest.fixture
-def mock_gemini_client():
-    """Geminiクライアントのモックを提供します。"""
-    return MagicMock(spec=GeminiClient)
-
-
-@pytest.fixture
-def task_service(mock_redis_client, mock_github_client, mock_gemini_client):
+def task_service(mock_redis_client, mock_github_client):
     """TaskServiceのテストインスタンスを提供します。"""
     mock_settings = MagicMock()
     mock_settings.GITHUB_REPOSITORY = "test/repo"
@@ -36,7 +29,6 @@ def task_service(mock_redis_client, mock_github_client, mock_gemini_client):
     return TaskService(
         redis_client=mock_redis_client,
         github_client=mock_github_client,
-        gemini_client=mock_gemini_client,
         settings=mock_settings,
     )
 
