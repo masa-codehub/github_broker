@@ -37,13 +37,10 @@ C4Context
   Person(Developer, "AI Developer Agent", "An autonomous agent responsible for developing software.")
   System(GitHub, "GitHub", "Provides repository hosting and issue tracking.")
 
-  System_Ext(Gemini, "Google Gemini API", "Provides intelligent task selection capabilities.")
-
   System(Broker, "GitHub Task Broker", "Orchestrates task assignments to prevent conflicts.")
 
   Rel(Developer, Broker, "Requests a new task to work on", "HTTPS/JSON")
   Rel(Broker, GitHub, "Fetches issue data and assigns tasks by applying labels", "GitHub API")
-  Rel(Broker, Gemini, "Sends issue list for intelligent selection", "HTTPS/JSON")
 ```
 
 -----
@@ -197,7 +194,6 @@ services:
     environment:
       GITHUB_TOKEN: ${GITHUB_TOKEN}
       GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
       APP_PORT: 8080
     depends_on:
       - redis

@@ -310,4 +310,3 @@ services:
 | `REDIS_HOST`        | Redisサーバーのホスト名。                      | `localhost`  |
 | `REDIS_PORT`        | Redisサーバーのポート番号。                    | `6379`       |
 | `REDIS_DB`          | Redisのデータベース番号。                        | `0`          |
-| `GEMINI_API_KEY`      | (任意) Gemini APIキー。設定時、最適なタスクをAIが選択。 | `None`       |
