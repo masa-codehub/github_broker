@@ -23,4 +23,4 @@ class Settings(BaseSettings):
     REDIS_DB: int = 0
     GITHUB_INDEXING_WAIT_SECONDS: int = 15
     TESTING: bool = False
-    POLLING_INTERVAL_SECONDS: int = 600
+    POLLING_INTERVAL_SECONDS: int = 10 * 60
