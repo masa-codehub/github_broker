@@ -39,8 +39,8 @@ services:
       - ./${BROKER_HOST}:${CONTAINER_VOLUME:-/app}
       - ./messages:${MESSAGE_DIR:-/app/messages}
     working_dir: ${CONTAINER_VOLUME:-/app}
-        ports:
-      - "${BROKER_PORT:-8000}:${BROKER_PORT:-8000} 
+    ports:
+      - "${BROKER_PORT:-8000}:${BROKER_PORT:-8000}"
     environment:
       - BROKER_PORT=${BROKER_PORT:-8000}
       - GITHUB_REPOSITORY=${GITHUB_REPOSITORY:-my_account/my_repository}
