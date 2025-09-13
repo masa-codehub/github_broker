@@ -36,15 +36,13 @@ class GeminiExecutor:
             with open(prompt_file, encoding="utf-8") as f:
                 prompts = yaml.safe_load(f)
             self.build_prompt_template = prompts["build_prompt"]
-            self.review_prompt_template = prompts["review_prompt"]
         except (FileNotFoundError, KeyError) as e:
             logging.error(f"プロンプトファイルの読み込みまたは解析に失敗しました: {e}")
             # フォールバックとして空のテンプレートを設定
             self.build_prompt_template = ""
-            self.review_prompt_template = ""
 
     def execute(self, task: dict[str, Any]):
-        """タスクを初回実行と自己レビューの2段階プロセスで実行します。
+        """タスクを単一フェーズで実行します。
 
         Args:
             task (Dict[str, Any]): タスクの詳細を含む辞書。
@@ -62,35 +60,9 @@ class GeminiExecutor:
 
         success = self._run_sub_process(command, log_filepath)
 
-        if not success or not log_filepath:
-            logging.error(
-                "初回実行に失敗したか、ロギングが無効です。レビューステップをスキップします。"
-            )
+        if not success:
+            logging.error("初回実行に失敗しました。")
             return
-
-        # --- フェーズ2: レビューと修正 ---
-        logging.info("フェーズ2: レビューと修正を開始します...")
-        try:
-            with open(log_filepath, encoding="utf-8") as f:
-                initial_output = f.read()
-        except Exception as e:
-            logging.error(
-                f"レビューのためにログファイルを読み込めませんでした: {e}。レビューステップをスキップします。"
-            )
-            return
-
-        review_prompt = self._build_review_prompt(initial_prompt, initial_output)
-        review_command = ["gemini", "--yolo", "-m", self.model, "-p", review_prompt]
-
-        # レビューフェーズのヘッダーをログファイルに追記
-        with open(log_filepath, "a", encoding="utf-8") as f:
-            f.write("\n\n---\n\n# フェーズ2: レビューと修正\n\n")
-            f.write(
-                f"モデルに送信されたレビュープロンプト:\n```\n{review_prompt}\n```\n\n**最終成果物:**\n"
-            )
-
-        self._run_sub_process(review_command, log_filepath)
-        logging.info("レビューと修正フェーズが完了しました。")
 
     def _run_sub_process(self, command: list[str], log_filepath: str | None) -> bool:
         """コマンドをサブプロセスとして実行し、その出力を指定されたファイルに記録します。"""
@@ -145,10 +117,4 @@ class GeminiExecutor:
         """タスク実行のための初回プロンプトを構築します。"""
         return self.build_prompt_template.format(
             title=title, body=body, branch_name=branch_name
-        )
-
-    def _build_review_prompt(self, original_prompt: str, execution_output: str) -> str:
-        """自己レビューステップのためのプロンプトを構築します。"""
-        return self.review_prompt_template.format(
-            original_prompt=original_prompt, execution_output=execution_output
         )

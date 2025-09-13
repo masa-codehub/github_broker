@@ -143,12 +143,11 @@ github_broker/
             -   `request_task()`: サーバーに新しいタスクをリクエストします。
 
 -   **`github_broker/infrastructure/executors/gemini_executor.py`**
-    -   **概要**: `gemini`コマンドラインツールを使用してタスクを実行するExecutorです。初回実行と自己レビューの2段階プロセスを実装しており、ログの記録やプロンプトの構築も行います。
+    -   **概要**: `gemini`コマンドラインツールを使用してタスクを実行するExecutorです。単一フェーズでタスクを実行し、ログの記録やプロンプトの構築も行います。
     -   **主要なクラス/関数**:
         -   `GeminiExecutor`:
             -   `__init__()`: ログディレクトリとGeminiモデルを設定し初期化します。
-            -   `execute(task: dict[str, Any])`: タスクを初回実行と自己レビューの2段階プロセスで実行します。
+            -   `execute(task: dict[str, Any])`: タスクを単一フェーズで実行します。
             -   `_run_sub_process()`: コマンドをサブプロセスとして実行し、出力を記録します。
             -   `_get_log_filepath()`: ログファイルのパスを構築します。
-            -   `_build_prompt()`: タスク実行のための初回プロンプトを構築します。
-            -   `_build_review_prompt()`: 自己レビューステップのためのプロンプトを構築します。
+            -   `_build_prompt()`: タスク実行のためのプロンプトを構築します。
