@@ -363,10 +363,10 @@ def test_find_first_assignable_task_rollback_labels_on_branch_creation_failure(
         # ロックが解放されたことを確認
         mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
         # 付与されたラベルが削除されたことを確認
-        mock_github_client.remove_label.assert_any_call(issue["number"], "in-progress")
-        mock_github_client.remove_label.assert_any_call(issue["number"], agent_id)
-        # ロールバック処理自体でエラーが発生した場合もログに記録されることを確認
-        # assert "Failed to rollback labels for issue #1" in caplog.text
+        mock_github_client.update_issue.assert_called_once_with(
+            issue_id=issue["number"], remove_labels=["in-progress", agent_id]
+        )
+        mock_github_client.remove_label.assert_not_called()
 
 
 @pytest.mark.unit
@@ -391,7 +391,7 @@ def test_find_first_assignable_task_rollback_failure_logs_error(
     mock_github_client.create_branch.side_effect = GithubException(
         status=422, data="Branch already exists"
     )
-    mock_github_client.remove_label.side_effect = Exception("Rollback Error")
+    mock_github_client.update_issue.side_effect = Exception("Rollback Error")
 
     candidate_issues = [issue]
     agent_id = "test-agent"
@@ -406,8 +406,8 @@ def test_find_first_assignable_task_rollback_failure_logs_error(
         mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
         # ロールバック処理自体でエラーが発生した場合もログに記録されることを確認
         assert "Failed to rollback labels for issue #1: Rollback Error" in caplog.text
-        # remove_labelが呼び出されたことを確認（ただし、例外を発生させるため、両方呼ばれるとは限らない）
-        mock_github_client.remove_label.assert_called()
+        # update_issueが呼び出されたことを確認
+        mock_github_client.update_issue.assert_called_once()
 
 
 @pytest.mark.unit

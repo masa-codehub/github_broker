@@ -177,8 +177,10 @@ class TaskService:
                     exc_info=True,
                 )
                 try:
-                    self.github_client.remove_label(task.issue_id, "in-progress")
-                    self.github_client.remove_label(task.issue_id, agent_id)
+                    self.github_client.update_issue(
+                        issue_id=task.issue_id,
+                        remove_labels=["in-progress", agent_id],
+                    )
                     logger.info(
                         f"Rolled back labels for issue #{task.issue_id}: removed 'in-progress' and '{agent_id}'."
                     )
