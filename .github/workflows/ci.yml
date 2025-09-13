@@ -11,20 +11,28 @@ permissions:
 
 jobs:
   build:
-    runs-on: [self-hosted, Linux, X64, gpu]
+    runs-on: [self-hosted] # ラベルは適宜調整してください
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev lsb-release
+
+      # Dockerイメージにインストール済みのため、このステップは不要
+      # - name: Install system dependencies
+      #  run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev lsb-release
+
+      # actions/setup-python を使うことで、pipのキャッシュが効くようになります
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.13.3'
           cache: 'pip'
           cache-dependency-path: '**/pyproject.toml'
 
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      # 毎回依存関係をインストールする
       - name: Install dependencies
         run: pip install -e .[test,dev]
       - name: Lint with ruff
