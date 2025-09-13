@@ -17,8 +17,8 @@ services:
       - AGENT_NAME=${AGENT_NAME:-your_agent_name}
       - MESSAGE_DIR=${MESSAGE_DIR:-/app/messages}
       - GITHUB_REPOSITORY=${GITHUB_REPOSITORY:-my_account/my_repository}
-      - BROKER_HOST=${BROKER_HOST:-broker}
-      - BROKER_PORT=${BROKER_PORT:-8001}
+      - BROKER_HOST=${BROKER_HOST:-github_broker}
+      - BROKER_PORT=${BROKER_PORT:-8000}
       - GITHUB_TOKEN=${GITHUB_TOKEN:-my_github_token}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-my_gemini_api_key}
       - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT:-your_gcp_project}
@@ -39,8 +39,8 @@ services:
       - ./${BROKER_HOST}:${CONTAINER_VOLUME:-/app}
       - ./messages:${MESSAGE_DIR:-/app/messages}
     working_dir: ${CONTAINER_VOLUME:-/app}
-    ports:
-      - "${BROKER_PORT:-8080}:${BROKER_PORT:-8080}"
+        ports:
+      - "${BROKER_PORT:-8000}:${BROKER_PORT:-8000} 
     environment:
       - BROKER_PORT=${BROKER_PORT:-8000}
       - GITHUB_REPOSITORY=${GITHUB_REPOSITORY:-my_account/my_repository}
