@@ -56,7 +56,6 @@ def test_request_task_success(client, mock_task_service):
     mock_task_service.request_task.assert_called_once_with(
         agent_id=request_body["agent_id"],
         agent_role=request_body["agent_role"],
-        timeout=request_body["timeout"],
     )
 
 
@@ -79,7 +78,6 @@ def test_request_task_no_task_available(client, mock_task_service):
     mock_task_service.request_task.assert_called_once_with(
         agent_id=request_body["agent_id"],
         agent_role=request_body["agent_role"],
-        timeout=request_body["timeout"],
     )
 
 
@@ -104,5 +102,4 @@ def test_request_task_lock_error(client, mock_task_service):
     mock_task_service.request_task.assert_called_once_with(
         agent_id=request_body["agent_id"],
         agent_role=request_body["agent_role"],
-        timeout=request_body["timeout"],
     )
