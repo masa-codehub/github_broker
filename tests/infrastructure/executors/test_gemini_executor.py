@@ -50,7 +50,6 @@ def test_init_loads_prompts_from_file(mock_prompts):
         mock_file.assert_called_once_with(prompt_file_path, encoding="utf-8")
         mock_safe_load.assert_called_once()
         assert executor_instance.build_prompt_template == mock_prompts["build_prompt"]
-        assert executor_instance.review_prompt_template == mock_prompts["review_prompt"]
 
 
 @pytest.mark.unit
@@ -65,7 +64,6 @@ def test_init_handles_prompt_file_error():
 
         # Assert
         assert executor_instance.build_prompt_template == ""
-        assert executor_instance.review_prompt_template == ""
 
 
 @pytest.mark.unit
@@ -76,16 +74,6 @@ def test_build_prompt(executor):
 
     # Assert
     assert prompt == "Title: Test Title\nBranch: feature/test\nBody: Test Body\n"
-
-
-@pytest.mark.unit
-def test_build_review_prompt(executor):
-    """_build_review_promptがテンプレートに基づいてプロンプトを正しく構築することをテストします"""
-    # Act
-    review_prompt = executor._build_review_prompt("Original", "Output")
-
-    # Assert
-    assert review_prompt == "Original: Original\nOutput: Output\n"
 
 
 @pytest.mark.unit
@@ -108,7 +96,7 @@ def test_execute_success(mock_run_sub_process, executor):
         executor.execute(task)
 
     # Assert
-    assert mock_run_sub_process.call_count == 2
+    assert mock_run_sub_process.call_count == 1
 
 
 @pytest.mark.unit
@@ -125,27 +113,6 @@ def test_execute_first_run_fails(mock_run_sub_process, executor):
     executor.execute(task)
 
     # Assert
-    mock_run_sub_process.assert_called_once()
-
-
-@pytest.mark.unit
-@patch(
-    "github_broker.infrastructure.executors.gemini_executor.GeminiExecutor._run_sub_process"
-)
-def test_execute_handles_log_read_error(mock_run_sub_process, executor):
-    """ログファイルの読み込み失敗時にレビューがスキップされることをテストします"""
-    # Arrange
-    mock_run_sub_process.return_value = True
-    task = {"title": "t", "body": "b", "branch_name": "b", "agent_id": "test-agent"}
-
-    # openをモックして、読み込み時にエラーを発生させる
-    with patch("builtins.open", mock_open()) as mock_file:
-        mock_file.side_effect = OSError("Failed to read")
-        # Act
-        executor.execute(task)
-
-    # Assert
-    # 初回実行は呼ばれるが、レビューのための2回目の実行はスキップされる
     mock_run_sub_process.assert_called_once()
 
 
