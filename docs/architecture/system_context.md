@@ -1,12 +1,12 @@
 ### **設計書：AIエージェント協調システム**
 
-#### 1\. 概要
+#### 1. 概要
 
 本システムは、複数の自律的なワーカー・エージェントからの要求に応じて、GitHub上のIssueを知的かつ排他的に割り当てる中央集権型サーバーである。システムの目的は、エージェント間の競合を防ぎ、開発ワークフローを自動化・効率化することにある。
 
------
+----
 
-#### 2\. アーキテクチャ設計
+#### 2. アーキテクチャ設計
 
 本プロジェクトは、クリーンアーキテクチャの原則に基づき、関心事の分離を徹底しています。これにより、システムの各コンポーネントが単一の責任を持ち、変更の影響範囲を限定し、独立した開発とテストを可能にしています。
 
@@ -26,9 +26,9 @@
 - [依存性注入(DI)コンテナ 設計書](./architecture/di-container.md)
 - [Redisキースキーマ 設計書](./architecture/redis-schema.md)
 
------
+----
 
-#### 3\. システム構成図
+#### 3. システム構成図
 
 ```mermaid
 graph TD
@@ -36,24 +36,33 @@ graph TD
         Human["人間 (管理者/レビュー担当)"]
         Workers["ワーカー・エージェント群 (クライアント)"]
         GitHub["GitHub (データストア)"]
-        Redis["Redis (分散ロック用)"]
+        Redis["Redis (キャッシュ / 分散ロック)"]
     end
 
     subgraph "私たちが作るシステム (Internal System)"
-        Server["タスク割り当てサーバー"]
+        subgraph "Task Broker Server"
+            direction LR
+            ApiServer["APIサーバー (FastAPI)"]
+            PollingService["ポーリングサービス (Background)"]
+        end
     end
 
     %% システム間の連携
     Human -- "Issue作成 / PRマージ" --> GitHub
-    Workers -- "タスク要求 (APIリクエスト)" --> Server
-    Server -- "タスク割り当て (APIレスポンス)" --> Workers
-    Server -- "GitHub API Call (Read/Write)" --> GitHub
-    Server -- "Lock / Unlock" --> Redis
+    Workers -- "タスク要求 (APIリクエスト)" --> ApiServer
+    ApiServer -- "タスク割り当て (APIレスポンス)" --> Workers
+
+    PollingService -- "定期的にIssueを取得" --> GitHub
+    PollingService -- "Issueをキャッシュ" --> Redis
+
+    ApiServer -- "キャッシュからIssueを取得" --> Redis
+    ApiServer -- "Lock / Unlock" --> Redis
+    ApiServer -- "Issueラベル更新 / ブランチ作成" --> GitHub
 ```
 
------
+----
 
-#### 4\. API仕様
+#### 4. API仕様
 
 ワーカー・エージェントがタスクを要求するための唯一のAPIエンドポイントを定義する。
 
@@ -81,14 +90,12 @@ graph TD
       * **成功 (204 No Content):** 割り当てるべき適切なタスクが見つからなかった場合。ボディは空。
       * **サーバービジー (503 Service Unavailable):** 他のワーカーの処理中でロックが取得できなかった場合。
         ```json
-        {
-          "error": "Server is busy. Please try again later."
-        }
+        {"error": "Server is busy. Please try again later."}
         ```
 
------
+----
 
-#### 5\. データモデル
+#### 5. データモデル
 
   * **割り当て台帳 (State Management):**
       * サーバーはワーカーとIssueの割り当て状態を**GitHub Issueのラベル**を利用して管理する。これにより、状態管理をGitHubに一元化する。
@@ -96,35 +103,40 @@ graph TD
       * **`[agent_id]` ラベル:** タスクの**担当エージェント**を示すラベル (例: `gemini-agent`)。
       * **`needs-review` ラベル:** タスクが完了し、人間によるレビュー待ちであることを示す状態ラベル。
 
------
+----
 
-#### 6\. コンポーネント別 詳細設計（サーバー内部）
+#### 6. コンポーネント別 詳細設計（サーバー内部）
 
-1.  **APIハンドラ (`/api/v1/request-task`):**
+1.  **ポーリングサービス (Background):
+    *   定期的にGitHubからオープンなIssueを全て取得し、Redisにキャッシュする責務を持つ。
+    *   GitHub APIのレート制限を考慮し、適切なポーリング間隔を設定する。
+    *   取得したIssueリストは、APIサーバーが高速にアクセスできるよう、Redisの適切なキーに保存する。
+
+2.  **APIハンドラ (`/api/v1/request-task`):
 
       * リクエストを受け付け、Bodyをパースする。
       * **分散ロックマネージャー**を呼び出し、ロックの取得を試みる。
       * ロック取得に失敗した場合、`503`エラーを返す。
       * ロック取得に成功した場合、以下の処理を順番に呼び出し、最後に必ずロックを解放する。
         1.  前タスクの完了処理
-        2.  最適なIssueの選択
+        2.  最適なIssueの選択 (Redisキャッシュから)
         3.  **Issue用ブランチの作成**
         4.  ワーカーへの応答準備と台帳更新
 
-2.  **分散ロックマネージャー:**
+3.  **分散ロックマネージャー:
 
       * **`acquire_lock()`:** Redisの`SETNX`コマンドを利用して、グローバルロックキーのセットを試みる。ロックには有効期限（例: 30秒）を設定し、サーバークラッシュ時のデッドロックを防ぐ。
       * **`release_lock()`:** Redisの`DEL`コマンドでロックキーを削除する。
 
-3.  **状態管理 & 前タスク完了処理:**
+4.  **状態管理 & 前タスク完了処理:
 
       * リクエスト元の`agent_id`をキーに、**`in-progress`と`[agent_id]`の両方のラベルを持つIssue**をGitHubから検索する。
       * もし、前回のIssueが存在すれば、そのIssueは完了したとみなし、**GitHubクライアント**を介して、該当Issueから`in-progress`と`[agent_id]`のラベルを削除し、代わりに`needs-review`ラベルを付与する。
-      * **GitHubの検索インデックス遅延を考慮し、ラベルを更新した場合は後続処理の前に一定時間（例: 15秒）待機する。**
+      * **GitHubの検索インデックス遅延を考慮し、ラベルを更新した場合は後続処理の前に一定時間（例: 15秒）待機する。
 
-4.  **タスク選択とブランチ作成ロジック:**
+5.  **タスク選択とブランチ作成ロジック:
 
-    1.  **Issueの取得:** GitHubクライアントを介して、リポジトリのオープンなIssueを全て取得する。
+    1.  **Issueの取得:** RedisキャッシュからIssueリストを取得する。
     2.  **候補のフィルタリング:** 取得したIssueの中から、リクエストの`agent_role`と一致するラベルを持つIssueをタスク候補として抽出する。
     3.  **優先順位付け:** 役割に一致するタスクが複数ある場合、最も古く作成されたIssueを優先する。
     4.  **前提条件チェック:** 優先順位の高い順に各候補Issueの本文をチェックし、「成果物」セクションが正しく定義されている最初のIssueを選択する。
@@ -134,78 +146,75 @@ graph TD
     6.  **タスク割り当て:** 選択したIssueに`in-progress`と`[agent_id]`のラベルを付与する。
     7.  **候補なし:** 全ての候補が前提条件チェックをパスしなかった場合、割り当てるタスクはないものとする。
 
-5.  **GitHubクライアント:**
+6.  **GitHubクライアント:
 
       * GitHub APIとの通信をカプセル化する内部ライブラリ。
-      * `get_open_issues()`: リポジトリに存在する**全てのオープンなIssueを取得**する。具体的なフィルタリングはアプリケーション層の責務とする。
-      * **`find_issues_by_labels()`: GitHub検索APIの不安定性を回避するため、リポジトリの全Issueを取得してからアプリケーション側でラベルによるフィルタリングを行うロジックを持つ。**
-      * **スケーラビリティに関する注意点:** この全件取得アプローチは、リポジトリのIssueが数万件規模に増加した場合、パフォーマンスの低下やAPIレート制限のリスクを伴います。将来的な対策として、ETagを利用したキャッシュ戦略や、定期的な全件取得とWebhookによる差分更新を組み合わせるなどの検討が必要です。
+      * `get_open_issues()`: ポーリングサービスが利用し、リポジトリに存在する**全てのオープンなIssueを取得**する。
       * `update_issue(issue_id, ...)`
       * `create_branch(branch_name, base_branch)` などのメソッドを提供する。
 
------
+----
 
-#### 7\. シーケンス図（主要フロー）
+#### 7. シーケンス図（主要フロー）
 
 ```mermaid
 sequenceDiagram
+    participant PollingService as ポーリングサービス (Background)
     participant Worker as ワーカーエージェント
-    participant Server as タスク割り当てサーバー
+    participant ApiServer as APIサーバー
     participant Redis
     participant GitHub
 
-    Worker->>+Server: POST /api/v1/request-task (タスク要求)
-    Server->>Redis: SETNX lock (ロック取得試行)
-
-    alt ロック成功
-        Redis-->>Server: OK
-        Note over Server, GitHub: 前タスクの完了処理 (in-progress, agent_id ラベルを検索)
-        Server->>GitHub: GET /issues (ラベル検索)
-        alt 前タスクあり
-            GitHub-->>Server: Previous Issue
-            Server->>GitHub: PATCH /issues/{prev_id} (ラベルを needs-review に変更)
-            GitHub-->>Server: Response
-            Server->>Server: **Wait 15s (インデックス更新待ち)**
-        end
-
-        Note over Server, GitHub: 新タスクの選択
-        Server->>GitHub: GET /issues (全てのオープンなIssue取得)
-        GitHub-->>Server: Issue List
-        Server->>Server: 1. Filter by agent_role label
-        Server->>Server: 2. Prioritize tasks (if multiple)
-        Server->>Server: 3. Check for "成果物" section
-        
-        alt 最適なIssueあり
-            Note over Server, GitHub: 新タスクの割り当てとブランチ作成
-            Server->>GitHub: POST /git/refs (Issue対応ブランチ作成)
-            GitHub-->>Server: Response
-            Server->>GitHub: PATCH /issues/{new_id} (in-progress, agent_id ラベル付与)
-            GitHub-->>Server: Response
-            Server-->>-Worker: 200 OK (新タスク情報)
-        else 最適なIssueなし
-            Server-->>-Worker: 204 No Content
-        end
-        
-    else ロック失敗
-        Redis-->>Server: FAILED
-        Server-->>-Worker: 503 Service Unavailable
+    loop 定期的なポーリング
+        PollingService->>+GitHub: GET /issues (オープンなIssueを全て取得)
+        GitHub-->>-PollingService: Issue List
+        PollingService->>+Redis: SET open_issues_cache (Issueリストをキャッシュ)
+        Redis-->>-PollingService: OK
     end
 
-    Server->>Redis: DEL lock (ロック解放)
-    Redis-->>Server: OK
+    par タスク要求
+        Worker->>+ApiServer: POST /request-task
+        ApiServer->>ApiServer: 1. 前タスクの完了処理 (ラベル更新)
+        ApiServer->>GitHub: PATCH /issues/{prev_id}
+        GitHub-->>ApiServer: OK
+        ApiServer->>ApiServer: Wait for indexing...
+
+        loop ロングポーリング (タイムアウトまで)
+            ApiServer->>+Redis: GET open_issues_cache (キャッシュ取得)
+            Redis-->>-ApiServer: Cached Issue List
+            ApiServer->>ApiServer: 2. 役割に合うタスクを候補化
+            ApiServer->>ApiServer: 3. 割り当て可能かチェック (ロック, 成果物)
+
+            alt 割り当て可能なタスクあり
+                ApiServer->>+Redis: SETNX issue_lock (個別Issueロック)
+                Redis-->>-ApiServer: OK
+                ApiServer->>+GitHub: PATCH /issues/{new_id} (ラベル更新)
+                GitHub-->>-ApiServer: OK
+                ApiServer->>+GitHub: POST /git/refs (ブランチ作成)
+                GitHub-->>-ApiServer: OK
+                ApiServer-->>-Worker: 200 OK (新タスク情報)
+                break
+            else 割り当て可能なタスクなし
+                ApiServer->>ApiServer: Wait for retry...
+            end
+        end
+        alt ループ終了後もタスクなし
+             ApiServer-->>-Worker: 204 No Content
+        end
+    end
 ```
 
------
+----
 
-#### 8\. 堅牢性のための設計
+#### 8. 堅牢性のための設計
 
   * **GitHub APIの特性への対応:**
       * **ブランチが既に存在する場合 (`422 Reference already exists`) はエラーとせず、処理を続行する。**
-      * **Issueのラベル更新直後の検索反映遅延を考慮し、明示的な待機時間を設ける。**
+      * **Issueのラベル更新直後の検索反映遅延を考慮し、明示的な待機時間を設ける。
 
------
+----
 
-#### 9\. 技術スタック（推奨）
+#### 9. 技術スタック（推奨）
 
   * **言語:** Python 3.x
   * **Webフレームワーク:** FastAPI (非同期処理に強く、高速) or Flask (シンプル)
@@ -213,9 +222,9 @@ sequenceDiagram
   * **GitHub APIクライアント:** PyGithubライブラリ
   * **DIコンテナ:** punq
 
------
+----
 
-#### 10\. 実行環境・デプロイ構成（推奨）
+#### 10. 実行環境・デプロイ構成（推奨）
 
 本システムは、各コンポーネントをDockerコンテナとして実行する、現代的なコンテナベースのアーキテクチャを推奨します。これにより、開発・テスト・本番環境の一貫性が保たれ、デプロイが容易になります。
 
@@ -257,9 +266,9 @@ services:
   * 各コンテナは、他のコンテナにサービス名（例: `server`, `redis`）でアクセスできます。
   * この構成により、各コンポーネントは独立して開発・更新が可能になり、システム全体の保守性とスケーラビリティが向上します。
 
------
+----
 
-#### 11\. 依存性注入 (Dependency Injection)
+#### 11. 依存性注入 (Dependency Injection)
 
 本プロジェクトでは、コンポーネント間の依存関係を管理し、テスト容易性を向上させるために、依存性注入（DI）の原則を採用しています。
 
@@ -296,9 +305,9 @@ services:
 
 この設計により、各コンポーネントは自身が必要とする依存関係を意識することなく、その生成をDIコンテナに一任できます。結果として、コードの結合度が下がり、単体テストにおけるモックの差し替えなどが容易になります。
 
------
+----
 
-#### 12\. 環境変数
+#### 12. 環境変数
 
 本システムは、以下の環境変数を通じて設定を外部から注入します。
 
