@@ -365,8 +365,6 @@ def test_find_first_assignable_task_rollback_labels_on_branch_creation_failure(
         # 付与されたラベルが削除されたことを確認
         mock_github_client.remove_label.assert_any_call(issue["number"], "in-progress")
         mock_github_client.remove_label.assert_any_call(issue["number"], agent_id)
-        # ロールバック処理自体でエラーが発生した場合もログに記録されることを確認
-        # assert "Failed to rollback labels for issue #1" in caplog.text
 
 
 @pytest.mark.unit
