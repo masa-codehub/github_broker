@@ -80,11 +80,12 @@ class TaskService:
         """
         logger.info(f"Completing previous task for agent: {agent_id}")
 
-        previous_issues = []
-        for issue in all_issues:
-            labels = {label.get("name") for label in issue.get("labels", [])}
-            if "in-progress" in labels and agent_id in labels:
-                previous_issues.append(issue)
+        previous_issues = [
+            issue
+            for issue in all_issues
+            if "in-progress" in {label.get("name") for label in issue.get("labels", [])}
+            and agent_id in {label.get("name") for label in issue.get("labels", [])}
+        ]
         if not previous_issues:
             logger.info("No in-progress issues found for this agent.")
             return
@@ -96,21 +97,38 @@ class TaskService:
             remove_labels = ["in-progress", agent_id]
             add_labels = ["needs-review"]
 
-            self.github_client.update_issue(
-                issue_id=issue["number"],
-                remove_labels=remove_labels,
-                add_labels=add_labels,
-            )
-            logger.info(
-                f"Updated labels for issue #{issue['number']}: removed {remove_labels}, added {add_labels}."
-            )
+            try:
+                self.github_client.update_issue(
+                    issue_id=issue["number"],
+                    remove_labels=remove_labels,
+                    add_labels=add_labels,
+                )
+                logger.info(
+                    f"Updated labels for issue #{issue["number"]}: removed {remove_labels}, added {add_labels}."
+                )
+            except GithubException as e:
+                logger.error(
+                    f"Failed to update issue #{issue["number"]} for agent {agent_id}: {e}",
+                    exc_info=True,
+                )
+                # エラーが発生してもループを中断せず、次のIssueの処理に進む
+            except Exception as e:
+                logger.error(
+                    f"An unexpected error occurred while updating issue #{issue["number"]} for agent {agent_id}: {e}",
+                    exc_info=True,
+                )
+                # 予期せぬエラーが発生してもループを中断せず、次のIssueの処理に進む
 
     def _find_candidates_by_role(self, issues: list, agent_role: str) -> list:
         """指定された役割（role）ラベルを持つIssueをフィルタリングします。"""
         candidate_issues = []
         for issue in issues:
             labels = {label.get("name") for label in issue.get("labels", [])}
-            if agent_role in labels and "needs-review" not in labels:
+            if (
+                agent_role in labels
+                and "needs-review" not in labels
+                and "in-progress" not in labels
+            ):
                 candidate_issues.append(issue)
 
         if not candidate_issues:
@@ -177,8 +195,10 @@ class TaskService:
                     exc_info=True,
                 )
                 try:
-                    self.github_client.remove_label(task.issue_id, "in-progress")
-                    self.github_client.remove_label(task.issue_id, agent_id)
+                    self.github_client.update_issue(
+                        issue_id=task.issue_id,
+                        remove_labels=["in-progress", agent_id],
+                    )
                     logger.info(
                         f"Rolled back labels for issue #{task.issue_id}: removed 'in-progress' and '{agent_id}'."
                     )

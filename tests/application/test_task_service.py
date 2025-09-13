@@ -128,7 +128,7 @@ def test_start_polling_caches_empty_list_when_no_issues(
 
 @pytest.mark.unit
 @patch("time.sleep", return_value=None)
-def test_request_task_selects_by_role(
+def test_request_task_selects_by_role_from_cache(
     mock_sleep, task_service, mock_redis_client, mock_github_client
 ):
     """エージェントの役割（role）に一致するラベルを持つIssueがキャッシュから選択されることをテストします。"""
@@ -363,8 +363,10 @@ def test_find_first_assignable_task_rollback_labels_on_branch_creation_failure(
         # ロックが解放されたことを確認
         mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
         # 付与されたラベルが削除されたことを確認
-        mock_github_client.remove_label.assert_any_call(issue["number"], "in-progress")
-        mock_github_client.remove_label.assert_any_call(issue["number"], agent_id)
+        mock_github_client.update_issue.assert_called_once_with(
+            issue_id=issue["number"], remove_labels=["in-progress", agent_id]
+        )
+        mock_github_client.remove_label.assert_not_called()
 
 
 @pytest.mark.unit
@@ -389,7 +391,7 @@ def test_find_first_assignable_task_rollback_failure_logs_error(
     mock_github_client.create_branch.side_effect = GithubException(
         status=422, data="Branch already exists"
     )
-    mock_github_client.remove_label.side_effect = Exception("Rollback Error")
+    mock_github_client.update_issue.side_effect = Exception("Rollback Error")
 
     candidate_issues = [issue]
     agent_id = "test-agent"
@@ -404,8 +406,8 @@ def test_find_first_assignable_task_rollback_failure_logs_error(
         mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
         # ロールバック処理自体でエラーが発生した場合もログに記録されることを確認
         assert "Failed to rollback labels for issue #1: Rollback Error" in caplog.text
-        # remove_labelが呼び出されたことを確認（ただし、例外を発生させるため、両方呼ばれるとは限らない）
-        mock_github_client.remove_label.assert_called()
+        # update_issueが呼び出されたことを確認
+        mock_github_client.update_issue.assert_called_once()
 
 
 @pytest.mark.unit
@@ -528,3 +530,83 @@ def test_no_matching_role_candidates(
 
     # Assert
     assert result is None
+
+
+@pytest.mark.unit
+@patch("time.sleep", return_value=None)
+@pytest.mark.parametrize(
+    "exception_to_raise, expected_log_message",
+    [
+        (
+            GithubException(status=500, data="Test Error 1"),
+            "Failed to update issue #101",
+        ),
+        (
+            Exception("Unexpected Error"),
+            "An unexpected error occurred while updating issue #101",
+        ),
+    ],
+    ids=["github_exception", "unexpected_exception"],
+)
+def test_complete_previous_task_handles_exceptions(
+    mock_sleep,
+    task_service,
+    mock_redis_client,
+    mock_github_client,
+    caplog,
+    exception_to_raise,
+    expected_log_message,
+):
+    """
+    complete_previous_task内で例外が発生しても、処理が続行されることをテストします。
+    """
+    # Arrange
+    prev_issue_1 = create_mock_issue(
+        number=101,
+        title="Previous Task 1",
+        body="",
+        labels=["in-progress", "test-agent"],
+    )
+    prev_issue_2 = create_mock_issue(
+        number=102,
+        title="Previous Task 2",
+        body="",
+        labels=["in-progress", "test-agent"],
+    )
+    new_issue = create_mock_issue(
+        number=103,
+        title="New Task",
+        body="## 成果物\n- new.py",
+        labels=["BACKENDCODER"],
+    )
+    cached_issues = [prev_issue_1, prev_issue_2, new_issue]
+    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
+    mock_redis_client.acquire_lock.return_value = True
+
+    agent_id = "test-agent"
+    agent_role = "BACKENDCODER"
+
+    # 最初のupdate_issueで例外を発生させ、2番目は成功させる
+    mock_github_client.update_issue.side_effect = [
+        exception_to_raise,
+        None,  # 2番目の呼び出しは成功
+    ]
+
+    with caplog.at_level(logging.ERROR):
+        # Act
+        result = task_service.request_task(agent_id=agent_id, agent_role=agent_role)
+
+        # Assert
+        # update_issueが2回呼び出されたことを確認
+        assert mock_github_client.update_issue.call_count == 2
+        # 最初のIssueでエラーがログに記録されたことを確認
+        assert expected_log_message in caplog.text
+        # 2番目のIssueの更新が成功したことを確認
+        mock_github_client.update_issue.assert_called_with(
+            issue_id=prev_issue_2["number"],
+            remove_labels=["in-progress", agent_id],
+            add_labels=["needs-review"],
+        )
+        # 新しいタスクが正常に返されたことを確認
+        assert result is not None
+        assert result.issue_id == new_issue["number"]

@@ -42,7 +42,7 @@ class GeminiExecutor:
             self.build_prompt_template = ""
 
     def execute(self, task: dict[str, Any]):
-        """タスクを初回実行と自己レビューの2段階プロセスで実行します。
+        """タスクを単一フェーズで実行します。
 
         Args:
             task (Dict[str, Any]): タスクの詳細を含む辞書。
