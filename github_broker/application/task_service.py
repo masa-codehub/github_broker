@@ -111,14 +111,12 @@ class TaskService:
                     exc_info=True,
                 )
                 # エラーが発生してもループを中断せず、次のIssueの処理に進む
-                continue
             except Exception as e:
                 logger.error(
                     f"An unexpected error occurred while updating issue #{issue["number"]} for agent {agent_id}: {e}",
                     exc_info=True,
                 )
                 # 予期せぬエラーが発生してもループを中断せず、次のIssueの処理に進む
-                continue
 
     def _find_candidates_by_role(self, issues: list, agent_role: str) -> list:
         """指定された役割（role）ラベルを持つIssueをフィルタリングします。"""

@@ -452,11 +452,31 @@ def test_no_matching_role_candidates(
 
 @pytest.mark.unit
 @patch("time.sleep", return_value=None)
-def test_complete_previous_task_handles_github_exception(
-    mock_sleep, task_service, mock_redis_client, mock_github_client, caplog
+@pytest.mark.parametrize(
+    "exception_to_raise, expected_log_message",
+    [
+        (
+            GithubException(status=500, data="Test Error 1"),
+            "Failed to update issue #101",
+        ),
+        (
+            Exception("Unexpected Error"),
+            "An unexpected error occurred while updating issue #101",
+        ),
+    ],
+    ids=["github_exception", "unexpected_exception"],
+)
+def test_complete_previous_task_handles_exceptions(
+    mock_sleep,
+    task_service,
+    mock_redis_client,
+    mock_github_client,
+    caplog,
+    exception_to_raise,
+    expected_log_message,
 ):
     """
-    complete_previous_task内でGitHubExceptionが発生しても、処理が続行されることをテストします。
+    complete_previous_task内で例外が発生しても、処理が続行されることをテストします。
     """
     # Arrange
     prev_issue_1 = create_mock_issue(
@@ -486,7 +506,7 @@ def test_complete_previous_task_handles_github_exception(
 
     # 最初のupdate_issueで例外を発生させ、2番目は成功させる
     mock_github_client.update_issue.side_effect = [
-        GithubException(status=500, data="Test Error 1"),
+        exception_to_raise,
         None,  # 2番目の呼び出しは成功
     ]
 
@@ -498,67 +518,7 @@ def test_complete_previous_task_handles_github_exception(
         # update_issueが2回呼び出されたことを確認
         assert mock_github_client.update_issue.call_count == 2
         # 最初のIssueでエラーがログに記録されたことを確認
-        assert "Failed to update issue #101" in caplog.text
-        # 2番目のIssueの更新が成功したことを確認
-        mock_github_client.update_issue.assert_called_with(
-            issue_id=prev_issue_2["number"],
-            remove_labels=["in-progress", agent_id],
-            add_labels=["needs-review"],
-        )
-        # 新しいタスクが正常に返されたことを確認
-        assert result is not None
-        assert result.issue_id == new_issue["number"]
-
-
-@pytest.mark.unit
-@patch("time.sleep", return_value=None)
-def test_complete_previous_task_handles_unexpected_exception(
-    mock_sleep, task_service, mock_redis_client, mock_github_client, caplog
-):
-    """
-    complete_previous_task内で予期せぬ例外が発生しても、処理が続行されることをテストします。
-    """
-    # Arrange
-    prev_issue_1 = create_mock_issue(
-        number=101,
-        title="Previous Task 1",
-        body="",
-        labels=["in-progress", "test-agent"],
-    )
-    prev_issue_2 = create_mock_issue(
-        number=102,
-        title="Previous Task 2",
-        body="",
-        labels=["in-progress", "test-agent"],
-    )
-    new_issue = create_mock_issue(
-        number=103,
-        title="New Task",
-        body="## 成果物\n- new.py",
-        labels=["BACKENDCODER"],
-    )
-    cached_issues = [prev_issue_1, prev_issue_2, new_issue]
-    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
-    mock_redis_client.acquire_lock.return_value = True
-
-    agent_id = "test-agent"
-    agent_role = "BACKENDCODER"
-
-    # 最初のupdate_issueで予期せぬ例外を発生させ、2番目は成功させる
-    mock_github_client.update_issue.side_effect = [
-        Exception("Unexpected Error"),
-        None,  # 2番目の呼び出しは成功
-    ]
-
-    with caplog.at_level(logging.ERROR):
-        # Act
-        result = task_service.request_task(agent_id=agent_id, agent_role=agent_role)
-
-        # Assert
-        # update_issueが2回呼び出されたことを確認
-        assert mock_github_client.update_issue.call_count == 2
-        # 最初のIssueでエラーがログに記録されたことを確認
-        assert "An unexpected error occurred while updating issue #101" in caplog.text
+        assert expected_log_message in caplog.text
         # 2番目のIssueの更新が成功したことを確認
         mock_github_client.update_issue.assert_called_with(
             issue_id=prev_issue_2["number"],
