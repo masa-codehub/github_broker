@@ -1,4 +1,4 @@
-### **設計書：AIエージェント協調システム**
+### 設計書：AIエージェント協調システム
 
 #### 1. 概要
 
@@ -88,10 +88,6 @@ graph TD
         }
         ```
       * **成功 (204 No Content):** 割り当てるべき適切なタスクが見つからなかった場合。ボディは空。
-      * **サーバービジー (503 Service Unavailable):** 他のワーカーの処理中でロックが取得できなかった場合。
-        ```json
-        {"error": "Server is busy. Please try again later."}
-        ```
 
 ----
 
@@ -109,47 +105,43 @@ graph TD
 
 本セクションでは、ハイブリッドアーキテクチャを構成する主要な2つのコンポーネント、すなわちポーリングサービスとAPIサーバーの内部設計について詳述する。
 
-1.  **ポーリングサービス (Background):
+1.  **ポーリングサービス (Background):**
     *   定期的にGitHubからオープンなIssueを全て取得し、Redisにキャッシュする責務を持つ。
     *   GitHub APIのレート制限を考慮し、適切なポーリング間隔を設定する。
     *   取得したIssueリストは、APIサーバーが高速にアクセスできるよう、Redisの適切なキーに保存する。
 
-2.  **APIハンドラ (`/api/v1/request-task`):
-
+2.  **APIハンドラ (`/api/v1/request-task`):**
       * リクエストを受け付け、Bodyをパースする。
-      * **分散ロックマネージャー**を呼び出し、ロックの取得を試みる。
-      * ロック取得に失敗した場合、`503`エラーを返す。
-      * ロック取得に成功した場合、以下の処理を順番に呼び出し、最後に必ずロックを解放する。
+      * 以下の処理を順番に呼び出す。
         1.  前タスクの完了処理
-        2.  最適なIssueの選択 (Redisキャッシュから)
+        2.  最適なIssueの選択（ロングポーリング）
         3.  **Issue用ブランチの作成**
         4.  ワーカーへの応答準備と台帳更新
+      * ループ内で割り当て可能なタスクが見つからなかった場合は、最終的に`204 No Content`を返す。
 
-3.  **分散ロックマネージャー:
+3.  **分散ロックマネージャー:**
+      * **`acquire_lock(issue_id)`:** Redisの`SETNX`コマンドを利用して、**Issueごとのロックキー**のセットを試みる。ロックには有効期限（例: 30秒）を設定し、サーバークラッシュ時のデッドロックを防ぐ。
+      * **`release_lock(issue_id)`:** Redisの`DEL`コマンドでロックキーを削除する。
 
-      * **`acquire_lock()`:** Redisの`SETNX`コマンドを利用して、グローバルロックキーのセットを試みる。ロックには有効期限（例: 30秒）を設定し、サーバークラッシュ時のデッドロックを防ぐ。
-      * **`release_lock()`:** Redisの`DEL`コマンドでロックキーを削除する。
-
-4.  **状態管理 & 前タスク完了処理:
-
+4.  **状態管理 & 前タスク完了処理:**
       * リクエスト元の`agent_id`をキーに、**`in-progress`と`[agent_id]`の両方のラベルを持つIssue**をGitHubから検索する。
       * もし、前回のIssueが存在すれば、そのIssueは完了したとみなし、**GitHubクライアント**を介して、該当Issueから`in-progress`と`[agent_id]`のラベルを削除し、代わりに`needs-review`ラベルを付与する。
-      * **GitHubの検索インデックス遅延を考慮し、ラベルを更新した場合は後続処理の前に一定時間（例: 15秒）待機する。
 
-5.  **タスク選択とブランチ作成ロジック:
-
+5.  **タスク選択とブランチ作成ロジック:**
     1.  **Issueの取得:** RedisキャッシュからIssueリストを取得する。
     2.  **候補のフィルタリング:** 取得したIssueの中から、リクエストの`agent_role`と一致するラベルを持つIssueをタスク候補として抽出する。
     3.  **優先順位付け:** 役割に一致するタスクが複数ある場合、最も古く作成されたIssueを優先する。
-    4.  **前提条件チェック:** 優先順位の高い順に各候補Issueの本文をチェックし、「成果物」セクションが正しく定義されている最初のIssueを選択する。
+    4.  **前提条件とロック取得:** 優先順位の高い順に各候補Issueをチェックする。
+        *   本文に「成果物」セクションが正しく定義されているか確認する。
+        *   **分散ロックマネージャー**を呼び出し、そのIssueに対するロックの取得を試みる。
+        *   ロック取得に成功し、前提条件も満たしている最初のIssueを選択する。
     5.  **ブランチ作成：**
           * 選択したIssueに対応するブランチを**GitHubクライアント**経由で作成する。
           * **Issue本文にブランチ名の指定がない場合は、`feature/issue-{issue_id}`という形式でデフォルト名を生成する。**
     6.  **タスク割り当て:** 選択したIssueに`in-progress`と`[agent_id]`のラベルを付与する。
-    7.  **候補なし:** 全ての候補が前提条件チェックをパスしなかった場合、割り当てるタスクはないものとする。
+    7.  **候補なし:** 全ての候補が前提条件チェックやロック取得に失敗した場合、割り当てるタスクはないものとする。
 
-6.  **GitHubクライアント:
-
+6.  **GitHubクライアント:**
       * GitHub APIとの通信をカプセル化する内部ライブラリ。
       * `get_open_issues()`: ポーリングサービスが利用し、リポジトリに存在する**全てのオープンなIssueを取得**する。
       * `update_issue(issue_id, ...)`
@@ -174,35 +166,32 @@ sequenceDiagram
         Redis-->>-PollingService: OK
     end
 
-    par タスク要求
-        Worker->>+ApiServer: POST /request-task
-        ApiServer->>ApiServer: 1. 前タスクの完了処理 (ラベル更新)
-        ApiServer->>GitHub: PATCH /issues/{prev_id}
-        GitHub-->>ApiServer: OK
-        ApiServer->>ApiServer: Wait for indexing...
+    Worker->>+ApiServer: POST /request-task
+    ApiServer->>ApiServer: 1. 前タスクの完了処理 (ラベル更新)
+    ApiServer->>GitHub: PATCH /issues/{prev_id}
+    GitHub-->>ApiServer: OK
 
-        loop ロングポーリング (タイムアウトまで)
-            ApiServer->>+Redis: GET open_issues_cache (キャッシュ取得)
-            Redis-->>-ApiServer: Cached Issue List
-            ApiServer->>ApiServer: 2. 役割に合うタスクを候補化
-            ApiServer->>ApiServer: 3. 割り当て可能かチェック (ロック, 成果物)
+    loop ロングポーリング (タイムアウトまで)
+        ApiServer->>+Redis: GET open_issues_cache (キャッシュ取得)
+        Redis-->>-ApiServer: Cached Issue List
+        ApiServer->>ApiServer: 2. 役割に合うタスクを候補化
+        ApiServer->>ApiServer: 3. 割り当て可能かチェック (成果物, ロック)
 
-            alt 割り当て可能なタスクあり
-                ApiServer->>+Redis: SETNX issue_lock (個別Issueロック)
-                Redis-->>-ApiServer: OK
-                ApiServer->>+GitHub: PATCH /issues/{new_id} (ラベル更新)
-                GitHub-->>-ApiServer: OK
-                ApiServer->>+GitHub: POST /git/refs (ブランチ作成)
-                GitHub-->>-ApiServer: OK
-                ApiServer-->>-Worker: 200 OK (新タスク情報)
-                break
-            else 割り当て可能なタスクなし
-                ApiServer->>ApiServer: Wait for retry...
-            end
+        alt 割り当て可能なタスクあり
+            ApiServer->>+Redis: SETNX issue_lock (個別Issueロック)
+            Redis-->>-ApiServer: OK
+            ApiServer->>+GitHub: PATCH /issues/{new_id} (ラベル更新)
+            GitHub-->>-ApiServer: OK
+            ApiServer->>+GitHub: POST /git/refs (ブランチ作成)
+            GitHub-->>-ApiServer: OK
+            ApiServer-->>-Worker: 200 OK (新タスク情報)
+            break
+        else 割り当て可能なタスクなし
+            ApiServer->>ApiServer: Wait for retry...
         end
-        alt ループ終了後もタスクなし
-             ApiServer-->>-Worker: 204 No Content
-        end
+    end
+    alt ループ終了後もタスクなし
+         ApiServer-->>-Worker: 204 No Content
     end
 ```
 
@@ -212,7 +201,6 @@ sequenceDiagram
 
   * **GitHub APIの特性への対応:**
       * **ブランチが既に存在する場合 (`422 Reference already exists`) はエラーとせず、処理を続行する。**
-      * **Issueのラベル更新直後の検索反映遅延を考慮し、明示的な待機時間を設ける。
 
 ----
 
