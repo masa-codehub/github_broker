@@ -73,7 +73,7 @@ class TaskService:
 
         logger.info("Polling stopped.")
 
-    def complete_previous_task(self, agent_id: str, all_issues: list):
+    def complete_previous_task(self, agent_id: str, all_issues: list[dict]):
         """
         前タスクの完了処理を行います。
         in-progressとagent_idラベルを持つIssueを検索し、それらのラベルを削除し、needs-reviewラベルを付与します。
@@ -201,14 +201,15 @@ class TaskService:
             logger.warning("No issues found in Redis cache.")
             return None
 
-        all_issues = json.loads(cached_issues_json)
+        try:
+            all_issues = json.loads(cached_issues_json)
+        except json.JSONDecodeError:
+            logger.error(
+                "Failed to decode issues from Redis cache. The cache might be corrupted.",
+                exc_info=True,
+            )
+            return None
         self.complete_previous_task(agent_id, all_issues)
-
-        # `complete_previous_task`でラベルが更新された可能性を考慮し、キャッシュを再取得する
-        # ただし、ポーリングを待つと遅延が大きすぎるため、ここでは行わない。
-        # 理想的には、GitHubのWebhookでラベル変更をトリガーにキャッシュを更新するべきだが、
-        # 現在のポーリングアーキテクチャの範囲で対応する。
-        # 完了したタスクが再度割り当てられる可能性は低いと判断する。
 
         candidate_issues = self._find_candidates_by_role(all_issues, agent_role)
         if candidate_issues:

@@ -254,7 +254,7 @@ def test_request_task_completes_previous_task(
     agent_role = "BACKENDCODER"
 
     # Act
-    task_service.request_task(agent_id=agent_id, agent_role=agent_role)
+    result = task_service.request_task(agent_id=agent_id, agent_role=agent_role)
 
     # Assert
     mock_github_client.update_issue.assert_called_once_with(
@@ -262,6 +262,8 @@ def test_request_task_completes_previous_task(
         remove_labels=["in-progress", agent_id],
         add_labels=["needs-review"],
     )
+    assert result is not None
+    assert result.issue_id == new_issue["number"]
 
 
 @pytest.mark.unit
