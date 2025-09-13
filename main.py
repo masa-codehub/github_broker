@@ -1,5 +1,5 @@
 import logging
-import multiprocessing
+import threading
 
 import uvicorn
 
@@ -32,24 +32,11 @@ def run_api_server():
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
-    # 2つの別々のプロセスを作成します
-    polling_process = multiprocessing.Process(
-        target=run_polling_service, name="PollingService"
+    # ポーリングサービスをバックグラウンドスレッドで開始します
+    polling_thread = threading.Thread(
+        target=run_polling_service, name="PollingService", daemon=True
     )
-    api_process = multiprocessing.Process(target=run_api_server, name="APIServer")
+    polling_thread.start()
 
-    # 両方のプロセスを開始します
-    polling_process.start()
-    api_process.start()
-
-    try:
-        # 両方のプロセスが完了するのを待ちます
-        polling_process.join()
-        api_process.join()
-    except KeyboardInterrupt:
-        logging.info("シャットダウン中...")
-        polling_process.terminate()
-        api_process.terminate()
-        polling_process.join()
-        api_process.join()
-        logging.info("シャットダウン完了。")
+    # メインスレッドでAPIサーバーを実行します
+    run_api_server()
