@@ -49,11 +49,14 @@ class GeminiExecutor:
         """
         # --- フェーズ1: 初回実行 ---
         logging.info("フェーズ1: 初回実行を開始します...")
+        issue_id = task.get("issue_id", 0)
         issue_title = task.get("title", "")
         issue_body = task.get("body", "")
         branch_name = task.get("branch_name", "")
 
-        initial_prompt = self._build_prompt(issue_title, issue_body, branch_name)
+        initial_prompt = self._build_prompt(
+            issue_id, issue_title, issue_body, branch_name
+        )
         command = ["gemini", "--yolo", "-m", self.model, "-p", initial_prompt]
 
         log_filepath = self._get_log_filepath(task.get("agent_id"))
@@ -113,8 +116,10 @@ class GeminiExecutor:
         logging.info(f"コマンドの出力を次のファイルに記録します: {filepath}")
         return filepath
 
-    def _build_prompt(self, title: str, body: str, branch_name: str) -> str:
+    def _build_prompt(
+        self, issue_id: int, title: str, body: str, branch_name: str
+    ) -> str:
         """タスク実行のための初回プロンプトを構築します。"""
         return self.build_prompt_template.format(
-            title=title, body=body, branch_name=branch_name
+            issue_id=issue_id, title=title, body=body, branch_name=branch_name
         )

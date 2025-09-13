@@ -7,6 +7,7 @@ from github_broker.infrastructure.executors.gemini_executor import GeminiExecuto
 
 PROMPT_FILE_CONTENT = """
 build_prompt: |
+  Issue ID: {issue_id}
   Title: {title}
   Branch: {branch_name}
   Body: {body}
@@ -70,10 +71,13 @@ def test_init_handles_prompt_file_error():
 def test_build_prompt(executor):
     """_build_promptがテンプレートに基づいてプロンプトを正しく構築することをテストします"""
     # Act
-    prompt = executor._build_prompt("Test Title", "Test Body", "feature/test")
+    prompt = executor._build_prompt(123, "Test Title", "Test Body", "feature/test")
 
     # Assert
-    assert prompt == "Title: Test Title\nBranch: feature/test\nBody: Test Body\n"
+    assert (
+        prompt
+        == "Issue ID: 123\nTitle: Test Title\nBranch: feature/test\nBody: Test Body\n"
+    )
 
 
 @pytest.mark.unit
