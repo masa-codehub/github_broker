@@ -1,9 +1,7 @@
 import logging
 
-from fastapi import Depends, FastAPI, Request, Response, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, Response, status
 
-from github_broker.application.exceptions import LockAcquisitionError
 from github_broker.application.task_service import TaskService
 from github_broker.infrastructure.di_container import get_container
 from github_broker.interface.models import AgentTaskRequest, TaskResponse
@@ -15,21 +13,10 @@ def get_task_service() -> TaskService:
     return get_container().resolve(TaskService)
 
 
-app = FastAPI()
+router = APIRouter()
 
 
-@app.exception_handler(LockAcquisitionError)
-async def lock_acquisition_exception_handler(
-    request: Request, exc: LockAcquisitionError
-):
-    logger.error(f"Lock acquisition failed for request {request.url.path}: {exc}")
-    return JSONResponse(
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        content={"message": str(exc)},
-    )
-
-
-@app.post(
+@router.post(
     "/request-task",
     response_model=TaskResponse,
     responses={204: {"description": "No task available"}},
@@ -42,7 +29,6 @@ async def request_task_endpoint(
     task = task_service.request_task(
         agent_id=task_request.agent_id,
         agent_role=task_request.agent_role,
-        timeout=task_request.timeout,
     )
     if task:
         return task

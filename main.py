@@ -1,28 +1,70 @@
 import logging
-import multiprocessing
+import threading
+from contextlib import asynccontextmanager
 
 import uvicorn
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse
 
+from github_broker.application.exceptions import LockAcquisitionError
 from github_broker.application.task_service import TaskService
 from github_broker.infrastructure.config import Settings
 from github_broker.infrastructure.di_container import get_container
+from github_broker.interface.api import router as api_router
+
+logger = logging.getLogger(__name__)
+
+stop_event = threading.Event()
 
 
-def run_polling_service():
+def run_polling_service(stop_event: threading.Event):
     """バックグラウンドのポーリングサービスを初期化して実行します。"""
-    logging.info("Starting the GitHub Broker polling service...")
+    logger.info("Starting the GitHub Broker polling service...")
     container = get_container()
     task_service = container.resolve(TaskService)
-    logging.info(f"Target Repository: {task_service.repo_name}")
-    task_service.start_polling()
+    logger.info(f"Target Repository: {task_service.repo_name}")
+    task_service.start_polling(stop_event)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    logger.info("Uvicorn server starting up...")
+    polling_thread = threading.Thread(
+        target=run_polling_service, args=(stop_event,), name="PollingService"
+    )
+    polling_thread.start()
+    try:
+        yield
+    finally:
+        # Shutdown
+        logger.info("Uvicorn server shutting down...")
+        stop_event.set()
+        polling_thread.join()
+        logger.info("Polling service stopped.")
+
+
+app = FastAPI(lifespan=lifespan)
+app.include_router(api_router)
+
+
+@app.exception_handler(LockAcquisitionError)
+async def lock_acquisition_exception_handler(
+    request: Request, exc: LockAcquisitionError
+):
+    logger.error(f"Lock acquisition failed for request {request.url.path}: {exc}")
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={"message": str(exc)},
+    )
 
 
 def run_api_server():
     """Uvicorn APIサーバーを初期化して実行します。"""
     settings = Settings()
-    logging.info(f"Starting Uvicorn server on 0.0.0.0:{settings.BROKER_PORT}...")
+    logger.info(f"Starting Uvicorn server on 0.0.0.0:{settings.BROKER_PORT}...")
     uvicorn.run(
-        "github_broker.interface.api:app",
+        app,
         host="0.0.0.0",
         port=settings.BROKER_PORT,
         reload=False,  # 本番環境ではFalseに設定
@@ -31,25 +73,4 @@ def run_api_server():
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-
-    # 2つの別々のプロセスを作成します
-    polling_process = multiprocessing.Process(
-        target=run_polling_service, name="PollingService"
-    )
-    api_process = multiprocessing.Process(target=run_api_server, name="APIServer")
-
-    # 両方のプロセスを開始します
-    polling_process.start()
-    api_process.start()
-
-    try:
-        # 両方のプロセスが完了するのを待ちます
-        polling_process.join()
-        api_process.join()
-    except KeyboardInterrupt:
-        logging.info("シャットダウン中...")
-        polling_process.terminate()
-        api_process.terminate()
-        polling_process.join()
-        api_process.join()
-        logging.info("シャットダウン完了。")
+    run_api_server()

@@ -9,8 +9,9 @@ os.environ["TESTING"] = "true"
 
 from github_broker.application.exceptions import LockAcquisitionError
 from github_broker.application.task_service import TaskService
-from github_broker.interface.api import app, get_task_service
+from github_broker.interface.api import get_task_service
 from github_broker.interface.models import TaskResponse
+from main import app
 
 
 @pytest.fixture
@@ -44,7 +45,6 @@ def test_request_task_success(client, mock_task_service):
     request_body = {
         "agent_id": "test-agent",
         "agent_role": "BACKENDCODER",
-        "timeout": 120,
     }
 
     # Act
@@ -56,7 +56,6 @@ def test_request_task_success(client, mock_task_service):
     mock_task_service.request_task.assert_called_once_with(
         agent_id=request_body["agent_id"],
         agent_role=request_body["agent_role"],
-        timeout=request_body["timeout"],
     )
 
 
@@ -68,7 +67,6 @@ def test_request_task_no_task_available(client, mock_task_service):
     request_body = {
         "agent_id": "test-agent",
         "agent_role": "BACKENDCODER",
-        "timeout": 120,
     }
 
     # Act
@@ -79,7 +77,6 @@ def test_request_task_no_task_available(client, mock_task_service):
     mock_task_service.request_task.assert_called_once_with(
         agent_id=request_body["agent_id"],
         agent_role=request_body["agent_role"],
-        timeout=request_body["timeout"],
     )
 
 
@@ -92,7 +89,6 @@ def test_request_task_lock_error(client, mock_task_service):
     request_body = {
         "agent_id": "test-agent",
         "agent_role": "BACKENDCODER",
-        "timeout": 120,
     }
 
     # Act
@@ -104,5 +100,4 @@ def test_request_task_lock_error(client, mock_task_service):
     mock_task_service.request_task.assert_called_once_with(
         agent_id=request_body["agent_id"],
         agent_role=request_body["agent_role"],
-        timeout=request_body["timeout"],
     )
