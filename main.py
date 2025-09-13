@@ -9,7 +9,7 @@ from github_broker.infrastructure.di_container import get_container
 
 
 def run_polling_service():
-    """Initializes and runs the background polling service."""
+    """バックグラウンドのポーリングサービスを初期化して実行します。"""
     logging.info("Starting the GitHub Broker polling service...")
     container = get_container()
     task_service = container.resolve(TaskService)
@@ -18,28 +18,38 @@ def run_polling_service():
 
 
 def run_api_server():
-    """Initializes and runs the Uvicorn API server."""
+    """Uvicorn APIサーバーを初期化して実行します。"""
     settings = Settings()
     logging.info(f"Starting Uvicorn server on 0.0.0.0:{settings.BROKER_PORT}...")
     uvicorn.run(
         "github_broker.interface.api:app",
         host="0.0.0.0",
         port=settings.BROKER_PORT,
-        reload=False,  # Set to False for production
+        reload=False,  # 本番環境ではFalseに設定
     )
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
-    # Create two separate processes
-    polling_process = multiprocessing.Process(target=run_polling_service)
-    api_process = multiprocessing.Process(target=run_api_server)
+    # 2つの別々のプロセスを作成します
+    polling_process = multiprocessing.Process(
+        target=run_polling_service, name="PollingService"
+    )
+    api_process = multiprocessing.Process(target=run_api_server, name="APIServer")
 
-    # Start both processes
+    # 両方のプロセスを開始します
     polling_process.start()
     api_process.start()
 
-    # Wait for both processes to complete (they won't, in this case, but it's good practice)
-    polling_process.join()
-    api_process.join()
+    try:
+        # 両方のプロセスが完了するのを待ちます
+        polling_process.join()
+        api_process.join()
+    except KeyboardInterrupt:
+        logging.info("シャットダウン中...")
+        polling_process.terminate()
+        api_process.terminate()
+        polling_process.join()
+        api_process.join()
+        logging.info("シャットダウン完了。")
