@@ -2,7 +2,7 @@ import json
 import logging
 import threading
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from github import GithubException
 from pydantic import HttpUrl
@@ -73,7 +73,7 @@ class TaskService:
 
         logger.info("Polling stopped.")
 
-    def complete_previous_task(self, agent_id: str, all_issues: list[dict]):
+    def complete_previous_task(self, agent_id: str, all_issues: list[dict[str, Any]]):
         """
         前タスクの完了処理を行います。
         in-progressとagent_idラベルを持つIssueを検索し、それらのラベルを削除し、needs-reviewラベルを付与します。
@@ -214,7 +214,9 @@ class TaskService:
         logger.info("No assignable and unlocked issues found.")
         return None
 
-    def request_task(self, agent_id: str, agent_role: str) -> TaskResponse | None:
+    def request_task(
+        self, agent_id: str, agent_role: str, timeout: int | None = 120
+    ) -> TaskResponse | None:
         """
         エージェントの役割（role）に基づいて最適なIssueを探し、タスク情報を返します。
         利用可能なタスクがない場合、指定されたタイムアウト時間までタスクの出現を待ち続けます（ロングポーリング）。
