@@ -80,11 +80,12 @@ class TaskService:
         """
         logger.info(f"Completing previous task for agent: {agent_id}")
 
-        previous_issues = []
-        for issue in all_issues:
-            labels = {label.get("name") for label in issue.get("labels", [])}
-            if "in-progress" in labels and agent_id in labels:
-                previous_issues.append(issue)
+        previous_issues = [
+            issue
+            for issue in all_issues
+            if "in-progress" in {label.get("name") for label in issue.get("labels", [])}
+            and agent_id in {label.get("name") for label in issue.get("labels", [])}
+        ]
         if not previous_issues:
             logger.info("No in-progress issues found for this agent.")
             return
@@ -110,7 +111,11 @@ class TaskService:
         candidate_issues = []
         for issue in issues:
             labels = {label.get("name") for label in issue.get("labels", [])}
-            if agent_role in labels and "needs-review" not in labels:
+            if (
+                agent_role in labels
+                and "needs-review" not in labels
+                and "in-progress" not in labels
+            ):
                 candidate_issues.append(issue)
 
         if not candidate_issues:

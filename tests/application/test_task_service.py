@@ -128,7 +128,7 @@ def test_start_polling_caches_empty_list_when_no_issues(
 
 @pytest.mark.unit
 @patch("time.sleep", return_value=None)
-def test_request_task_selects_by_role(
+def test_request_task_selects_by_role_from_cache(
     mock_sleep, task_service, mock_redis_client, mock_github_client
 ):
     """エージェントの役割（role）に一致するラベルを持つIssueがキャッシュから選択されることをテストします。"""
