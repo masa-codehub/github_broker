@@ -60,6 +60,7 @@ def test_settings_uses_default_values():
     assert settings.REDIS_PORT == 6379
     assert settings.REDIS_DB == 0
     assert settings.TESTING is False
+    assert settings.POLLING_INTERVAL_SECONDS == 600
 
 
 def test_settings_raises_error_if_required_env_vars_missing():
