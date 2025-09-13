@@ -329,6 +329,88 @@ def test_find_first_assignable_task_create_branch_exception_releases_lock(
 
 
 @pytest.mark.unit
+@patch("time.sleep", return_value=None)
+def test_find_first_assignable_task_rollback_labels_on_branch_creation_failure(
+    mock_sleep, task_service, mock_github_client, mock_redis_client, caplog
+):
+    """
+    _find_first_assignable_task内でcreate_branchが例外を発生させた場合に、
+    付与されたラベルがロールバックされることをテストします。
+    """
+    # Arrange
+    issue = create_mock_issue(
+        number=1,
+        title="Test Task",
+        body="""
+## 成果物
+- test.py""",
+        labels=["BACKENDCODER"],
+    )
+    mock_redis_client.acquire_lock.return_value = True
+    mock_github_client.create_branch.side_effect = GithubException(
+        status=422, data="Branch already exists"
+    )
+
+    candidate_issues = [issue]
+    agent_id = "test-agent"
+
+    with caplog.at_level(logging.ERROR):
+        # Act & Assert
+        with pytest.raises(GithubException, match="Branch already exists"):
+            task_service._find_first_assignable_task(candidate_issues, agent_id)
+
+        # Assert
+        # ロックが解放されたことを確認
+        mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
+        # 付与されたラベルが削除されたことを確認
+        mock_github_client.update_issue.assert_called_once_with(
+            issue_id=issue["number"], remove_labels=["in-progress", agent_id]
+        )
+        mock_github_client.remove_label.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("time.sleep", return_value=None)
+def test_find_first_assignable_task_rollback_failure_logs_error(
+    mock_sleep, task_service, mock_github_client, mock_redis_client, caplog
+):
+    """
+    _find_first_assignable_task内でcreate_branchが例外を発生させ、
+    さらにラベルのロールバックも失敗した場合に、エラーがログに記録されることをテストします。
+    """
+    # Arrange
+    issue = create_mock_issue(
+        number=1,
+        title="Test Task",
+        body="""
+## 成果物
+- test.py""",
+        labels=["BACKENDCODER"],
+    )
+    mock_redis_client.acquire_lock.return_value = True
+    mock_github_client.create_branch.side_effect = GithubException(
+        status=422, data="Branch already exists"
+    )
+    mock_github_client.update_issue.side_effect = Exception("Rollback Error")
+
+    candidate_issues = [issue]
+    agent_id = "test-agent"
+
+    with caplog.at_level(logging.ERROR):
+        # Act & Assert
+        with pytest.raises(GithubException, match="Branch already exists"):
+            task_service._find_first_assignable_task(candidate_issues, agent_id)
+
+        # Assert
+        # ロックが解放されたことを確認
+        mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
+        # ロールバック処理自体でエラーが発生した場合もログに記録されることを確認
+        assert "Failed to rollback labels for issue #1: Rollback Error" in caplog.text
+        # update_issueが呼び出されたことを確認
+        mock_github_client.update_issue.assert_called_once()
+
+
+@pytest.mark.unit
 def test_find_first_assignable_task_skips_non_assignable(
     task_service, mock_redis_client
 ):

@@ -186,9 +186,24 @@ class TaskService:
                 )
             except Exception as e:
                 logger.error(
-                    f"Failed to process issue #{task.issue_id} after acquiring lock: {e}"
+                    f"Failed to process issue #{task.issue_id} after acquiring lock: {e}",
+                    exc_info=True,
                 )
-                self.redis_client.release_lock(lock_key)
+                try:
+                    self.github_client.update_issue(
+                        issue_id=task.issue_id,
+                        remove_labels=["in-progress", agent_id],
+                    )
+                    logger.info(
+                        f"Rolled back labels for issue #{task.issue_id}: removed 'in-progress' and '{agent_id}'."
+                    )
+                except Exception as rollback_e:
+                    logger.error(
+                        f"Failed to rollback labels for issue #{task.issue_id}: {rollback_e}",
+                        exc_info=True,
+                    )
+                finally:
+                    self.redis_client.release_lock(lock_key)
                 raise
 
         logger.info("No assignable and unlocked issues found.")
