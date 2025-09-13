@@ -73,16 +73,18 @@ class TaskService:
 
         logger.info("Polling stopped.")
 
-    def complete_previous_task(self, agent_id: str):
+    def complete_previous_task(self, agent_id: str, all_issues: list[dict]):
         """
         前タスクの完了処理を行います。
         in-progressとagent_idラベルを持つIssueを検索し、それらのラベルを削除し、needs-reviewラベルを付与します。
         """
-        assert self.repo_name is not None
         logger.info(f"Completing previous task for agent: {agent_id}")
-        previous_issues = self.github_client.find_issues_by_labels(
-            labels=["in-progress", agent_id]
-        )
+
+        previous_issues = []
+        for issue in all_issues:
+            labels = {label.get("name") for label in issue.get("labels", [])}
+            if "in-progress" in labels and agent_id in labels:
+                previous_issues.append(issue)
         if not previous_issues:
             logger.info("No in-progress issues found for this agent.")
             return
@@ -179,9 +181,7 @@ class TaskService:
         logger.info("No assignable and unlocked issues found.")
         return None
 
-    def request_task(
-        self, agent_id: str, agent_role: str, timeout: int | None = 120
-    ) -> TaskResponse | None:
+    def request_task(self, agent_id: str, agent_role: str) -> TaskResponse | None:
         """
         エージェントの役割（role）に基づいて最適なIssueを探し、タスク情報を返します。
         利用可能なタスクがない場合、指定されたタイムアウト時間までタスクの出現を待ち続けます（ロングポーリング）。
@@ -195,31 +195,34 @@ class TaskService:
         Returns:
             TaskResponse | None: 見つかったタスクの情報。タイムアウトした場合はNoneを返します。
         """
-        self.complete_previous_task(agent_id)
+        cached_issues_json = self.redis_client.get_value(OPEN_ISSUES_CACHE_KEY)
 
-        time.sleep(self.github_indexing_wait_seconds)
+        if not cached_issues_json:
+            logger.warning("No issues found in Redis cache.")
+            return None
 
-        polling_timeout = timeout if timeout is not None else 0
-        end_time = time.time() + polling_timeout
-
-        while True:
-            logger.info(f"Searching for open issues in repository: {self.repo_name}")
-            all_issues = self.github_client.get_open_issues()
-            if all_issues:
-                candidate_issues = self._find_candidates_by_role(all_issues, agent_role)
-                if candidate_issues:
-                    task = self._find_first_assignable_task(candidate_issues, agent_id)
-                    if task:
-                        return task  # Task found, return immediately
-
-            if time.time() >= end_time:
-                break  # Timeout reached
-
-            sleep_interval = 5
-            logger.info(
-                f"No assignable task found. Retrying in {sleep_interval} seconds..."
+        try:
+            all_issues = json.loads(cached_issues_json)
+        except json.JSONDecodeError:
+            logger.error(
+                "Failed to decode issues from Redis cache. The cache might be corrupted.",
+                exc_info=True,
             )
-            time.sleep(sleep_interval)
+            return None
+        self.complete_previous_task(agent_id, all_issues)
 
-        logger.info("Timeout reached. No assignable task found.")
+        candidate_issues = self._find_candidates_by_role(all_issues, agent_role)
+        if candidate_issues:
+            logger.info(
+                f"Found {len(candidate_issues)} candidate issues for role '{agent_role}'."
+            )
+            task = self._find_first_assignable_task(candidate_issues, agent_id)
+            if task:
+                return task
+        else:
+            logger.info(
+                f"No candidate issues found for role '{agent_role}' in cached issues."
+            )
+
+        logger.info("No assignable task found from cached issues.")
         return None
