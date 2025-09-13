@@ -96,14 +96,29 @@ class TaskService:
             remove_labels = ["in-progress", agent_id]
             add_labels = ["needs-review"]
 
-            self.github_client.update_issue(
-                issue_id=issue["number"],
-                remove_labels=remove_labels,
-                add_labels=add_labels,
-            )
-            logger.info(
-                f"Updated labels for issue #{issue['number']}: removed {remove_labels}, added {add_labels}."
-            )
+            try:
+                self.github_client.update_issue(
+                    issue_id=issue["number"],
+                    remove_labels=remove_labels,
+                    add_labels=add_labels,
+                )
+                logger.info(
+                    f"Updated labels for issue #{issue["number"]}: removed {remove_labels}, added {add_labels}."
+                )
+            except GithubException as e:
+                logger.error(
+                    f"Failed to update issue #{issue["number"]} for agent {agent_id}: {e}",
+                    exc_info=True,
+                )
+                # エラーが発生してもループを中断せず、次のIssueの処理に進む
+                continue
+            except Exception as e:
+                logger.error(
+                    f"An unexpected error occurred while updating issue #{issue["number"]} for agent {agent_id}: {e}",
+                    exc_info=True,
+                )
+                # 予期せぬエラーが発生してもループを中断せず、次のIssueの処理に進む
+                continue
 
     def _find_candidates_by_role(self, issues: list, agent_role: str) -> list:
         """指定された役割（role）ラベルを持つIssueをフィルタリングします。"""
