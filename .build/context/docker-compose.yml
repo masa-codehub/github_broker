@@ -7,7 +7,7 @@ services:
     volumes:
       - ./${AGENT_NAME}:${CONTAINER_VOLUME:-/app}
       - ./messages:${MESSAGE_DIR:-/app/messages}
-      - gemini_config:${HOME:-/root}/.gemini
+      - gemini_config:${ROOT:-/root}/.gemini
     secrets:
       - gcp_access_key
     working_dir: ${CONTAINER_VOLUME:-/app}
@@ -59,6 +59,7 @@ services:
 
 volumes:
   gemini_config:
+    name: gemini_config
   
 secrets:
   gcp_access_key:
