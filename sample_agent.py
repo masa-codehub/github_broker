@@ -52,10 +52,9 @@ if __name__ == "__main__":
                 logging.info("タスクの実行プロセスが完了しました。")
                 time.sleep(5)  # 短い待機時間
             else:
-                logging.info("利用可能なタスクがありません。30秒後に再試行します。")
-                time.sleep(30)
-                break
+                logging.info("利用可能なタスクがありません。30分後に再試行します。")
+                time.sleep(1800)  # 30分待機
 
         except Exception as e:
-            logging.error(f"エラーが発生しました: {e}。60秒後に再試行します...")
-            time.sleep(60)
+            logging.error(f"エラーが発生しました: {e}。60分後に再試行します...")
+            time.sleep(3600)  # 60分待機
