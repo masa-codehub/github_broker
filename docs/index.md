@@ -12,8 +12,6 @@
 *   [DIコンテナ](./architecture/di-container.md)
 *   [運用・デプロイ要件](./architecture/operational-requirements.md)
 *   [Redisスキーマ](./architecture/redis-schema.md)
-*   [Webhookアーキテクチャ](./architecture/webhook-based-architecture.md)
-
 ## 2. 開発者向けガイド
 
 開発を始めるために必要な手順や、知っておくべきワークフローについて説明します。
