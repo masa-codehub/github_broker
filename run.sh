@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# GitHub CLIの認証設定
+gh auth setup-git
+
 # GCP認証設定スクリプトの実行
 bash ./.build/setup_gemini_auth.sh
 
