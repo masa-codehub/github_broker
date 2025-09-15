@@ -50,9 +50,7 @@ test = [
     "httpx",
 ]
 dev = [
-    "black",         # コードフォーマッター
-    "isort",         # importソート
-    "ruff==0.13.0",          # 高速リンター
+    "ruff==0.13.0",          # 高速なリンター兼フォーマッター
     "mypy==1.10.1",          # 型チェッカー
     "pytest",
     "pytest-cov",
