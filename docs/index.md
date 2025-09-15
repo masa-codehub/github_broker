@@ -12,7 +12,7 @@
 *   [DIコンテナ](./architecture/di-container.md)
 *   [運用・デプロイ要件](./architecture/operational-requirements.md)
 *   [Redisスキーマ](./architecture/redis-schema.md)
-*   [Webhookアーキテクチャ](./architecture/webhook-based-architecture.md)
+
 
 ## 2. 開発者向けガイド
 
