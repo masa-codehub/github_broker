@@ -52,7 +52,7 @@ test = [
 dev = [
     "black",         # コードフォーマッター
     "isort",         # importソート
-    "ruff==0.5.0",          # 高速リンター
+    "ruff==0.13.0",          # 高速リンター
     "mypy==1.10.1",          # 型チェッカー
     "pytest",
     "pytest-cov",
