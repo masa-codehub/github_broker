@@ -104,17 +104,26 @@ class TaskService:
                     add_labels=add_labels,
                 )
                 logger.info(
-                    f"Updated labels for issue #{issue["number"]}: removed {remove_labels}, added {add_labels}."
+                    "Updated labels for issue #%s: removed %s, added %s.",
+                    issue["number"],
+                    remove_labels,
+                    add_labels,
                 )
             except GithubException as e:
                 logger.error(
-                    f"Failed to update issue #{issue["number"]} for agent {agent_id}: {e}",
+                    "Failed to update issue #%s for agent %s: %s",
+                    issue["number"],
+                    agent_id,
+                    e,
                     exc_info=True,
                 )
                 # エラーが発生してもループを中断せず、次のIssueの処理に進む
             except Exception as e:
                 logger.error(
-                    f"An unexpected error occurred while updating issue #{issue["number"]} for agent {agent_id}: {e}",
+                    "An unexpected error occurred while updating issue #%s for agent %s: %s",
+                    issue["number"],
+                    agent_id,
+                    e,
                     exc_info=True,
                 )
                 # 予期せぬエラーが発生してもループを中断せず、次のIssueの処理に進む
