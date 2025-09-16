@@ -81,6 +81,7 @@ class TaskService:
         logger.info(f"Completing previous task for agent: {agent_id}")
 
         previous_issue_id: int | None = None
+        previous_issues_to_complete: list[dict[str, Any]] = []
         previous_issue_id_from_redis = self.redis_client.get_value(
             f"agent_current_task:{agent_id}"
         )
@@ -126,11 +127,12 @@ class TaskService:
                 for issue in all_issues
                 if "in-progress"
                 in {label.get("name") for label in issue.get("labels", [])}
-                and agent_id
-                in {label.get("name") for label in issue.get("labels", [])}
+                and agent_id in {label.get("name") for label in issue.get("labels", [])}
             ]
             if not previous_issues_to_complete:
-                logger.info("No in-progress issues found for this agent via GitHub search.")
+                logger.info(
+                    "No in-progress issues found for this agent via GitHub search."
+                )
                 return
 
         for issue in previous_issues_to_complete:
@@ -152,9 +154,7 @@ class TaskService:
                 # Redisから取得したIssueを完了した場合のみ、Redisのキーを削除
                 if previous_issue_id and issue.get("number") == previous_issue_id:
                     self.redis_client.delete_key(f"agent_current_task:{agent_id}")
-                    logger.info(
-                        f"Removed agent_current_task:{agent_id} from Redis."
-                    )
+                    logger.info(f"Removed agent_current_task:{agent_id} from Redis.")
             except GithubException as e:
                 logger.error(
                     "Failed to update issue #%s for agent %s: %s",
@@ -308,7 +308,7 @@ class TaskService:
             if task:
                 # Redisに現在のタスク情報を保存
                 self.redis_client.set_value(
-                    f"agent_current_task:{agent_id}", str(task.issue_id), ex=3600
+                    f"agent_current_task:{agent_id}", str(task.issue_id), timeout=3600
                 )
                 logger.info(
                     f"Stored current task issue #{task.issue_id} for agent {agent_id} in Redis."
