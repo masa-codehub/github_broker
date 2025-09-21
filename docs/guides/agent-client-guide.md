@@ -99,6 +99,4 @@ except Exception as e:
 `request_task`が成功した場合に返される`dict`オブジェクトは、主に以下のキーを持ちます。
 
 - `prompt` (str): エージェントが実行すべきコマンドを含むプロンプト
-- `issue_url` (str): IssueへのリンクURL
-- `labels` (list[str]): Issueに付与されているラベルのリスト
-- `branch_name` (str): 作業用に作成されたブランチ名
+
