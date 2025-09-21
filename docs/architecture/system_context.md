@@ -37,6 +37,7 @@ graph TD
         Workers["ワーカー・エージェント群 (クライアント)"]
         GitHub["GitHub (データストア)"]
         Redis["Redis (キャッシュ / 分散ロック)"]
+        Gemini["Gemini (LLM)"]
     end
 
     subgraph "私たちが作るシステム (Internal System)"
@@ -50,7 +51,7 @@ graph TD
     %% システム間の連携
     Human -- "Issue作成 / PRマージ" --> GitHub
     Workers -- "タスク要求 (APIリクエスト)" --> ApiServer
-    ApiServer -- "タスク割り当て (APIレスポンス)" --> Workers
+    ApiServer -- "プロンプト生成 & タスク割り当て (APIレスポンス)" --> Workers
 
     PollingService -- "定期的にIssueを取得" --> GitHub
     PollingService -- "Issueをキャッシュ" --> Redis
@@ -58,6 +59,7 @@ graph TD
     ApiServer -- "キャッシュからIssueを取得" --> Redis
     ApiServer -- "Lock / Unlock" --> Redis
     ApiServer -- "Issueラベル更新 / ブランチ作成" --> GitHub
+    ApiServer -- "プロンプト生成" --> Gemini
 ```
 
 ----
@@ -84,10 +86,23 @@ graph TD
           "title": "Fix login button color",
           "body": "The login button should be blue, not red...",
           "labels": ["bug", "ui"],
-          "branch_name": "bugfix/issue-123"
+          "branch_name": "bugfix/issue-123",
+          "prompt": "You are an AI assistant. Your task is to fix the login button color..."
         }
         ```
       * **成功 (204 No Content):** 割り当てるべき適切なタスクが見つからなかった場合。ボディは空。
+
+#### 4.1. 責務の明確化 (サーバーサイドプロンプト生成)
+
+本アーキテクチャ変更により、プロンプト生成の責務はサーバー側に一元化されます。これにより、クライアントはプロンプト生成ロジックを持つ必要がなくなり、環境依存の問題が解消され、保守性が向上します。
+
+*   **サーバーの責務:**
+    *   Issueの内容、エージェントの役割、過去の対話履歴などに基づき、最適なプロンプト文字列を動的に生成する。
+    *   生成したプロンプトを `/request-task` APIのレスポンスとしてクライアントに提供する。
+
+*   **クライアントの責務:**
+    *   サーバーから受け取ったプロンプト文字列をそのままLLMに渡し、タスクを実行する。
+    *   プロンプト生成ロジックを持たず、サーバーからの指示に従って動作するシンクライアントとして機能する。
 
 ----
 
