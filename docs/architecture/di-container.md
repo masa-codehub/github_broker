@@ -61,7 +61,7 @@ container.register(
 2.  **登録:** `container.register()` を使って、新しいクラスをコンテナに登録します。多くの場合、ライフサイクルは `scope=punq.Scope.singleton` となります。
 3.  **依存の注入:** 新しいクラスが他のコンポーネントに依存している場合は、`container.resolve()` を使って依存性を解決し、コンストラクタに渡します。
 
-### 例: `NewApiClient` を追加する場合
+### 例: `GeminiExecutor` を追加する場合
 
 ```python
 # 1. GeminiExecutorをインポート
