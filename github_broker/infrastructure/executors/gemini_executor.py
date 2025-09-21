@@ -37,7 +37,6 @@ class GeminiExecutor:
             with open(prompt_file, encoding="utf-8") as f:
                 prompts = yaml.safe_load(f)
             self.build_prompt_template = prompts["build_prompt"]
-            self.build_prompt_template = prompts["build_prompt"]
         except (FileNotFoundError, KeyError) as e:
             logging.error(f"プロンプトファイルの読み込みまたは解析に失敗しました: {e}")
             # フォールバックとして空のテンプレートを設定
