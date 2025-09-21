@@ -67,10 +67,40 @@ pre-commit install
 
 ### 4. 必要なツール
 
-開発には以下のツールが必要です。事前にインストールしておいてください。
+開発には以下のツールが必要です。事前にインストールし、最小バージョン要件を満たしていることを確認してください。
 
--   **Docker**: コンテナ化されたサービス（例: Redis）を実行するために必要です。
--   **gh CLI**: GitHub CLIツール。Issueの管理やPull Requestの操作に便利です。
+#### Docker
+- **用途**: コンテナ化されたサービス（例: Redis）を実行するために必要です。
+- **最小バージョン**: 20.10.0 以上
+- **インストール方法**:
+    - **Windows/macOS**: [公式ダウンロードページ](https://www.docker.com/products/docker-desktop)からDocker Desktopをインストールしてください。
+    - **Linux**: 以下のコマンドを実行してください（詳細は[公式ドキュメント](https://docs.docker.com/engine/install/)参照）。
+        ```bash
+        curl -fsSL https://get.docker.com -o get-docker.sh
+        sudo sh get-docker.sh
+        ```
+- インストール後、バージョンを確認してください:
+    ```bash
+    docker --version
+    ```
+
+#### gh CLI (GitHub CLI)
+- **用途**: GitHub上でIssueの管理やPull Requestの操作に便利です。
+- **最小バージョン**: 2.0.0 以上
+- **インストール方法**:
+    - **Windows/macOS**: [公式ダウンロードページ](https://cli.github.com/)からインストーラーをダウンロードしてください。
+    - **Homebrew (macOS/Linux)**:
+        ```bash
+        brew install gh
+        ```
+    - **Linux (apt)**:
+        ```bash
+        sudo apt install gh
+        ```
+- インストール後、バージョンを確認してください:
+    ```bash
+    gh --version
+    ```
 
 ---
 

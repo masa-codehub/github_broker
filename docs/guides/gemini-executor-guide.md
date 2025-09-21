@@ -21,11 +21,10 @@
 `GeminiExecutor`は、`log_dir`、`model`、`prompt_file`の各引数で初期化できます。`GEMINI_API_KEY`は環境変数から自動的に読み込まれます。
 
 ```python
-import os
 from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
 
 # 環境変数 GEMINI_API_KEY が設定されている必要がある
-# ログディレクトリは任意で指定
+# ログディレクトリは任意で指定可能
 log_directory = "/app/logs/gemini_executor"
 executor = GeminiExecutor(
     log_dir=log_directory,
@@ -41,15 +40,7 @@ executor = GeminiExecutor(
 #### コード例
 
 ```python
-from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
-
 # Executorの初期化（上記参照）
-log_directory = "/app/logs/gemini_executor"
-executor = GeminiExecutor(
-    log_dir=log_directory,
-    model="gemini-1.5-flash",
-    prompt_file="github_broker/infrastructure/prompts/gemini_executor.yml"
-)
 
 # 実行するタスクの例
 # このタスクは、TaskServiceなどによって生成され、Executorに渡されることを想定しています。
@@ -57,7 +48,7 @@ task_to_execute = {
     "agent_id": "CODER_AGENT_1",
     "issue_id": 123,
     "title": "README.md のタイポを修正",
-    "body": "README.md ファイルに 'typpo' というタイポがあります。これを 'typo' に修正してください。",
+    "body": "README.md ファイルに「例：'typpo' → 'typo'」というタイポがあります。これを修正してください。",
     "branch_name": "fix/readme-typo-123"
 }
 
