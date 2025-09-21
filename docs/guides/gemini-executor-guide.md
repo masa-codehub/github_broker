@@ -4,84 +4,65 @@
 
 このドキュメントは、`github-broker`ライブラリに含まれる`GeminiExecutor`クラスの利用方法を説明するガイドです。
 
-`GeminiExecutor`は、与えられたIssueリストに基づき、GoogleのGemini APIを利用して最適なIssueを選択するためのユーティリティです。これは、エージェントの役割（Role）に合致するタスクが複数存在する場合の、優先順位付けロジックとして利用できます。
+`GeminiExecutor`は、サーバーサイドで動作するコンポーネントであり、特定のタスク（Issueの解決など）を実行するためにGoogleのGemini CLIツールを呼び出します。このExecutorは、与えられたタスク情報に基づいてGemini CLIに渡すプロンプトを生成し、その実行を管理します。これにより、エージェントがGitHubのIssueを解決するプロセスを自動化・効率化します。
 
-## 2. インストール
-
-本ライブラリは、GitHubリポジトリから直接pipを使用してインストールします。
-
-```bash
-pip install git+https://github.com/masa-codehub/github_broker.git
-```
-
-依存関係は`pyproject.toml`に定義されており、上記コマンドで自動的にインストールされます。
-
-## 3. 設定
+## 2. 設定
 
 `GeminiExecutor`を利用するには、以下の環境変数の設定が必須です。
 
-- **`GEMINI_API_KEY`**: `GeminiExecutor`がGemini APIと通信するために使用します。ご自身のAPIキーを設定してください。
+- **`GEMINI_API_KEY`**: `GeminiExecutor`がGemini APIと通信するために使用します。サーバー環境に設定してください。
 
-```bash
-export GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
-```
+また、`GeminiExecutor`はプロンプトテンプレートをYAMLファイルから読み込みます。デフォルトのパスは`github_broker/infrastructure/prompts/gemini_executor.yml`です。このファイルを変更することで、プロンプトの挙動をカスタマイズできます。
 
-## 4. `GeminiExecutor` の利用方法
+## 3. `GeminiExecutor` の利用方法
 
-### 4.1. 初期化
+### 3.1. 初期化
 
-`GeminiExecutor`は、環境変数 `GEMINI_API_KEY` が設定されていれば、引数なしで初期化できます。
+`GeminiExecutor`は、`log_dir`、`model`、`prompt_file`の各引数で初期化できます。`GEMINI_API_KEY`は環境変数から自動的に読み込まれます。
 
 ```python
+import os
 from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
 
 # 環境変数 GEMINI_API_KEY が設定されている必要がある
-executor = GeminiExecutor()
+# ログディレクトリは任意で指定
+log_directory = "/app/logs/gemini_executor"
+executor = GeminiExecutor(
+    log_dir=log_directory,
+    model="gemini-1.5-flash", # 使用するGeminiモデル
+    prompt_file="github_broker/infrastructure/prompts/gemini_executor.yml" # プロンプトテンプレートのパス
+)
 ```
 
-### 4.2. 最適なIssueの選択
+### 3.2. タスクの実行
 
-`select_best_issue`メソッドに、Issueのリストを渡すことで、最適と判断されたIssueのID（`int`）が返されます。
-
-- **`issues`**: `dict`のリスト。各`dict`は`id`, `title`, `body`, `labels`のキーを持つ必要があります。
-
-Gemini APIとの通信に失敗した場合、このメソッドはフォールバックとしてリストの最初のIssueのIDを返します。
+`execute`メソッドに、タスクの詳細を含む辞書を渡すことで、Gemini CLIツールが実行されます。この辞書には、プロンプト生成に必要な`issue_id`, `title`, `body`, `branch_name`などの情報が含まれている必要があります。
 
 #### コード例
 
 ```python
 from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
 
-# Issue候補のリストを作成（役割によるフィルタリングは完了済みと仮定）
-candidate_issues = [
-    {
-        "id": 101,
-        "title": "UIのボタンの色を修正する",
-        "body": "ログインボタンの色が赤すぎるので、青色に変更してください。",
-        "labels": ["bug", "ui", "css", "CODER"]
-    },
-    {
-        "id": 102,
-        "title": "APIのパフォーマンスを改善する",
-        "body": "ユーザープロファイルの取得APIが遅い。N+1問題を解決する必要がある。",
-        "labels": ["performance", "backend", "python", "CODER"]
-    }
-]
-
-# Executorの初期化
-executor = GeminiExecutor()
-
-# 最適なIssueを選択
-selected_id = executor.select_best_issue(
-    issues=candidate_issues
+# Executorの初期化（上記参照）
+log_directory = "/app/logs/gemini_executor"
+executor = GeminiExecutor(
+    log_dir=log_directory,
+    model="gemini-1.5-flash",
+    prompt_file="github_broker/infrastructure/prompts/gemini_executor.yml"
 )
 
-if selected_id is not None:
-    print(f"選択されたIssue ID: {selected_id}")
-    # 選択されたIssueを取得
-    selected_issue = next((issue for issue in candidate_issues if issue['id'] == selected_id), None)
-    print(f"選択されたIssueのタイトル: {selected_issue['title']}")
-else:
-    print("最適なIssueが見つかりませんでした。")
+# 実行するタスクの例
+# このタスクは、TaskServiceなどによって生成され、Executorに渡されることを想定しています。
+task_to_execute = {
+    "agent_id": "CODER_AGENT_1",
+    "issue_id": 123,
+    "title": "README.md のタイポを修正",
+    "body": "README.md ファイルに 'typpo' というタイポがあります。これを 'typo' に修正してください。",
+    "branch_name": "fix/readme-typo-123"
+}
 
+# タスクを実行
+executor.execute(task=task_to_execute)
+
+print(f"タスク (Issue ID: {task_to_execute['issue_id']}) の実行が開始されました。詳細はログディレクトリ ({log_directory}) を確認してください。")
 ```
