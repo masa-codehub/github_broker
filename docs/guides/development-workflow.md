@@ -32,6 +32,48 @@ graph TD
 
 ---
 
+## 開発環境のセットアップ
+
+開発を始める前に、以下の手順で開発環境をセットアップしてください。
+
+### 1. リポジトリのクローン
+
+まず、プロジェクトのリポジトリをローカルにクローンします。
+
+```bash
+git clone https://github.com/masa-codehub/github_broker.git
+cd github_broker
+```
+
+### 2. Python 依存関係のインストール
+
+プロジェクトのPython依存関係をインストールし、開発モードでパッケージをセットアップします。`run.sh` スクリプトを使用するか、`pip install -e .` を直接実行してください。
+
+```bash
+# run.sh を使用する場合
+./run.sh install
+
+# または、直接 pip を使用する場合
+pip install -e .
+```
+
+### 3. pre-commit フックの有効化
+
+コミット前にコードの品質チェックを自動的に行うために、pre-commit フックを有効にします。
+
+```bash
+pre-commit install
+```
+
+### 4. 必要なツール
+
+開発には以下のツールが必要です。事前にインストールしておいてください。
+
+-   **Docker**: コンテナ化されたサービス（例: Redis）を実行するために必要です。
+-   **gh CLI**: GitHub CLIツール。Issueの管理やPull Requestの操作に便利です。
+
+---
+
 ## 各フェーズと担当エージェントの責任
 
 ### フェーズ0: 戦略と課題起票 (`STRATEGIST`)
