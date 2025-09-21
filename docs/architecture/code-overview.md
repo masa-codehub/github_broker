@@ -62,7 +62,7 @@ github_broker/
         -   `LockAcquisitionError`: タスクのロック取得に失敗した場合に発生する例外。
 
 -   **`github_broker/application/task_service.py`**
-    -   **概要**: GitHub Issueの管理、タスクのアサイン、ブランチの作成、**およびプロンプト生成**など、アプリケーションの主要なビジネスロジックを担うサービスです。インフラストラクチャ層のクライアント（Redis, GitHub, Gemini）をDIで受け取ります。
+    -   **概要**: GitHub Issueの管理、タスクのアサイン、ブランチの作成、**そしてサーバーサイドでのプロンプト生成**など、アプリケーションの主要なビジネスロジックを担うサービスです。インフラストラクチャ層のクライアント（Redis, GitHub, Gemini）をDIで受け取ります。
     -   **主要なクラス/関数**:
         -   `TaskService`:
             -   `__init__()`: RedisClient, GitHubClient, GeminiClientをDIで受け取り初期化します。
@@ -136,14 +136,14 @@ github_broker/
             -   `delete_key()`: Redisからキーを削除します。
 
 -   **`github_broker/infrastructure/agent/client.py`**
-    -   **概要**: GitHubタスクブローカーサーバーとHTTP経由で通信するためのクライアントです。**プロンプト生成には関与せず、サーバーから受け取ったタスクを実行するシンプルな役割を担います。**
+    -   **概要**: GitHubタスクブローカーサーバーとHTTP経由で通信するためのクライアントです。**プロンプト生成ロジックには関与せず、サーバーから受け取ったタスクを実行するシンプルな役割を担います。**
     -   **主要なクラス/関数**:
         -   `AgentClient`:
             -   `__init__()`: エージェントID, 役割, サーバーホスト, ポートを設定し初期化します。
             -   `request_task()`: サーバーに新しいタスクをリクエストします。
 
 -   **`github_broker/infrastructure/executors/gemini_executor.py`**
-    -   **概要**: **サーバーサイドでプロンプト生成ロジックを担うコンポーネントです。** `gemini`コマンドラインツールを使用してタスクを実行するExecutorです。単一フェーズでタスクを実行し、ログの記録も行います。
+    -   **概要**: **サーバーサイドでのプロンプト生成ロジックを担う主要なコンポーネントです。** `gemini`コマンドラインツールを使用してタスクを実行するExecutorです。単一フェーズでタスクを実行し、ログの記録も行います。
     -   **主要なクラス/関数**:
         -   `GeminiExecutor`:
             -   `__init__()`: ログディレクトリとGeminiモデルを設定し初期化します。
