@@ -40,6 +40,7 @@ def test_request_task_success(client, mock_task_service):
         body="これはテストIssueです。",
         labels=["bug"],
         branch_name="feature/issue-123-test",
+        prompt="これはテストプロンプトです。",
     )
     mock_task_service.request_task.return_value = expected_task
     request_body = {
