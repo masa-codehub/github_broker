@@ -61,7 +61,7 @@ client = AgentClient(
 
 `request_task`は、サーバーの応答に応じて以下の結果を返します。
 
-1.  **タスクが正常に割り当てられた場合**: タスク情報を含む`dict`（辞書）を返します。
+1.  **タスクが正常に割り当てられた場合**: タスク情報を含む`dict`（辞書）を返します。この辞書には、エージェントが実行すべきコマンドを含む`prompt`フィールドが含まれます。
 2.  **割り当てるべきタスクがない場合**: `None`を返します。
 3.  **サーバーへの接続に失敗した場合、またはタイムアウトした場合**: `None`を返し、エラーログが出力されます。
 
@@ -79,11 +79,9 @@ try:
 
     if task:
         print("新しいタスクが割り当てられました！")
-        print(f"  Issue ID: {task.get('issue_id')}")
-        print(f"  タイトル: {task.get('title')}")
-        print(f"  URL: {task.get('issue_url')}")
-        print(f"  ブランチ名: {task.get('branch_name')}")
-        # ここにタスクを処理するロジックを実装
+        print(f"  実行プロンプト: {task.get('prompt')}")
+        # ここにプロンプトを使ってコマンドを実行するロジックを実装
+        # 例: subprocess.run(task.get('prompt'), shell=True)
         # ...
 
     else:
@@ -100,9 +98,7 @@ except Exception as e:
 
 `request_task`が成功した場合に返される`dict`オブジェクトは、主に以下のキーを持ちます。
 
-- `issue_id` (int): GitHub Issueの番号
+- `prompt` (str): エージェントが実行すべきコマンドを含むプロンプト
 - `issue_url` (str): IssueへのリンクURL
-- `title` (str): Issueのタイトル
-- `body` (str | None): Issueの本文
 - `labels` (list[str]): Issueに付与されているラベルのリスト
 - `branch_name` (str): 作業用に作成されたブランチ名
