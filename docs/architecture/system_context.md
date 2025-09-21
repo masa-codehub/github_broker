@@ -87,7 +87,7 @@ graph TD
           "body": "The login button should be blue, not red...",
           "labels": ["bug", "ui"],
           "branch_name": "bugfix/issue-123",
-          "prompt": "You are an AI assistant. Your task is to fix the login button color..."
+          "prompt": "[具体的なプロンプト内容]"
         }
         ```
       * **成功 (204 No Content):** 割り当てるべき適切なタスクが見つからなかった場合。ボディは空。
