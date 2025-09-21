@@ -4,6 +4,7 @@ import threading
 import time
 from typing import TYPE_CHECKING, Any
 
+import yaml
 from github import GithubException
 from pydantic import HttpUrl
 from redis.exceptions import RedisError
@@ -37,6 +38,11 @@ class TaskService:
         self.repo_name = settings.GITHUB_REPOSITORY
         self.github_indexing_wait_seconds = settings.GITHUB_INDEXING_WAIT_SECONDS
         self.polling_interval_seconds = settings.POLLING_INTERVAL_SECONDS
+
+        # プロンプトテンプレートを読み込む
+        with open("github_broker/infrastructure/prompts/gemini_executor.yml") as f:
+            prompts = yaml.safe_load(f)
+        self.prompt_template = prompts["build_prompt"]
 
     def start_polling(self, stop_event: "threading.Event | None" = None):
         """
@@ -234,6 +240,13 @@ class TaskService:
 
                 self.github_client.create_branch(branch_name)
 
+                prompt = self.prompt_template.format(
+                    issue_id=task.issue_id,
+                    title=task.title,
+                    body=task.body,
+                    branch_name=branch_name,
+                )
+
                 return TaskResponse(
                     issue_id=task.issue_id,
                     issue_url=HttpUrl(task.html_url),
@@ -241,6 +254,7 @@ class TaskService:
                     body=task.body,
                     labels=task.labels,
                     branch_name=branch_name,
+                    prompt=prompt,
                 )
             except Exception as e:
                 logger.error(
