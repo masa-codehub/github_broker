@@ -80,10 +80,11 @@ try:
     if task:
         print("新しいタスクが割り当てられました！")
         print(f"  実行プロンプト: {task.get('prompt')}")
-        # ここにプロンプトを使ってコマンドを実行するロジックを実装
-        # ⚠️ セキュリティ警告: 直接 subprocess.run() でプロンプト内容を shell=True で実行するのは非常に危険です。
-        # 必ず入力の検証・サニタイズを行うか、shell=True を避けてください。悪意のあるコマンドが実行される可能性があります。
-        # ...
+        # 例: プロンプトを安全に実行する
+        import shlex
+        import subprocess
+        command_parts = shlex.split(task.get('prompt'))
+        subprocess.run(command_parts, check=True)
 
     else:
         print("現在、割り当て可能なタスクはありません。")
@@ -106,4 +107,3 @@ except Exception as e:
 - `labels` (list[str]): Issueに付与されているラベルのリスト
 - `branch_name` (str): 作業用に作成されたブランチ名
 - `prompt` (str): エージェントが実行すべきコマンドを含むプロンプト
-
