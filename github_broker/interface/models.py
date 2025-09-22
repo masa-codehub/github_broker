@@ -17,3 +17,4 @@ class TaskResponse(BaseModel):
     body: str
     labels: list[str]
     branch_name: str
+    prompt: str

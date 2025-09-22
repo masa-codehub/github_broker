@@ -1,7 +1,7 @@
 import json
 import logging
 import threading
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from github import GithubException
@@ -150,19 +150,23 @@ def test_request_task_selects_by_role_from_cache(
         labels=["feature", "BACKENDCODER"],
     )
     cached_issues = [issue1, issue2]
-    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
+    # 1回目はOPEN_ISSUES_CACHE_KEY、2回目はagent_current_task:{agent_id}で呼ばれる
+    mock_redis_client.get_value.side_effect = [json.dumps(cached_issues), None]
     mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = True
 
+    agent_id = "test-agent"
     agent_role = "BACKENDCODER"
 
     # Act
-    result = task_service.request_task(agent_id="test-agent", agent_role=agent_role)
+    result = task_service.request_task(agent_id=agent_id, agent_role=agent_role)
 
     # Assert
     assert result is not None
     assert result.issue_id == 2
-    mock_redis_client.get_value.assert_called_once_with(OPEN_ISSUES_CACHE_KEY)
+    mock_redis_client.get_value.assert_has_calls(
+        [call(OPEN_ISSUES_CACHE_KEY), call(f"agent_current_task:{agent_id}")]
+    )
     mock_redis_client.acquire_lock.assert_called_once_with(
         "issue_lock_2", "locked", timeout=600
     )
@@ -179,16 +183,20 @@ def test_request_task_no_matching_issue(
         number=1, title="Docs", body="", labels=["documentation"]
     )
     cached_issues = [issue1]
-    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
+    # 1回目はOPEN_ISSUES_CACHE_KEY、2回目はagent_current_task:{agent_id}で呼ばれる
+    mock_redis_client.get_value.side_effect = [json.dumps(cached_issues), None]
     mock_github_client.find_issues_by_labels.return_value = []
+    agent_id = "test-agent"
     agent_role = "BACKENDCODER"
 
     # Act
-    result = task_service.request_task(agent_id="test-agent", agent_role=agent_role)
+    result = task_service.request_task(agent_id=agent_id, agent_role=agent_role)
 
     # Assert
     assert result is None
-    mock_redis_client.get_value.assert_called_once_with(OPEN_ISSUES_CACHE_KEY)
+    mock_redis_client.get_value.assert_has_calls(
+        [call(OPEN_ISSUES_CACHE_KEY), call(f"agent_current_task:{agent_id}")]
+    )
 
 
 @pytest.mark.unit
@@ -610,3 +618,110 @@ def test_complete_previous_task_handles_exceptions(
         # 新しいタスクが正常に返されたことを確認
         assert result is not None
         assert result.issue_id == new_issue["number"]
+
+
+@pytest.mark.unit
+@patch("time.sleep", return_value=None)
+def test_request_task_stores_current_task_in_redis(
+    mock_sleep, task_service, mock_redis_client, mock_github_client
+):
+    """request_taskがタスク割り当て後にagent_idとissue_idをRedisに保存することをテストします。"""
+    # Arrange
+    new_issue = create_mock_issue(
+        number=101,
+        title="New Task",
+        body="## 成果物\n- new.py",
+        labels=["BACKENDCODER"],
+    )
+    cached_issues = [new_issue]
+    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
+    mock_redis_client.acquire_lock.return_value = True
+
+    agent_id = "test-agent"
+    agent_role = "BACKENDCODER"
+
+    # Act
+    result = task_service.request_task(agent_id=agent_id, agent_role=agent_role)
+
+    # Assert
+    assert result is not None
+    mock_redis_client.set_value.assert_any_call(
+        f"agent_current_task:{agent_id}", str(new_issue["number"]), timeout=3600
+    )
+
+
+@pytest.mark.unit
+@patch("time.sleep", return_value=None)
+def test_complete_previous_task_uses_redis_for_previous_issue_id(
+    mock_sleep, task_service, mock_redis_client, mock_github_client
+):
+    """complete_previous_taskがRedisから前回のissue_idを取得して利用することをテストします。"""
+    # Arrange
+    agent_id = "test-agent"
+    previous_issue_id = 101
+    mock_redis_client.get_value.return_value = str(previous_issue_id)
+
+    # Redisから取得したIssue IDに対応するモックIssueを作成
+    prev_issue = create_mock_issue(
+        number=previous_issue_id,
+        title="Previous Task",
+        body="",
+        labels=["in-progress", agent_id],
+    )
+    # complete_previous_taskはall_issuesを引数に取るため、関連Issueを含める
+    all_issues = [prev_issue]
+
+    # Act
+    task_service.complete_previous_task(agent_id, all_issues)
+
+    # Assert
+    mock_redis_client.get_value.assert_called_once_with(
+        f"agent_current_task:{agent_id}"
+    )
+    mock_github_client.update_issue.assert_called_once_with(
+        issue_id=previous_issue_id,
+        remove_labels=["in-progress", agent_id],
+        add_labels=["needs-review"],
+    )
+    mock_redis_client.delete_key.assert_called_once_with(
+        f"agent_current_task:{agent_id}"
+    )
+
+
+@pytest.mark.unit
+@patch("time.sleep", return_value=None)
+def test_complete_previous_task_falls_back_to_github_search_if_redis_fails(
+    mock_sleep, task_service, mock_redis_client, mock_github_client
+):
+    """
+    Redisからの取得に失敗した場合に、既存のGitHub検索ロジックにフォールバックすることをテストします。
+    """
+    # Arrange
+    agent_id = "test-agent"
+    # Redisからの取得がNone（失敗）を返すように設定
+    mock_redis_client.get_value.return_value = None
+
+    # GitHub検索でヒットするIssueを準備
+    prev_issue_from_github = create_mock_issue(
+        number=102,
+        title="Previous Task from GitHub",
+        body="",
+        labels=["in-progress", agent_id],
+    )
+    all_issues = [prev_issue_from_github]
+
+    # Act
+    task_service.complete_previous_task(agent_id, all_issues)
+
+    # Assert
+    mock_redis_client.get_value.assert_called_once_with(
+        f"agent_current_task:{agent_id}"
+    )
+    # GitHub検索ロジックが呼び出され、Issueが更新されたことを確認
+    mock_github_client.update_issue.assert_called_once_with(
+        issue_id=prev_issue_from_github["number"],
+        remove_labels=["in-progress", agent_id],
+        add_labels=["needs-review"],
+    )
+    # Redisのdelete_keyは呼び出されないことを確認（Redisから取得していないため）
+    mock_redis_client.delete_key.assert_not_called()

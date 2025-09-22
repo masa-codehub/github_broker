@@ -61,7 +61,7 @@ client = AgentClient(
 
 `request_task`は、サーバーの応答に応じて以下の結果を返します。
 
-1.  **タスクが正常に割り当てられた場合**: タスク情報を含む`dict`（辞書）を返します。
+1.  **タスクが正常に割り当てられた場合**: タスク情報を含む`dict`（辞書）を返します。この辞書には、エージェントが実行すべきコマンドを含む`prompt`フィールドが含まれます。
 2.  **割り当てるべきタスクがない場合**: `None`を返します。
 3.  **サーバーへの接続に失敗した場合、またはタイムアウトした場合**: `None`を返し、エラーログが出力されます。
 
@@ -69,6 +69,8 @@ client = AgentClient(
 
 ```python
 import logging
+import shlex
+import subprocess
 
 # (クライアントの初期化は上記を参照)
 
@@ -79,12 +81,10 @@ try:
 
     if task:
         print("新しいタスクが割り当てられました！")
-        print(f"  Issue ID: {task.get('issue_id')}")
-        print(f"  タイトル: {task.get('title')}")
-        print(f"  URL: {task.get('issue_url')}")
-        print(f"  ブランチ名: {task.get('branch_name')}")
-        # ここにタスクを処理するロジックを実装
-        # ...
+        print(f"  実行プロンプト: {task.get('prompt')}")
+        # 例: プロンプトを安全に実行する
+        command_parts = shlex.split(task.get('prompt'))
+        subprocess.run(command_parts, check=True)
 
     else:
         print("現在、割り当て可能なタスクはありません。")
@@ -106,3 +106,4 @@ except Exception as e:
 - `body` (str | None): Issueの本文
 - `labels` (list[str]): Issueに付与されているラベルのリスト
 - `branch_name` (str): 作業用に作成されたブランチ名
+- `prompt` (str): エージェントが実行すべきコマンドを含むプロンプト

@@ -4,84 +4,90 @@
 
 このドキュメントは、`github-broker`ライブラリに含まれる`GeminiExecutor`クラスの利用方法を説明するガイドです。
 
-`GeminiExecutor`は、与えられたIssueリストに基づき、GoogleのGemini APIを利用して最適なIssueを選択するためのユーティリティです。これは、エージェントの役割（Role）に合致するタスクが複数存在する場合の、優先順位付けロジックとして利用できます。
+`GeminiExecutor`は、サーバーサイドで動作するコンポーネントであり、**AIエージェント（クライアント）に渡すためのプロンプトを生成する責務**を担います。具体的には、`TaskService`などのアプリケーションサービスから呼び出され、与えられたタスク情報とプロンプトテンプレートを基に、最終的なプロンプト文字列を組み立てます。
 
-## 2. インストール
+このコンポーネントはタスクを**実行**するのではなく、あくまで実行可能なプロンプトを**生成**することに特化しています。実際のタスク実行は、プロンプトを受け取ったクライアント側のエージェントが行います。
 
-本ライブラリは、GitHubリポジトリから直接pipを使用してインストールします。
+## 2. 設定
 
-```bash
-pip install git+https://github.com/masa-codehub/github_broker.git
-```
+`GeminiExecutor`は、プロンプトテンプレートをYAMLファイルから読み込みます。このファイルのパスは、初期化時に指定する必要があります。
 
-依存関係は`pyproject.toml`に定義されており、上記コマンドで自動的にインストールされます。
+デフォルトのテンプレートパス:
+`github_broker/infrastructure/prompts/gemini_executor.yml`
 
-## 3. 設定
+## 3. `GeminiExecutor` の利用方法（サーバーサイドでの統合）
 
-`GeminiExecutor`を利用するには、以下の環境変数の設定が必須です。
+`GeminiExecutor`は、主に`TaskService`のようなアプリケーション層のサービスから利用されることを想定しています。以下に、`TaskService`が`GeminiExecutor`をどのように利用してプロンプトを生成するかの例を示します。
 
-- **`GEMINI_API_KEY`**: `GeminiExecutor`がGemini APIと通信するために使用します。ご自身のAPIキーを設定してください。
+### 3.1. 初期化と依存性注入
 
-```bash
-export GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
-```
-
-## 4. `GeminiExecutor` の利用方法
-
-### 4.1. 初期化
-
-`GeminiExecutor`は、環境変数 `GEMINI_API_KEY` が設定されていれば、引数なしで初期化できます。
+`GeminiExecutor`は、プロンプトテンプレートのパス（`prompt_file`）などを引数に初期化されます。通常、これはDIコンテナ（例: `punq`）を通じて`TaskService`に注入されます。
 
 ```python
+# github_broker/infrastructure/di_container.py (抜粋)
+import punq
+import os
 from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
+from github_broker.application.task_service import TaskService
 
-# 環境変数 GEMINI_API_KEY が設定されている必要がある
-executor = GeminiExecutor()
-```
+container = punq.Container()
 
-### 4.2. 最適なIssueの選択
+# GeminiExecutorをシングルトンとして登録
+container.register(GeminiExecutor, instance=GeminiExecutor(
+    prompt_file=os.getenv("GEMINI_EXECUTOR_PROMPT_FILE", "github_broker/infrastructure/prompts/gemini_executor.yml")
+), scope=punq.Scope.singleton)
 
-`select_best_issue`メソッドに、Issueのリストを渡すことで、最適と判断されたIssueのID（`int`）が返されます。
-
-- **`issues`**: `dict`のリスト。各`dict`は`id`, `title`, `body`, `labels`のキーを持つ必要があります。
-
-Gemini APIとの通信に失敗した場合、このメソッドはフォールバックとしてリストの最初のIssueのIDを返します。
-
-#### コード例
-
-```python
-from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
-
-# Issue候補のリストを作成（役割によるフィルタリングは完了済みと仮定）
-candidate_issues = [
-    {
-        "id": 101,
-        "title": "UIのボタンの色を修正する",
-        "body": "ログインボタンの色が赤すぎるので、青色に変更してください。",
-        "labels": ["bug", "ui", "css", "CODER"]
-    },
-    {
-        "id": 102,
-        "title": "APIのパフォーマンスを改善する",
-        "body": "ユーザープロファイルの取得APIが遅い。N+1問題を解決する必要がある。",
-        "labels": ["performance", "backend", "python", "CODER"]
-    }
-]
-
-# Executorの初期化
-executor = GeminiExecutor()
-
-# 最適なIssueを選択
-selected_id = executor.select_best_issue(
-    issues=candidate_issues
+# TaskServiceは依存するExecutorをDIで受け取る
+container.register(TaskService,
+    factory=lambda: TaskService(
+        # ... other dependencies
+        gemini_executor=container.resolve(GeminiExecutor)
+    ),
+    scope=punq.Scope.singleton
 )
-
-if selected_id is not None:
-    print(f"選択されたIssue ID: {selected_id}")
-    # 選択されたIssueを取得
-    selected_issue = next((issue for issue in candidate_issues if issue['id'] == selected_id), None)
-    print(f"選択されたIssueのタイトル: {selected_issue['title']}")
-else:
-    print("最適なIssueが見つかりませんでした。")
-
 ```
+
+### 3.2. `TaskService`からのプロンプト生成
+
+`TaskService`は、割り当てるべきIssueの情報を取得した後、`GeminiExecutor`の`build_prompt`メソッドを呼び出して、クライアントに渡すためのプロンプト文字列を生成します。
+
+```python
+# github_broker/application/task_service.py (抜粋)
+from github_broker.domain.task import Task
+from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
+
+class TaskService:
+    def __init__(
+        self,
+        # ... other dependencies
+        gemini_executor: GeminiExecutor # DIでGeminiExecutorを受け取る
+    ):
+        # ...
+        self.gemini_executor = gemini_executor
+
+    def _find_first_assignable_task(self, candidate_issues: list, agent_id: str) -> TaskResponse | None:
+        # ... (タスク選択ロジック)
+        
+        # 割り当てるタスクが決定したら、Executorを使ってプロンプトを生成する
+        if assignable_task:
+            try:
+                # ... (ブランチ作成やラベル付与などの処理)
+
+                prompt = self.gemini_executor.build_prompt(
+                    issue_id=assignable_task.issue_id,
+                    title=assignable_task.title,
+                    body=assignable_task.body,
+                    branch_name=branch_name
+                )
+
+                return TaskResponse(
+                    # ... other fields
+                    prompt=prompt
+                )
+            except Exception as e:
+                # ... (エラーハンドリング)
+        
+        return None
+```
+
+この設計により、プロンプトの生成ロジックはサーバーサイドにカプセル化され、クライアントは受け取ったプロンプトを実行するだけのシンプルな責務に集中できます。

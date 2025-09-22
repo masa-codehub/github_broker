@@ -22,6 +22,7 @@
 - `RedisClient`: Redisサーバーとの通信を担当します。
 - `GitHubClient`: GitHub APIとの通信を担当します。
 - `TaskService`: タスクの取得や割り当てといったコアなビジネスロジックを担当します。
+- `GeminiExecutor`: Gemini APIとの通信を担当し、プロンプトの実行を行います。
 
 ```python
 # /github_broker/infrastructure/di_container.py (抜粋)
@@ -36,12 +37,16 @@ container.register(RedisClient, instance=RedisClient(redis_instance))
 # GitHubClientの登録
 container.register(GitHubClient, scope=punq.Scope.singleton)
 
+# GeminiExecutorの登録
+container.register(GeminiExecutor, scope=punq.Scope.singleton)
+
 # TaskServiceの登録
 container.register(
     TaskService,
     instance=TaskService(
         redis_client=container.resolve(RedisClient),
         github_client=container.resolve(GitHubClient),
+        gemini_executor=container.resolve(GeminiExecutor),
     ),
 )
 ```
@@ -56,25 +61,25 @@ container.register(
 2.  **登録:** `container.register()` を使って、新しいクラスをコンテナに登録します。多くの場合、ライフサイクルは `scope=punq.Scope.singleton` となります。
 3.  **依存の注入:** 新しいクラスが他のコンポーネントに依存している場合は、`container.resolve()` を使って依存性を解決し、コンストラクタに渡します。
 
-### 例: `NewApiClient` を追加する場合
+### 例: `GeminiExecutor` を追加する場合
 
 ```python
-# 1. NewApiClientをインポート
-from github_broker.infrastructure.new_api_client import NewApiClient
+# 1. GeminiExecutorをインポート
+from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
 
 # ... (既存のコード)
 
-# 2. NewApiClientをシングルトンとして登録
-container.register(NewApiClient, scope=punq.Scope.singleton)
+# 2. GeminiExecutorをシングルトンとして登録
+container.register(GeminiExecutor, scope=punq.Scope.singleton)
 
-# TaskServiceがNewApiClientに依存するようになった場合
+# TaskServiceがGeminiExecutorに依存するようになった場合
 container.register(
     TaskService,
     instance=TaskService(
         redis_client=container.resolve(RedisClient),
         github_client=container.resolve(GitHubClient),
         # 3. 新しい依存性を解決して注入
-        new_api_client=container.resolve(NewApiClient),
+        gemini_executor=container.resolve(GeminiExecutor),
     ),
     scope=punq.Scope.singleton,
 )
