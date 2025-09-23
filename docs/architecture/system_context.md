@@ -177,31 +177,23 @@ sequenceDiagram
         Redis-->>-PollingService: OK
     end
 
-    Worker->>+ApiServer: POST /request-task
+    Worker->>+ApiServer: POST /request-task // ApiServerをアクティブ化 (+)
     ApiServer->>ApiServer: 1. 前タスクの完了処理 (ラベル更新)
     ApiServer->>GitHub: PATCH /issues/{prev_id}
     GitHub-->>ApiServer: OK
 
-    loop ロングポーリング (タイムアウトまで)
-        ApiServer->>+Redis: GET open_issues_cache (キャッシュ取得)
-        Redis-->>-ApiServer: Cached Issue List
-        ApiServer->>ApiServer: 2. 役割に合うタスクを候補化
-        ApiServer->>ApiServer: 3. 割り当て可能かチェック (成果物, ロック)
+    ApiServer->>ApiServer: (ロングポーリング開始：内部でタスクを繰り返し検索...)
 
-        alt 割り当て可能なタスクがあった場合
-            ApiServer->>+Redis: SETNX issue_lock (個別Issueロック)
-            Redis-->>-ApiServer: OK
-            ApiServer->>+GitHub: PATCH /issues/{new_id} (ラベル更新)
-            GitHub-->>-ApiServer: OK
-            ApiServer->>+GitHub: POST /git/refs (ブランチ作成)
-            GitHub-->>-ApiServer: OK
-            ApiServer-->>-Worker: 200 OK (新タスク情報)
-            break
-        end
-    end
-    
-    alt ループがタイムアウトした場合 (タスクなし)
-         ApiServer-->>-Worker: 204 No Content
+    alt 割り当て可能なタスクが見つかった場合
+        ApiServer->>Redis: SETNX issue_lock (個別Issueロック)
+        Redis-->>ApiServer: OK
+        ApiServer->>GitHub: PATCH /issues/{new_id} (ラベル更新)
+        GitHub-->>ApiServer: OK
+        ApiServer->>GitHub: POST /git/refs (ブランチ作成)
+        GitHub-->>ApiServer: OK
+        ApiServer-->>-Worker: 200 OK (新タスク情報) // ApiServerを非アクティブ化 (-)
+    else タイムアウトした場合
+        ApiServer-->>Worker: 204 No Content // ここでもApiServerを非アクティブ化 (-)
     end
 ```
 
