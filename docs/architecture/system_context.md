@@ -36,7 +36,6 @@ graph TD
         Human["人間 (管理者/レビュー担当)"]
         Workers["ワーカー・エージェント群 (クライアント)"]
         GitHub["GitHub (データストア)"]
-        Redis["Redis (キャッシュ / 分散ロック)"]
         Gemini["Gemini (LLM)"]
     end
 
@@ -44,22 +43,19 @@ graph TD
         subgraph "Task Broker Server"
             direction LR
             ApiServer["APIサーバー (FastAPI)"]
-            PollingService["ポーリングサービス (Background)"]
         end
+        Redis["Redis (キャッシュ / 分散ロック)"]
     end
 
     %% システム間の連携
     Human -- "Issue作成 / PRマージ" --> GitHub
     Workers -- "タスク要求 (APIリクエスト)" --> ApiServer
     ApiServer -- "プロンプト生成 & タスク割り当て (APIレスポンス)" --> Workers
-
-    PollingService -- "定期的にIssueを取得" --> GitHub
-    PollingService -- "Issueをキャッシュ" --> Redis
+    Workers -- "プロンプト生成" --> Gemini
 
     ApiServer -- "キャッシュからIssueを取得" --> Redis
     ApiServer -- "Lock / Unlock" --> Redis
     ApiServer -- "Issueラベル更新 / ブランチ作成" --> GitHub
-    ApiServer -- "プロンプト生成" --> Gemini
 ```
 
 ----

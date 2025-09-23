@@ -13,6 +13,7 @@ sequenceDiagram
     participant TaskService as TaskService
     participant RedisClient as RedisClient
     participant GitHubClient as GitHubClient
+    participant GeminiClient as GeminiClient
 
     Worker->>+ApiServer: POST /request-task (agent_id, agent_role)
     ApiServer->>+TaskService: request_task(agent_id, agent_role)
@@ -27,11 +28,12 @@ sequenceDiagram
     end
 
     TaskService->>TaskService: 1. 役割に合うタスクを候補化 (フィルタリング)
-    TaskService->>TaskService: 2. 優先順位付け (最も古いIssueを優先)
-
+    
     alt 割り当て可能なタスク候補あり
-        TaskService->>TaskService: 3. 各候補Issueをチェック
-        TaskService->>+RedisClient: acquire_lock(issue_lock_{issue_id}, "locked", timeout=600)
+        TaskService->>+GeminiClient: select_best_issue(candidate_issues, agent_role)
+        GeminiClient-->>-TaskService: selected_issue_id
+
+        TaskService->>+RedisClient: acquire_lock(issue_lock_{selected_issue_id}, "locked", timeout=600)
         RedisClient-->>-TaskService: Lock Acquired / Failed
 
         alt ロック取得成功 & 前提条件(成果物セクション)満たす
@@ -64,6 +66,7 @@ sequenceDiagram
 -   **TaskService:** アプリケーションのコアロジックを担うサービス。タスクの選択、割り当て、GitHub操作を調整します。
 -   **RedisClient:** Redisとの通信を担当し、Issueのキャッシュ読み取りや分散ロックの取得・解放を行います。
 -   **GitHubClient:** GitHub APIとの通信を担当し、Issueの取得、ラベルの更新、ブランチの作成などを行います。
+-   **GeminiClient:** Gemini APIと連携し、最適なIssueの選択を支援します。
 
 ### 3.2. 処理フロー
 
@@ -72,8 +75,9 @@ sequenceDiagram
 3.  **Issueキャッシュの取得:** `TaskService`は、まず`RedisClient`を介して、バックグラウンドで定期的にキャッシュされているオープンなIssueのリストを取得します。
 4.  **前タスクの完了処理:** エージェントに以前割り当てられていた`in-progress`状態のタスク(`prev_issue_id`)がないか確認します。もし存在すれば、そのIssueのラベルを`needs-review`に更新し、`in-progress`と`[agent_id]`ラベルを削除します。
 5.  **タスク候補の選定:**
-    *   **候補のフィルタリングと優先順位付け:** Redisから取得したIssueリストから、エージェントの`agent_role`に合致し、かつ`in-progress`や`needs-review`ラベルが付いていないタスクをフィルタリングし、最も古く作成されたIssue（Issue番号が小さい）を優先します。
-    *   **ロック取得:** 優先順位の高い候補Issue (`selected_issue_id`) に対して、`RedisClient`を使用して分散ロックの取得を試みます。これにより、複数のエージェントが同時に同じIssueを処理することを防ぎます。
+    *   **候補のフィルタリング:** Redisから取得したIssueリストから、エージェントの`agent_role`に合致し、かつ`in-progress`や`needs-review`ラベルが付いていないタスクをフィルタリングします。
+    *   **Geminiによる最適Issue選択:** フィルタリングされた候補Issueが存在する場合、`GeminiClient`を呼び出し、候補の中からエージェントの能力や状況に最も適したIssueを選択させます (`selected_issue_id`)。
+    *   **ロック取得:** Geminiによって選択されたIssue (`selected_issue_id`) に対して、`RedisClient`を使用して分散ロックの取得を試みます。これにより、複数のエージェントが同時に同じIssueを処理することを防ぎます。
     *   **前提条件チェック:** ロック取得に成功した場合、Issueの本文に「成果物」セクションが正しく定義されているかなどの前提条件をチェックします。
 6.  **タスク割り当てとレスポンス:**
     *   **ブランチ作成:** 新しいタスクとして選択されたIssueに対応するブランチを`GitHubClient`を介して作成します。
