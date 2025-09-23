@@ -188,7 +188,7 @@ sequenceDiagram
         ApiServer->>ApiServer: 2. 役割に合うタスクを候補化
         ApiServer->>ApiServer: 3. 割り当て可能かチェック (成果物, ロック)
 
-        alt 割り当て可能なタスクあり
+        alt 割り当て可能なタスクがあった場合
             ApiServer->>+Redis: SETNX issue_lock (個別Issueロック)
             Redis-->>-ApiServer: OK
             ApiServer->>+GitHub: PATCH /issues/{new_id} (ラベル更新)
@@ -197,11 +197,10 @@ sequenceDiagram
             GitHub-->>-ApiServer: OK
             ApiServer-->>-Worker: 200 OK (新タスク情報)
             break
-        else 割り当て可能なタスクなし
-            ApiServer->>ApiServer: Wait for retry...
         end
     end
-    alt ループ終了後もタスクなし
+    
+    alt ループがタイムアウトした場合 (タスクなし)
          ApiServer-->>-Worker: 204 No Content
     end
 ```
