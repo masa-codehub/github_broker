@@ -53,9 +53,6 @@ graph TD
     ApiServer -- "プロンプト生成 & タスク割り当て (APIレスポンス)" --> Workers
     Workers -- "プロンプト生成" --> Gemini
 
-    PollingService -- "定期的にIssueを取得" --> GitHub
-    PollingService -- "Issueをキャッシュ" --> Redis
-
     ApiServer -- "キャッシュからIssueを取得" --> Redis
     ApiServer -- "Lock / Unlock" --> Redis
     ApiServer -- "Issueラベル更新 / ブランチ作成" --> GitHub
