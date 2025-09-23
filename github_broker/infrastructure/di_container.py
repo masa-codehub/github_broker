@@ -1,7 +1,11 @@
 import punq
 from redis import Redis
 
+from github_broker.application.task_service import TaskService
+from github_broker.infrastructure.config import Settings
 from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
+from github_broker.infrastructure.github_client import GitHubClient
+from github_broker.infrastructure.redis_client import RedisClient
 
 _container: punq.Container | None = None
 
