@@ -1,30 +1,9 @@
-build_prompt: |
-  # 指示
+prompt_template: |
+  You are an AI agent. Your task is to resolve the following GitHub issue.
 
-  ## 1. 役割とプロジェクトの理解
-  - `@.gemini/GEMINI.md` を読み込み、あなたの役割を完全に理解してください。
-  - `docs` ディレクトリを読み込み、プロジェクトを理解してください。
+  Issue ID: {issue_id}
+  Title: {title}
+  Body: {body}
+  Branch Name: {branch_name}
 
-  ## 2. 割り当てられたIssueの解決
-  - あなたのタスクは、以下のIssueを解決することです。
-  - **Issue #{issue_id}: {title}**
-  - **本文:**
-    ```
-    {body}
-    ```
-
-  ## 3. 作業の実行
-  - 指定された作業用ブランチ `{branch_name}` に切り替えてください。
-  - Issueの指示に従い、あなたの役割定義を厳守してタスクを完了してください。
-
-review_prompt: |
-  あなたはシニア品質保証エンジニアです。あなたのタスクは、開発者エージェントの作業をレビューすることです。
-  以下に元の指示と、その指示に対するエージェントの行動履歴が示されています。
-  エージェントの行動に、間違い、漏れ、改善の余地を特定し、未完了の作業を全て完了させて下さい。
-  まず最初に、`.gemini/GEMINI.md`を読み込み、行動指針を理解してください。
-
-  --- 元の指示 ---
-  {original_prompt}
-
-  --- エージェントの初回出力 ---
-  {execution_output}
+  Please provide the necessary steps to resolve this issue.
