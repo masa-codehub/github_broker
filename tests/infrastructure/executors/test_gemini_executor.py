@@ -6,7 +6,7 @@ import yaml
 from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
 
 PROMPT_FILE_CONTENT = """
-build_prompt: |
+prompt_template: |
   Issue ID: {issue_id}
   Title: {title}
   Branch: {branch_name}
@@ -50,7 +50,7 @@ def test_init_loads_prompts_from_file(mock_prompts):
         # Assert
         mock_file.assert_called_once_with(prompt_file_path, encoding="utf-8")
         mock_safe_load.assert_called_once()
-        assert executor_instance.build_prompt_template == mock_prompts["build_prompt"]
+        assert executor_instance.build_prompt_template == mock_prompts["prompt_template"]
 
 
 @pytest.mark.unit
@@ -71,7 +71,7 @@ def test_init_handles_prompt_file_error():
 def test_build_prompt(executor):
     """_build_promptがテンプレートに基づいてプロンプトを正しく構築することをテストします"""
     # Act
-    prompt = executor._build_prompt(123, "Test Title", "Test Body", "feature/test")
+    prompt = executor.build_prompt(123, "Test Title", "Test Body", "feature/test")
 
     # Assert
     assert (
