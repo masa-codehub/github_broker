@@ -16,6 +16,7 @@ from github_broker.interface.models import TaskResponse
 
 if TYPE_CHECKING:
     from github_broker.infrastructure.config import Settings
+    from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -32,18 +33,14 @@ class TaskService:
         redis_client: RedisClient,
         github_client: GitHubClient,
         settings: "Settings",
+        gemini_executor: "GeminiExecutor",
     ):
         self.redis_client = redis_client
         self.github_client = github_client
         self.repo_name = settings.GITHUB_REPOSITORY
         self.github_indexing_wait_seconds = settings.GITHUB_INDEXING_WAIT_SECONDS
         self.polling_interval_seconds = settings.POLLING_INTERVAL_SECONDS
-
-        # プロンプトテンプレートを読み込む
-        with open("github_broker/infrastructure/prompts/gemini_executor.yml") as f:
-            prompts = yaml.safe_load(f)
-        self.prompt_template = prompts["build_prompt"]
-
+        self.gemini_executor = gemini_executor
     def start_polling(self, stop_event: "threading.Event | None" = None):
         """
         GitHubリポジトリから定期的にオープンなIssueを取得し、Redisにキャッシュします。
@@ -240,7 +237,7 @@ class TaskService:
 
                 self.github_client.create_branch(branch_name)
 
-                prompt = self.prompt_template.format(
+                prompt = self.gemini_executor.build_prompt(
                     issue_id=task.issue_id,
                     title=task.title,
                     body=task.body,

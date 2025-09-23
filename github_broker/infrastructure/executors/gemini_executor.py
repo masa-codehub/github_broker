@@ -36,7 +36,7 @@ class GeminiExecutor:
             logging.info(f"Attempting to open prompt file from CWD: {os.getcwd()}")
             with open(prompt_file, encoding="utf-8") as f:
                 prompts = yaml.safe_load(f)
-            self.build_prompt_template = prompts["build_prompt"]
+            self.build_prompt_template = prompts["prompt_template"]
         except (FileNotFoundError, KeyError) as e:
             logging.error(f"プロンプトファイルの読み込みまたは解析に失敗しました: {e}")
             # フォールバックとして空のテンプレートを設定
@@ -55,7 +55,7 @@ class GeminiExecutor:
         issue_body = task.get("body", "")
         branch_name = task.get("branch_name", "")
 
-        initial_prompt = self._build_prompt(
+        initial_prompt = self.build_prompt(
             issue_id, issue_title, issue_body, branch_name
         )
         command = ["gemini", "--yolo", "-m", self.model, "-p", initial_prompt]
@@ -117,10 +117,10 @@ class GeminiExecutor:
         logging.info(f"コマンドの出力を次のファイルに記録します: {filepath}")
         return filepath
 
-    def _build_prompt(
+    def build_prompt(
         self, issue_id: int, title: str, body: str, branch_name: str
     ) -> str:
-        """タスク実行のための初回プロンプトを構築します。"""
+        """タスク実行のためのプロンプトを構築します。"""
         return self.build_prompt_template.format(
             issue_id=issue_id, title=title, body=body, branch_name=branch_name
         )
