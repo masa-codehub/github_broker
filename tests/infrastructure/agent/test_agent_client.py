@@ -1,4 +1,5 @@
 import os
+import subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -14,18 +15,27 @@ def agent_client():
 
 
 @pytest.mark.unit
+@patch("subprocess.run")
 @patch("requests.post")
-def test_request_task_success(mock_post, agent_client):
+def test_request_task_success(mock_post, mock_subprocess_run, agent_client):
     """
-    タスクリクエストが成功するケース（200 OK）をテストします。
+    タスクリクエストが成功し、プロンプトが実行されるケース（200 OK）をテストします。
     """
     # Arrange
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.reason = "OK"
-    mock_task_data = {"issue_id": 1, "title": "Test Issue"}
+    mock_task_data = {
+        "issue_id": 1,
+        "title": "Test Issue",
+        "prompt": "echo 'Hello World'",
+    }
     mock_response.json.return_value = mock_task_data
     mock_post.return_value = mock_response
+
+    mock_subprocess_run.return_value = MagicMock(
+        stdout="Hello World", stderr="", returncode=0
+    )
 
     # Act
     task = agent_client.request_task()
@@ -43,6 +53,52 @@ def test_request_task_success(mock_post, agent_client):
     )
     mock_response.raise_for_status.assert_called_once()
     assert task == mock_task_data
+    mock_subprocess_run.assert_called_once_with(
+        mock_task_data["prompt"],
+        shell=True,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+
+
+@pytest.mark.unit
+@patch("subprocess.run")
+@patch("requests.post")
+def test_request_task_prompt_execution_failure(
+    mock_post, mock_subprocess_run, agent_client
+):
+    """
+    プロンプトの実行が失敗するケースをテストします。
+    """
+    # Arrange
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.reason = "OK"
+    mock_task_data = {
+        "issue_id": 1,
+        "title": "Test Issue",
+        "prompt": "exit 1",  # 失敗するコマンドを想定
+    }
+    mock_response.json.return_value = mock_task_data
+    mock_post.return_value = mock_response
+
+    mock_subprocess_run.side_effect = subprocess.CalledProcessError(
+        returncode=1, cmd=mock_task_data["prompt"], stderr="Command failed"
+    )
+
+    # Act
+    task = agent_client.request_task()
+
+    # Assert
+    assert task is None
+    mock_subprocess_run.assert_called_once_with(
+        mock_task_data["prompt"],
+        shell=True,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
 
 
 @pytest.mark.unit
