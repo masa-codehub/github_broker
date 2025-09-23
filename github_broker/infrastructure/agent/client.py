@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import subprocess
 from typing import Any
 
 import requests
@@ -66,6 +67,29 @@ class AgentClient:
             task = response.json()
             logging.info("New task assigned:")
             logging.info(json.dumps(task, indent=2, ensure_ascii=False))
+
+            if "prompt" in task and task["prompt"]:
+                logging.info(f"Executing prompt: {task['prompt']}")
+                try:
+                    result = subprocess.run(
+                        task["prompt"],
+                        shell=True,
+                        check=True,
+                        text=True,
+                        capture_output=True,
+                    )
+                    logging.info(f"Prompt executed successfully. Stdout: {result.stdout.strip()}")
+                    if result.stderr:
+                        logging.warning(f"Prompt execution produced stderr: {result.stderr.strip()}")
+                except subprocess.CalledProcessError as e:
+                    logging.error(f"Prompt execution failed with error: {e}")
+                    logging.error(f"Stderr: {e.stderr.strip()}")
+                    # プロンプト実行失敗時はタスクを返さない、またはエラーを通知するなどの追加処理が必要になる可能性あり
+                    return None
+                except Exception as e:
+                    logging.error(f"An unexpected error occurred during prompt execution: {e}")
+                    return None
+
             return task
 
         except requests.exceptions.RequestException as e:
