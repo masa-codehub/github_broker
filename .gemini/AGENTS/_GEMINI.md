@@ -65,7 +65,7 @@
 変更を提案する際は、以下の手順を一つのトランザクションとして厳密に実行し、各ステップの後に状態確認を行います。
 
 **0. 同期 (Synchronization):**
-   - 作業を開始する前に、必ず `git pull --rebase origin <base_branch>` を実行し、ローカルブランチを最新の状態に更新してください。これにより、後続のコンフリクトや `non-fast-forward` エラーを未然に防ぎます。
+   - 作業を開始する前に、必ず `git pull --rebase origin main` を実行し、ローカルブランチを最新の状態に更新してください。これにより、後続のコンフリクトや `non-fast-forward` エラーを未然に防ぎます。
 
 **0.5. ブランチの作成 (Branch Creation):**
    - 担当するIssueにブランチ名が指定されている場合、作業に入る前、直ぐにそのブランチを作成します。 (`git checkout -b <branch_name>`)
