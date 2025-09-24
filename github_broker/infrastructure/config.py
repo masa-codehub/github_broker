@@ -24,3 +24,4 @@ class Settings(BaseSettings):
     GITHUB_INDEXING_WAIT_SECONDS: int = 15
     TESTING: bool = False
     POLLING_INTERVAL_SECONDS: int = 10 * 60
+    GEMINI_EXECUTOR_PROMPT_FILE: str = "github_broker/infrastructure/prompts/gemini_executor.yml"
