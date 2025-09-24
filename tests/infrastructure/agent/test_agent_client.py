@@ -1,4 +1,5 @@
 import os
+import shlex
 import subprocess
 from unittest.mock import MagicMock, patch
 
@@ -6,6 +7,7 @@ import pytest
 import requests
 
 from github_broker import AgentClient
+from github_broker.application.exceptions import PromptExecutionError
 
 
 @pytest.fixture
@@ -54,8 +56,7 @@ def test_request_task_success(mock_post, mock_subprocess_run, agent_client):
     mock_response.raise_for_status.assert_called_once()
     assert task == mock_task_data
     mock_subprocess_run.assert_called_once_with(
-        mock_task_data["prompt"],
-        shell=True,
+        shlex.split(mock_task_data["prompt"]),
         check=True,
         text=True,
         capture_output=True,
@@ -78,23 +79,22 @@ def test_request_task_prompt_execution_failure(
     mock_task_data = {
         "issue_id": 1,
         "title": "Test Issue",
-        "prompt": "exit 1",  # 失敗するコマンドを想定
+        "prompt": "exit 1",  # Command that will fail
     }
     mock_response.json.return_value = mock_task_data
     mock_post.return_value = mock_response
 
     mock_subprocess_run.side_effect = subprocess.CalledProcessError(
-        returncode=1, cmd=mock_task_data["prompt"], stderr="Command failed"
+        returncode=1, cmd=shlex.split(mock_task_data["prompt"]), stderr="Command failed"
     )
 
-    # Act
-    task = agent_client.request_task()
+    # Act & Assert
+    with pytest.raises(PromptExecutionError) as excinfo:
+        agent_client.request_task()
 
-    # Assert
-    assert task is None
+    assert "Prompt execution failed" in str(excinfo.value)
     mock_subprocess_run.assert_called_once_with(
-        mock_task_data["prompt"],
-        shell=True,
+        shlex.split(mock_task_data["prompt"]),
         check=True,
         text=True,
         capture_output=True,
@@ -110,7 +110,11 @@ def test_request_task_with_custom_timeout(mock_post, agent_client):
     # Arrange
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.json.return_value = {"issue_id": 2, "title": "Custom Timeout Test"}
+    mock_response.json.return_value = {
+        "issue_id": 2,
+        "title": "Custom Timeout Test",
+        "prompt": "",
+    }
     mock_post.return_value = mock_response
     custom_timeout = 60
 

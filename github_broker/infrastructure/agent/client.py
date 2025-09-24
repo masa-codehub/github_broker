@@ -1,10 +1,13 @@
 import json
 import logging
 import os
+import shlex
 import subprocess
 from typing import Any
 
 import requests
+
+from github_broker.application.exceptions import PromptExecutionError
 
 
 class AgentClient:
@@ -45,11 +48,13 @@ class AgentClient:
 
         Returns:
             Optional[Dict[str, Any]]: 割り当てられたタスク情報、または利用可能なタスクがない場合はNone。
+
+        Raises:
+            PromptExecutionError: サーバーから受け取ったプロンプトの実行に失敗した場合。
         """
         payload = {"agent_id": self.agent_id, "agent_role": self.agent_role}
         url = f"http://{self.host}:{self.port}{self.endpoint}"
         try:
-            # `requests`ライブラリは、接続プールやタイムアウト管理などを自動で行います。
             response = requests.post(
                 url, json=payload, headers=self.headers, timeout=timeout
             )
@@ -60,35 +65,43 @@ class AgentClient:
                 logging.info("No assignable tasks available at the moment.")
                 return None
 
-            # 200番台以外のステータスコードの場合に例外を発生させ、一括でエラーハンドリングします。
             response.raise_for_status()
 
-            # 200 OKの場合
             task = response.json()
             logging.info("New task assigned:")
             logging.info(json.dumps(task, indent=2, ensure_ascii=False))
 
-            if "prompt" in task and task["prompt"]:
+            if task.get("prompt"):
                 logging.info(f"Executing prompt: {task['prompt']}")
                 try:
+                    command_parts = shlex.split(task["prompt"])
                     result = subprocess.run(
-                        task["prompt"],
-                        shell=True,
+                        command_parts,
                         check=True,
                         text=True,
                         capture_output=True,
                     )
-                    logging.info(f"Prompt executed successfully. Stdout: {result.stdout.strip()}")
+                    logging.info(
+                        f"Prompt executed successfully. Stdout: {result.stdout.strip()}"
+                    )
                     if result.stderr:
-                        logging.warning(f"Prompt execution produced stderr: {result.stderr.strip()}")
+                        logging.warning(
+                            f"Prompt execution produced stderr: {result.stderr.strip()}"
+                        )
                 except subprocess.CalledProcessError as e:
+                    stderr = e.stderr.strip() if e.stderr else "N/A"
                     logging.error(f"Prompt execution failed with error: {e}")
-                    logging.error(f"Stderr: {e.stderr.strip()}")
-                    # プロンプト実行失敗時はタスクを返さない、またはエラーを通知するなどの追加処理が必要になる可能性あり
-                    return None
+                    logging.error(f"Stderr: {stderr}")
+                    raise PromptExecutionError(
+                        f"Prompt execution failed with stderr: {stderr}"
+                    ) from e
                 except Exception as e:
-                    logging.error(f"An unexpected error occurred during prompt execution: {e}")
-                    return None
+                    logging.error(
+                        f"An unexpected error occurred during prompt execution: {e}"
+                    )
+                    raise PromptExecutionError(
+                        f"An unexpected error occurred during prompt execution: {e}"
+                    ) from e
 
             return task
 
