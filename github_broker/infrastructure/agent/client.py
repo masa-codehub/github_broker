@@ -71,7 +71,7 @@ class AgentClient:
             logging.info("New task assigned:")
             logging.info(json.dumps(task, indent=2, ensure_ascii=False))
 
-            if task.get("prompt") is not None:
+            if task.get("prompt"):
                 logging.info(f"Executing prompt: {task['prompt']}")
                 try:
                     command_parts = shlex.split(task["prompt"])
@@ -89,10 +89,11 @@ class AgentClient:
                             f"Prompt execution produced stderr: {result.stderr.strip()}"
                         )
                 except subprocess.CalledProcessError as e:
+                    stderr = e.stderr.strip() if e.stderr else "N/A"
                     logging.error(f"Prompt execution failed with error: {e}")
-                    logging.error(f"Stderr: {e.stderr.strip()}")
+                    logging.error(f"Stderr: {stderr}")
                     raise PromptExecutionError(
-                        f"Prompt execution failed with stderr: {e.stderr.strip()}"
+                        f"Prompt execution failed with stderr: {stderr}"
                     ) from e
                 except Exception as e:
                     logging.error(

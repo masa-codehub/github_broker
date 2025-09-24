@@ -1,10 +1,13 @@
 import os
+import shlex
+import subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
 
 from github_broker import AgentClient
+from github_broker.application.exceptions import PromptExecutionError
 
 
 @pytest.fixture
@@ -14,18 +17,27 @@ def agent_client():
 
 
 @pytest.mark.unit
+@patch("subprocess.run")
 @patch("requests.post")
-def test_request_task_success(mock_post, agent_client):
+def test_request_task_success(mock_post, mock_subprocess_run, agent_client):
     """
-    タスクリクエストが成功するケース（200 OK）をテストします。
+    タスクリクエストが成功し、プロンプトが実行されるケース（200 OK）をテストします。
     """
     # Arrange
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.reason = "OK"
-    mock_task_data = {"issue_id": 1, "title": "Test Issue"}
+    mock_task_data = {
+        "issue_id": 1,
+        "title": "Test Issue",
+        "prompt": "echo 'Hello World'",
+    }
     mock_response.json.return_value = mock_task_data
     mock_post.return_value = mock_response
+
+    mock_subprocess_run.return_value = MagicMock(
+        stdout="Hello World", stderr="", returncode=0
+    )
 
     # Act
     task = agent_client.request_task()
@@ -43,6 +55,50 @@ def test_request_task_success(mock_post, agent_client):
     )
     mock_response.raise_for_status.assert_called_once()
     assert task == mock_task_data
+    mock_subprocess_run.assert_called_once_with(
+        shlex.split(mock_task_data["prompt"]),
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+
+
+@pytest.mark.unit
+@patch("subprocess.run")
+@patch("requests.post")
+def test_request_task_prompt_execution_failure(
+    mock_post, mock_subprocess_run, agent_client
+):
+    """
+    プロンプトの実行が失敗するケースをテストします。
+    """
+    # Arrange
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.reason = "OK"
+    mock_task_data = {
+        "issue_id": 1,
+        "title": "Test Issue",
+        "prompt": "exit 1",  # Command that will fail
+    }
+    mock_response.json.return_value = mock_task_data
+    mock_post.return_value = mock_response
+
+    mock_subprocess_run.side_effect = subprocess.CalledProcessError(
+        returncode=1, cmd=shlex.split(mock_task_data["prompt"]), stderr="Command failed"
+    )
+
+    # Act & Assert
+    with pytest.raises(PromptExecutionError) as excinfo:
+        agent_client.request_task()
+
+    assert "Prompt execution failed" in str(excinfo.value)
+    mock_subprocess_run.assert_called_once_with(
+        shlex.split(mock_task_data["prompt"]),
+        check=True,
+        text=True,
+        capture_output=True,
+    )
 
 
 @pytest.mark.unit
@@ -54,7 +110,11 @@ def test_request_task_with_custom_timeout(mock_post, agent_client):
     # Arrange
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.json.return_value = {"issue_id": 2, "title": "Custom Timeout Test"}
+    mock_response.json.return_value = {
+        "issue_id": 2,
+        "title": "Custom Timeout Test",
+        "prompt": "",
+    }
     mock_post.return_value = mock_response
     custom_timeout = 60
 
