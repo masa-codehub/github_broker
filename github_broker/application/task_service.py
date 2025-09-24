@@ -4,7 +4,6 @@ import threading
 import time
 from typing import TYPE_CHECKING, Any
 
-import yaml
 from github import GithubException
 from pydantic import HttpUrl
 from redis.exceptions import RedisError
@@ -41,6 +40,7 @@ class TaskService:
         self.github_indexing_wait_seconds = settings.GITHUB_INDEXING_WAIT_SECONDS
         self.polling_interval_seconds = settings.POLLING_INTERVAL_SECONDS
         self.gemini_executor = gemini_executor
+
     def start_polling(self, stop_event: "threading.Event | None" = None):
         """
         GitHubリポジトリから定期的にオープンなIssueを取得し、Redisにキャッシュします。

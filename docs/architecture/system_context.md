@@ -36,7 +36,6 @@ graph TD
         Human["人間 (管理者/レビュー担当)"]
         Workers["ワーカー・エージェント群 (クライアント)"]
         GitHub["GitHub (データストア)"]
-        Redis["Redis (キャッシュ / 分散ロック)"]
         Gemini["Gemini (LLM)"]
     end
 
@@ -44,22 +43,19 @@ graph TD
         subgraph "Task Broker Server"
             direction LR
             ApiServer["APIサーバー (FastAPI)"]
-            PollingService["ポーリングサービス (Background)"]
         end
+        Redis["Redis (キャッシュ / 分散ロック)"]
     end
 
     %% システム間の連携
     Human -- "Issue作成 / PRマージ" --> GitHub
     Workers -- "タスク要求 (APIリクエスト)" --> ApiServer
     ApiServer -- "プロンプト生成 & タスク割り当て (APIレスポンス)" --> Workers
-
-    PollingService -- "定期的にIssueを取得" --> GitHub
-    PollingService -- "Issueをキャッシュ" --> Redis
+    Workers -- "プロンプト生成" --> Gemini
 
     ApiServer -- "キャッシュからIssueを取得" --> Redis
     ApiServer -- "Lock / Unlock" --> Redis
     ApiServer -- "Issueラベル更新 / ブランチ作成" --> GitHub
-    ApiServer -- "プロンプト生成" --> Gemini
 ```
 
 ----
@@ -181,32 +177,23 @@ sequenceDiagram
         Redis-->>-PollingService: OK
     end
 
-    Worker->>+ApiServer: POST /request-task
+    Worker->>+ApiServer: POST /request-task // ApiServerをアクティブ化 (+)
     ApiServer->>ApiServer: 1. 前タスクの完了処理 (ラベル更新)
     ApiServer->>GitHub: PATCH /issues/{prev_id}
     GitHub-->>ApiServer: OK
 
-    loop ロングポーリング (タイムアウトまで)
-        ApiServer->>+Redis: GET open_issues_cache (キャッシュ取得)
-        Redis-->>-ApiServer: Cached Issue List
-        ApiServer->>ApiServer: 2. 役割に合うタスクを候補化
-        ApiServer->>ApiServer: 3. 割り当て可能かチェック (成果物, ロック)
+    ApiServer->>ApiServer: (ロングポーリング開始：内部でタスクを繰り返し検索...)
 
-        alt 割り当て可能なタスクあり
-            ApiServer->>+Redis: SETNX issue_lock (個別Issueロック)
-            Redis-->>-ApiServer: OK
-            ApiServer->>+GitHub: PATCH /issues/{new_id} (ラベル更新)
-            GitHub-->>-ApiServer: OK
-            ApiServer->>+GitHub: POST /git/refs (ブランチ作成)
-            GitHub-->>-ApiServer: OK
-            ApiServer-->>-Worker: 200 OK (新タスク情報)
-            break
-        else 割り当て可能なタスクなし
-            ApiServer->>ApiServer: Wait for retry...
-        end
-    end
-    alt ループ終了後もタスクなし
-         ApiServer-->>-Worker: 204 No Content
+    alt 割り当て可能なタスクが見つかった場合
+        ApiServer->>Redis: SETNX issue_lock (個別Issueロック)
+        Redis-->>ApiServer: OK
+        ApiServer->>GitHub: PATCH /issues/{new_id} (ラベル更新)
+        GitHub-->>ApiServer: OK
+        ApiServer->>GitHub: POST /git/refs (ブランチ作成)
+        GitHub-->>ApiServer: OK
+        ApiServer-->>-Worker: 200 OK (新タスク情報) // ApiServerを非アクティブ化 (-)
+    else タイムアウトした場合
+        ApiServer-->>Worker: 204 No Content // ここでもApiServerを非アクティブ化 (-)
     end
 ```
 

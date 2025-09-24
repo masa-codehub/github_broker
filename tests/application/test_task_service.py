@@ -22,7 +22,6 @@ def mock_github_client():
     return MagicMock()
 
 
-
 @pytest.fixture
 def task_service(mock_redis_client, mock_github_client):
     """TaskServiceのテストインスタンスを提供します。"""
@@ -32,7 +31,9 @@ def task_service(mock_redis_client, mock_github_client):
     mock_settings.POLLING_INTERVAL_SECONDS = 0.1
 
     mock_gemini_executor_instance = MagicMock(spec=GeminiExecutor)
-    mock_gemini_executor_instance.build_prompt.return_value = "Generated Prompt for Issue 2"
+    mock_gemini_executor_instance.build_prompt.return_value = (
+        "Generated Prompt for Issue 2"
+    )
 
     return TaskService(
         redis_client=mock_redis_client,
@@ -181,7 +182,7 @@ def test_request_task_selects_by_role_from_cache(
         issue_id=issue2["number"],
         title=issue2["title"],
         body=issue2["body"],
-        branch_name=f"feature/issue-{issue2["number"]}",
+        branch_name=f"feature/issue-{issue2['number']}",
     )
     assert result.prompt == "Generated Prompt for Issue 2"
 
