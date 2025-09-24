@@ -50,7 +50,9 @@ def test_init_loads_prompts_from_file(mock_prompts):
         # Assert
         mock_file.assert_called_once_with(prompt_file_path, encoding="utf-8")
         mock_safe_load.assert_called_once()
-        assert executor_instance.build_prompt_template == mock_prompts["prompt_template"]
+        assert (
+            executor_instance.build_prompt_template == mock_prompts["prompt_template"]
+        )
 
 
 @pytest.mark.unit

@@ -62,12 +62,12 @@ github_broker/
         -   `LockAcquisitionError`: タスクのロック取得に失敗した場合に発生する例外。
 
 -   **`github_broker/application/task_service.py`**
-    -   **概要**: GitHub Issueの管理、タスクのアサイン、ブランチの作成など、アプリケーションの主要なビジネスロジックを担うサービスです。インフラストラクチャ層のクライアント（Redis, GitHub, Gemini）をDIで受け取ります。
+    -   **概要**: GitHub Issueの管理、タスクのアサイン、ブランチの作成、**そしてサーバーサイドでのプロンプト生成**など、アプリケーションの主要なビジネスロジックを担うサービスです。インフラストラクチャ層のクライアント（Redis, GitHub, Gemini）をDIで受け取ります。
     -   **主要なクラス/関数**:
         -   `TaskService`:
             -   `__init__()`: RedisClient, GitHubClient, GeminiClientをDIで受け取り初期化します。
             -   `complete_previous_task(agent_id: str)`: 以前のタスク（in-progress状態のIssue）を完了状態（needs-review）に更新します。
-            -   `request_task(agent_id: str) -> TaskResponse | None`: GitHubからアサイン可能なIssueを探し、ロックし、タスク情報を返します。Gemini APIを使用して最適なIssueを選択します。
+            -   `request_task(agent_id: str) -> TaskResponse | None`: GitHubからアサイン可能なIssueを探し、ロックし、タスク情報を返します。**サーバーサイドでプロンプトを生成し、Gemini APIを使用して最適なIssueを選択します。**
 
 ### 3. Interface Layer (インターフェース層)
 
@@ -136,18 +136,15 @@ github_broker/
             -   `delete_key()`: Redisからキーを削除します。
 
 -   **`github_broker/infrastructure/agent/client.py`**
-    -   **概要**: GitHubタスクブローカーサーバーとHTTP経由で通信するためのクライアントです。
+    -   **概要**: GitHubタスクブローカーサーバーとHTTP経由で通信するためのクライアントです。**プロンプト生成ロジックには関与せず、サーバーから受け取ったタスクを実行するシンプルな役割を担います。**
     -   **主要なクラス/関数**:
         -   `AgentClient`:
             -   `__init__()`: エージェントID, 役割, サーバーホスト, ポートを設定し初期化します。
             -   `request_task()`: サーバーに新しいタスクをリクエストします。
 
 -   **`github_broker/infrastructure/executors/gemini_executor.py`**
-    -   **概要**: `gemini`コマンドラインツールを使用してタスクを実行するExecutorです。単一フェーズでタスクを実行し、ログの記録やプロンプトの構築も行います。
+    -   **概要**: **サーバーサイドでのプロンプト生成ロジックを担う主要なコンポーネントです。** プロンプトテンプレートとタスク情報を基に、クライアントが実行するための最終的なプロンプト文字列を構築します。
     -   **主要なクラス/関数**:
         -   `GeminiExecutor`:
-            -   `__init__()`: ログディレクトリとGeminiモデルを設定し初期化します。
-            -   `execute(task: dict[str, Any])`: タスクを単一フェーズで実行します。
-            -   `_run_sub_process()`: コマンドをサブプロセスとして実行し、出力を記録します。
-            -   `_get_log_filepath()`: ログファイルのパスを構築します。
-            -   `_build_prompt()`: タスク実行のためのプロンプトを構築します。
+            -   `__init__()`: プロンプトテンプレートのパスなどを設定し初期化します。
+            -   `build_prompt()`: タスク情報に基づいてプロンプトを構築します。

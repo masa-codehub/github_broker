@@ -69,6 +69,8 @@ client = AgentClient(
 
 ```python
 import logging
+import shlex
+import subprocess
 
 # (クライアントの初期化は上記を参照)
 
@@ -80,6 +82,9 @@ try:
     if task:
         print("新しいタスクが割り当てられました！")
         print(f"  実行プロンプト: {task.get('prompt')}")
+        # 例: プロンプトを安全に実行する
+        command_parts = shlex.split(task.get('prompt'))
+        subprocess.run(command_parts, check=True)
 
     else:
         print("現在、割り当て可能なタスクはありません。")
