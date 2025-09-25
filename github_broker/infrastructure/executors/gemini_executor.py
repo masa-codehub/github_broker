@@ -1,8 +1,5 @@
-import datetime
 import logging
 import os
-import subprocess
-from typing import Any
 
 import yaml
 
@@ -40,12 +37,6 @@ class GeminiExecutor:
             logging.error(f"プロンプトファイルの読み込みまたは解析に失敗しました: {e}")
             # フォールバックとして空のテンプレートを設定
             self.build_prompt_template = ""
-
-
-
-
-
-
 
     def build_prompt(
         self, issue_id: int, title: str, body: str, branch_name: str
