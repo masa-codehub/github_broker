@@ -1,13 +1,13 @@
 import logging
-import threading
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from github import GithubException
 from pydantic import HttpUrl
 
 from github_broker.domain.task import Task
 from github_broker.infrastructure.github_client import GitHubClient
+from github_broker.infrastructure.redis_client import RedisClient
 from github_broker.interface.models import TaskResponse
 
 if TYPE_CHECKING:
@@ -22,14 +22,15 @@ class TaskService:
 
     def __init__(
         self,
+        redis_client: RedisClient,
         github_client: GitHubClient,
         settings: "Settings",
         gemini_executor: "GeminiExecutor",
     ):
+        self.redis_client = redis_client
         self.github_client = github_client
         self.repo_name = settings.GITHUB_REPOSITORY
         self.github_indexing_wait_seconds = settings.GITHUB_INDEXING_WAIT_SECONDS
-        self.polling_interval_seconds = settings.POLLING_INTERVAL_SECONDS
         self.gemini_executor = gemini_executor
 
     def complete_previous_task(self, agent_id: str):
@@ -44,7 +45,9 @@ class TaskService:
         )
 
         if not previous_issues_to_complete:
-            logger.info(f"[agent_id={agent_id}] No in-progress issues found for this agent via GitHub search.")
+            logger.info(
+                f"[agent_id={agent_id}] No in-progress issues found for this agent via GitHub search."
+            )
             return
 
         for issue in previous_issues_to_complete:
@@ -116,7 +119,8 @@ class TaskService:
                 )
                 continue
 
-            if "locked" in task.labels:
+            lock_key = f"issue_lock_{task.issue_id}"
+            if not self.redis_client.acquire_lock(lock_key, "locked", timeout=600):
                 logger.warning(
                     f"[issue_id={task.issue_id}] Issue is locked by another agent. Skipping."
                 )
@@ -124,15 +128,13 @@ class TaskService:
 
             try:
                 logger.info(
-                    f"[issue_id={task.issue_id}, agent_id={agent_id}] Attempting to acquire lock for issue via GitHub label."
-                )
-                self.github_client.add_label(task.issue_id, "locked")
-                logger.info(
                     f"[issue_id={task.issue_id}, agent_id={agent_id}] Lock acquired for issue. Assigning task."
                 )
                 self.github_client.add_label(task.issue_id, "in-progress")
                 self.github_client.add_label(task.issue_id, agent_id)
-                logger.info(f"[issue_id={task.issue_id}, agent_id={agent_id}] Assigned agent to issue.")
+                logger.info(
+                    f"[issue_id={task.issue_id}, agent_id={agent_id}] Assigned agent to issue."
+                )
 
                 self.github_client.create_branch(branch_name)
 
@@ -158,17 +160,21 @@ class TaskService:
                     exc_info=True,
                 )
                 try:
+                    # Rollback label changes
                     self.github_client.update_issue(
                         issue_id=task.issue_id,
-                        remove_labels=["in-progress", agent_id, "locked"],
-                    )
-                    logger.info(
-                        f"[issue_id={task.issue_id}, agent_id={agent_id}] Rolled back labels: removed 'in-progress', '{agent_id}' and 'locked'."
+                        remove_labels=["in-progress", agent_id],
                     )
                 except Exception as rollback_e:
                     logger.error(
                         f"[issue_id={task.issue_id}, agent_id={agent_id}] Failed to rollback labels: {rollback_e}",
                         exc_info=True,
+                    )
+                finally:
+                    # Always try to release the lock
+                    self.redis_client.release_lock(lock_key)
+                    logger.info(
+                        f"[issue_id={task.issue_id}, agent_id={agent_id}] Released lock."
                     )
                 raise
 
@@ -195,9 +201,12 @@ class TaskService:
 
         start_time = time.time()
         while True:
+            # TODO: Implement ETag-based caching to avoid hitting rate limits.
             all_issues = self.github_client.get_open_issues()
             if not all_issues:
-                logger.warning(f"[agent_id={agent_id}, agent_role={agent_role}] No open issues found from GitHub.")
+                logger.warning(
+                    f"[agent_id={agent_id}, agent_role={agent_role}] No open issues found from GitHub."
+                )
             else:
                 candidate_issues = self._find_candidates_by_role(all_issues, agent_role)
                 if candidate_issues:
@@ -216,10 +225,12 @@ class TaskService:
                     )
 
             if timeout is not None and (time.time() - start_time) > timeout:
-                logger.info(f"[agent_id={agent_id}, agent_role={agent_role}] No assignable task found from GitHub issues after polling.")
+                logger.info(
+                    f"[agent_id={agent_id}, agent_role={agent_role}] No assignable task found from GitHub issues after polling."
+                )
                 return None
 
             logger.info(
-                f"[agent_id={agent_id}, agent_role={agent_role}] No assignable task found. Waiting for {self.polling_interval_seconds} seconds before re-polling."
+                f"[agent_id={agent_id}, agent_role={agent_role}] No assignable task found. Waiting for 1 second before re-polling."
             )
-            time.sleep(self.polling_interval_seconds)
+            time.sleep(1)
