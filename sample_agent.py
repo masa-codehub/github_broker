@@ -2,7 +2,7 @@ import logging
 import os
 import time
 
-from github_broker import AgentClient, GeminiExecutor
+from github_broker import AgentClient
 
 # --- ロギング設定 ---
 logging.basicConfig(
@@ -18,21 +18,16 @@ if __name__ == "__main__":
     host = os.getenv("BROKER_HOST", "localhost")
     port = int(os.getenv("BROKER_PORT", 8080))
 
-    gemini_log_dir = os.getenv("MESSAGE_DIR", "/app/logs")
-    gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-
     agent_role = os.getenv("AGENT_ROLE", "BACKENDCODER")
     # --------------------------
 
     logging.info(f"エージェント '{agent_id}' を開始します。")
     logging.info(f"サーバー {host}:{port} に接続しています。")
-    logging.info(f"ログディレクトリ: {gemini_log_dir}")
     logging.info(f"ロール: {agent_role}")
     logging.info("-" * 30)
 
-    # AgentClientとExecutorを初期化
+    # AgentClientを初期化
     client = AgentClient(agent_id=agent_id, agent_role=agent_role, host=host, port=port)
-    executor = GeminiExecutor(log_dir=gemini_log_dir, model=gemini_model)
 
     while True:
         try:
@@ -44,11 +39,6 @@ if __name__ == "__main__":
                 logging.info(
                     f"新しいタスクが割り当てられました: #{assigned_task.get('issue_id')} - {assigned_task.get('title')}"
                 )
-
-                # ログファイル名のためにagent_idをタスク辞書に追加
-                assigned_task["agent_id"] = agent_id
-
-                executor.execute(assigned_task)
                 logging.info("タスクの実行プロセスが完了しました。")
                 time.sleep(5)  # 短い待機時間
             else:
