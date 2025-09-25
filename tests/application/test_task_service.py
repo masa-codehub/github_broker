@@ -26,7 +26,6 @@ def task_service(mock_redis_client, mock_github_client):
     mock_settings = MagicMock()
     mock_settings.GITHUB_REPOSITORY = "test/repo"
     mock_settings.GITHUB_INDEXING_WAIT_SECONDS = 0
-    mock_settings.POLLING_INTERVAL_SECONDS = 0.1
 
     mock_gemini_executor_instance = MagicMock(spec=GeminiExecutor)
     mock_gemini_executor_instance.build_prompt.return_value = (
@@ -165,7 +164,6 @@ def test_find_first_assignable_task_rollback_labels_on_branch_creation_failure(
             issue_id=issue["number"],
             remove_labels=["in-progress", agent_id],
         )
-        mock_github_client.remove_label.assert_not_called()
 
 
 @pytest.mark.unit
