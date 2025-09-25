@@ -15,7 +15,7 @@ case "$COMMAND" in
             exit 1
         fi
         echo "Setting issue $ISSUE_NUMBER in Redis cache..."
-        python3 /app/scripts/redis_issue_setter.py "$ISSUE_NUMBER"
+        python3 "$(dirname "$0")/redis_issue_setter.py" "$ISSUE_NUMBER"
         echo "Issue $ISSUE_NUMBER set in Redis cache."
         ;;
     *)
