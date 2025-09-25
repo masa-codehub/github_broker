@@ -110,6 +110,10 @@ graph TD
       * **`[agent_id]` ラベル:** タスクの**担当エージェント**を示すラベル (例: `gemini-agent`)。
       * **`needs-review` ラベル:** タスクが完了し、人間によるレビュー待ちであることを示す状態ラベル。
 
+#### 5.1. タスク選択ロジック
+
+現在のシステムでは、`TaskService`がエージェントの役割に基づいたフィルタリングと優先順位付けを行い、最適なIssueを選択します。将来的には`GEMINI CLI`エージェントのような高度なLLMを活用したタスク選択ロジックを導入する可能性も考慮しています。`GeminiClient`はそのための基盤として存在し、より複雑な意思決定をサポートする潜在能力を持っています。
+
 ----
 
 #### 6. コンポーネント別 詳細設計（サーバー内部）
@@ -171,7 +175,7 @@ sequenceDiagram
     participant GitHub
 
     loop 定期的なポーリング
-        PollingService->>+GitHub: GET /issues (オープンなIssueを全て取得)
+        PollingService->>+GitHub: GET /issues (オープンなIssueを全て取得, -label:"needs-review")
         GitHub-->>-PollingService: Issue List
         PollingService->>+Redis: SET open_issues_cache (Issueリストをキャッシュ)
         Redis-->>-PollingService: OK
