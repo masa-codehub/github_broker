@@ -1,15 +1,19 @@
-import datetime
 import logging
 import os
-import subprocess
-from typing import Any
 
 import yaml
 
 
 class GeminiExecutor:
     """
-    Geminiモデルへのプロンプトを構築するクラス。
+    サーバーサイドでAIエージェントに渡すためのプロンプトを生成するクラス。
+
+    このクラスは、TaskServiceなどのアプリケーションサービスから呼び出され、
+    与えられたタスク情報とプロンプトテンプレートを基に、
+    最終的なプロンプト文字列を組み立てる責務を担います。
+
+    実際のタスク実行は、このクラスが生成したプロンプトを受け取った
+    クライアント側のエージェントが行います。
     """
 
     def __init__(
@@ -41,16 +45,32 @@ class GeminiExecutor:
             # フォールバックとして空のテンプレートを設定
             self.build_prompt_template = ""
 
-
-
-
-
-
-
     def build_prompt(
         self, issue_id: int, title: str, body: str, branch_name: str
     ) -> str:
-        """タスク実行のためのプロンプトを構築します。"""
+        """
+        タスク情報に基づいて、エージェントが実行するためのプロンプトを構築します。
+
+        Args:
+            issue_id (int): GitHub Issueの番号。
+            title (str): Issueのタイトル。
+            body (str): Issueの本文。
+            branch_name (str): 作業用のブランチ名。
+
+        Returns:
+            str: 実行可能なコマンドを含むプロンプト文字列。
+
+        Example:
+            >>> executor = GeminiExecutor(prompt_file="path/to/prompts.yml")
+            >>> prompt = executor.build_prompt(
+            ...     issue_id=123,
+            ...     title="Fix bug",
+            ...     body="...",
+            ...     branch_name="fix/issue-123"
+            ... )
+            >>> print(prompt)
+            ...
+        """
         return self.build_prompt_template.format(
             issue_id=issue_id, title=title, body=body, branch_name=branch_name
         )
