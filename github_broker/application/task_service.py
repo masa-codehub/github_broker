@@ -1,9 +1,12 @@
+import json
 import logging
+import threading
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from github import GithubException
 from pydantic import HttpUrl
+from redis.exceptions import RedisError
 
 from github_broker.domain.task import Task
 from github_broker.infrastructure.github_client import GitHubClient
@@ -15,6 +18,8 @@ if TYPE_CHECKING:
     from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
 
 logger = logging.getLogger(__name__)
+
+OPEN_ISSUES_CACHE_KEY = "open_issues"
 
 
 class TaskService:
@@ -31,18 +36,92 @@ class TaskService:
         self.github_client = github_client
         self.repo_name = settings.GITHUB_REPOSITORY
         self.github_indexing_wait_seconds = settings.GITHUB_INDEXING_WAIT_SECONDS
+        self.polling_interval_seconds = settings.POLLING_INTERVAL_SECONDS
         self.gemini_executor = gemini_executor
 
-    def complete_previous_task(self, agent_id: str):
+    def start_polling(self, stop_event: "threading.Event | None" = None):
+        """
+        GitHubリポジトリから定期的にオープンなIssueを取得し、Redisにキャッシュします。
+        stop_eventがセットされるまでポーリングを続けます。
+        """
+        logger.info("Starting issue polling...")
+        while not (stop_event and stop_event.is_set()):
+            try:
+                logger.info(f"Fetching open issues from {self.repo_name}...")
+                issues = self.github_client.get_open_issues()
+                if issues:
+                    logger.info(
+                        f"Found {len(issues)} open issues. Caching them in Redis."
+                    )
+                    self.redis_client.set_value(
+                        OPEN_ISSUES_CACHE_KEY, json.dumps(issues)
+                    )
+                    logger.info("Finished caching all open issues under a single key.")
+                else:
+                    self.redis_client.set_value(OPEN_ISSUES_CACHE_KEY, json.dumps([]))
+                    logger.info("No open issues found. Cached an empty list.")
+
+            except (GithubException, RedisError) as e:
+                logger.error(f"An error occurred during polling: {e}", exc_info=True)
+            except Exception as e:
+                logger.error(
+                    f"An unexpected error occurred during polling: {e}", exc_info=True
+                )
+
+            time.sleep(self.polling_interval_seconds)
+
+        logger.info("Polling stopped.")
+
+    def complete_previous_task(self, agent_id: str, all_issues: list[dict[str, Any]]):
         """
         前タスクの完了処理を行います。
         in-progressとagent_idラベルを持つIssueを検索し、それらのラベルを削除し、needs-reviewラベルを付与します。
         """
         logger.info(f"[agent_id={agent_id}] Completing previous task.")
 
-        previous_issues_to_complete = self.github_client.find_issues_by_labels(
-            labels=["in-progress", agent_id]
-        )
+        previous_issue_id: int | None = None
+        previous_issues_to_complete: list[dict[str, Any]] = []
+        try:
+            previous_issue_id_from_redis = self.redis_client.get_value(
+                f"agent_current_task:{agent_id}"
+            )
+            if previous_issue_id_from_redis:
+                try:
+                    previous_issue_id = int(previous_issue_id_from_redis)
+                    found_issue = next(
+                        (
+                            issue
+                            for issue in all_issues
+                            if issue.get("number") == previous_issue_id
+                        ),
+                        None,
+                    )
+                    if found_issue:
+                        previous_issues_to_complete = [found_issue]
+                        logger.info(
+                            f"[issue_id={previous_issue_id}, agent_id={agent_id}] Found previous in-progress issue from Redis."
+                        )
+                    else:
+                        logger.warning(
+                            f"[issue_id={previous_issue_id}, agent_id={agent_id}] Issue from Redis not found in current open issues. Falling back to GitHub search."
+                        )
+                except ValueError:
+                    logger.error(
+                        f"[agent_id={agent_id}] Invalid issue ID '{previous_issue_id_from_redis}' stored in Redis. Falling back to GitHub search."
+                    )
+        except RedisError as e:
+            logger.error(
+                f"[agent_id={agent_id}] Redis error when getting previous task: {e}. Falling back to GitHub search.",
+                exc_info=True,
+            )
+
+        if not previous_issues_to_complete:
+            logger.info(
+                f"[agent_id={agent_id}] No previous task found in Redis. Searching GitHub."
+            )
+            previous_issues_to_complete = self.github_client.find_issues_by_labels(
+                labels=["in-progress", agent_id]
+            )
 
         if not previous_issues_to_complete:
             logger.info(
@@ -53,7 +132,6 @@ class TaskService:
         for issue in previous_issues_to_complete:
             remove_labels = ["in-progress", agent_id]
             add_labels = ["needs-review"]
-
             try:
                 self.github_client.update_issue(
                     issue_id=issue["number"],
@@ -63,6 +141,11 @@ class TaskService:
                 logger.info(
                     f"[issue_id={issue['number']}, agent_id={agent_id}] Updated labels: removed {remove_labels}, added {add_labels}."
                 )
+                if previous_issue_id and issue.get("number") == previous_issue_id:
+                    self.redis_client.delete_key(f"agent_current_task:{agent_id}")
+                    logger.info(
+                        f"[agent_id={agent_id}] Deleted previous task ID {previous_issue_id} from Redis."
+                    )
             except GithubException as e:
                 logger.error(
                     f"[issue_id={issue['number']}, agent_id={agent_id}] Failed to update issue: {e}",
@@ -120,7 +203,7 @@ class TaskService:
                 continue
 
             lock_key = f"issue_lock_{task.issue_id}"
-            if not self.redis_client.acquire_lock(lock_key, "locked", timeout=600):
+            if not self.redis_client.acquire_lock(lock_key, agent_id, timeout=600):
                 logger.warning(
                     f"[issue_id={task.issue_id}] Issue is locked by another agent. Skipping."
                 )
@@ -145,6 +228,13 @@ class TaskService:
                     branch_name=branch_name,
                 )
 
+                self.redis_client.set_value(
+                    f"agent_current_task:{agent_id}", str(task.issue_id), timeout=3600
+                )
+                logger.info(
+                    f"[issue_id={task.issue_id}, agent_id={agent_id}] Stored current task in Redis."
+                )
+
                 return TaskResponse(
                     issue_id=task.issue_id,
                     issue_url=HttpUrl(task.html_url),
@@ -160,10 +250,12 @@ class TaskService:
                     exc_info=True,
                 )
                 try:
-                    # Rollback label changes
                     self.github_client.update_issue(
                         issue_id=task.issue_id,
                         remove_labels=["in-progress", agent_id],
+                    )
+                    logger.info(
+                        f"[issue_id={task.issue_id}, agent_id={agent_id}] Rolled back labels."
                     )
                 except Exception as rollback_e:
                     logger.error(
@@ -171,7 +263,6 @@ class TaskService:
                         exc_info=True,
                     )
                 finally:
-                    # Always try to release the lock
                     self.redis_client.release_lock(lock_key)
                     logger.info(
                         f"[issue_id={task.issue_id}, agent_id={agent_id}] Released lock."
@@ -187,50 +278,36 @@ class TaskService:
         """
         エージェントの役割（role）に基づいて最適なIssueを探し、タスク情報を返します。
         利用可能なタスクがない場合、指定されたタイムアウト時間までタスクの出現を待ち続けます（ロングポーリング）。
-
-        Args:
-            agent_id (str): タスクを要求するエージェントのID。
-            agent_role (str): エージェントの役割。
-            timeout (int | None): ロングポーリングのタイムアウト時間（秒）。Noneの場合、待機せずに即時リターンします。
-                                  デフォルトは120秒です。
-
-        Returns:
-            TaskResponse | None: 見つかったタスクの情報。タイムアウトした場合はNoneを返します。
         """
-        self.complete_previous_task(agent_id)
+        cached_issues_json = self.redis_client.get_value(OPEN_ISSUES_CACHE_KEY)
 
-        start_time = time.time()
-        while True:
-            # TODO: Implement ETag-based caching to avoid hitting rate limits.
-            all_issues = self.github_client.get_open_issues()
-            if not all_issues:
-                logger.warning(
-                    f"[agent_id={agent_id}, agent_role={agent_role}] No open issues found from GitHub."
-                )
-            else:
-                candidate_issues = self._find_candidates_by_role(all_issues, agent_role)
-                if candidate_issues:
-                    logger.info(
-                        f"[agent_id={agent_id}, agent_role={agent_role}] Found {len(candidate_issues)} candidate issues."
-                    )
-                    task = self._find_first_assignable_task(candidate_issues, agent_id)
-                    if task:
-                        logger.info(
-                            f"[issue_id={task.issue_id}, agent_id={agent_id}] Assigned current task issue."
-                        )
-                        return task
-                else:
-                    logger.info(
-                        f"[agent_id={agent_id}, agent_role={agent_role}] No candidate issues found in GitHub issues."
-                    )
+        if not cached_issues_json:
+            logger.warning("No issues found in Redis cache.")
+            return None
 
-            if timeout is not None and (time.time() - start_time) > timeout:
-                logger.info(
-                    f"[agent_id={agent_id}, agent_role={agent_role}] No assignable task found from GitHub issues after polling."
-                )
-                return None
-
-            logger.info(
-                f"[agent_id={agent_id}, agent_role={agent_role}] No assignable task found. Waiting for 1 second before re-polling."
+        try:
+            all_issues = json.loads(cached_issues_json)
+        except json.JSONDecodeError:
+            logger.error(
+                "Failed to decode issues from Redis cache. The cache might be corrupted.",
+                exc_info=True,
             )
-            time.sleep(1)
+            return None
+
+        self.complete_previous_task(agent_id, all_issues)
+
+        candidate_issues = self._find_candidates_by_role(all_issues, agent_role)
+        if candidate_issues:
+            logger.info(
+                f"Found {len(candidate_issues)} candidate issues for role '{agent_role}'."
+            )
+            task = self._find_first_assignable_task(candidate_issues, agent_id)
+            if task:
+                return task
+        else:
+            logger.info(
+                f"No candidate issues found for role '{agent_role}' in cached issues."
+            )
+
+        logger.info("No assignable task found from cached issues.")
+        return None

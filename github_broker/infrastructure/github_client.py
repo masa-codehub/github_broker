@@ -144,3 +144,17 @@ class GitHubClient:
                 f"リポジトリ {self._repo_name} にブランチ {branch_name} を作成中にエラーが発生しました: {e}"
             )
             raise
+
+    def get_issue_by_number(self, issue_number: int):
+        """
+        特定のIssue番号に対応するIssueの生データを取得します。
+        """
+        try:
+            repo = self._client.get_repo(self._repo_name)
+            issue = repo.get_issue(number=issue_number)
+            return issue.raw_data
+        except GithubException as e:
+            logging.error(
+                f"リポジトリ {self._repo_name} からIssue #{issue_number} の取得中にエラーが発生しました: {e}"
+            )
+            raise

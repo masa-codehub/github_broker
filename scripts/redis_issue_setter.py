@@ -13,10 +13,7 @@ def get_github_issue(github_client: GitHubClient, issue_number: int):
     GitHubから特定のIssueを取得します。
     """
     try:
-        # This still uses private members, but I will not fix it in this PR.
-        repo = github_client._client.get_repo(github_client._repo_name)
-        issue = repo.get_issue(number=issue_number)
-        return issue.raw_data
+        return github_client.get_issue_by_number(issue_number)
     except Exception as e:
         print(f"Error fetching issue {issue_number} from GitHub: {e}")  # noqa: T201
         sys.exit(1)
