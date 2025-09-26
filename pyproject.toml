@@ -18,7 +18,7 @@ authors = [
 ]
 description = ""
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -154,7 +154,7 @@ filterwarnings = [
 ]
 
 # 出力設定
-addopts = "-v --tb=short --strict-markers --cov=github_broker --cov-report=term-missing"
+addopts = "-v --tb=short --strict-markers"
 
 # カスタムマーカーの定義
 markers = [
