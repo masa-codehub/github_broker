@@ -2,7 +2,7 @@ import json
 import logging
 import threading
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from github import GithubException
 from pydantic import HttpUrl
@@ -19,8 +19,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# --- Constants ---
-_DEFAULT_GITHUB_INDEXING_WAIT_SECONDS = 15
 OPEN_ISSUES_CACHE_KEY = "open_issues"
 
 
@@ -60,8 +58,6 @@ class TaskService:
                     )
                     logger.info("Finished caching all open issues under a single key.")
                 else:
-                    # Issueが0件の場合も空のリストをキャッシュに保存することで、
-                    # クローズされたIssueがキャッシュに残り続けるのを防ぐ
                     self.redis_client.set_value(OPEN_ISSUES_CACHE_KEY, json.dumps([]))
                     logger.info("No open issues found. Cached an empty list.")
 
@@ -76,104 +72,63 @@ class TaskService:
 
         logger.info("Polling stopped.")
 
-    def complete_previous_task(self, agent_id: str, all_issues: list[dict[str, Any]]):
+    def complete_previous_task(self, agent_id: str):
         """
         前タスクの完了処理を行います。
-        in-progressとagent_idラベルを持つIssueを検索し、それらのラベルを削除し、needs-reviewラベルを付与します。
+        in-progressとagent_idラベルを持つIssueをGitHub API経由で直接検索し、それらのラベルを削除し、needs-reviewラベルを付与します。
         """
-        logger.info(f"Completing previous task for agent: {agent_id}")
-
-        previous_issue_id: int | None = None
-        previous_issues_to_complete: list[dict[str, Any]] = []
-        previous_issue_id_from_redis = self.redis_client.get_value(
-            f"agent_current_task:{agent_id}"
-        )
-
-        if previous_issue_id_from_redis:
-            try:
-                previous_issue_id = int(previous_issue_id_from_redis)
-                found_issue = next(
-                    (
-                        issue
-                        for issue in all_issues
-                        if issue.get("number") == previous_issue_id
-                    ),
-                    None,
-                )
-                if found_issue:
-                    previous_issues_to_complete = [found_issue]
-                    logger.info(
-                        f"Found previous in-progress issue #{previous_issue_id} for agent {agent_id} from Redis."
-                    )
-                else:
-                    logger.warning(
-                        f"Issue #{previous_issue_id} from Redis not found in current open issues. Falling back to GitHub search."
-                    )
-            except ValueError:
-                logger.error(
-                    f"Invalid issue ID '{previous_issue_id_from_redis}' stored in Redis for agent {agent_id}. Falling back to GitHub search."
-                )
-            except RedisError as e:
-                logger.error(
-                    f"Redis error when getting previous task for agent {agent_id}: {e}. Falling back to GitHub search.",
-                    exc_info=True,
-                )
-        else:
-            logger.info(
-                f"No previous task found in Redis for agent {agent_id}. Searching GitHub."
+        logger.info("[agent_id=%s] Completing previous task.", agent_id)
+        try:
+            previous_issues_to_complete = self.github_client.find_issues_by_labels(
+                labels=["in-progress", agent_id]
             )
 
-        # Redisから取得できなかった、またはRedisの情報が不正だった場合のフォールバック
-        if not previous_issues_to_complete:
-            previous_issues_to_complete = [
-                issue
-                for issue in all_issues
-                if "in-progress"
-                in {label.get("name") for label in issue.get("labels", [])}
-                and agent_id in {label.get("name") for label in issue.get("labels", [])}
-            ]
             if not previous_issues_to_complete:
                 logger.info(
-                    "No in-progress issues found for this agent via GitHub search."
+                    "[agent_id=%s] No in-progress issues found for this agent via GitHub search.",
+                    agent_id,
                 )
                 return
 
-        for issue in previous_issues_to_complete:
-            remove_labels = ["in-progress", agent_id]
-            add_labels = ["needs-review"]
-
-            try:
-                self.github_client.update_issue(
-                    issue_id=issue["number"],
-                    remove_labels=remove_labels,
-                    add_labels=add_labels,
-                )
-                logger.info(
-                    "Updated labels for issue #%s: removed %s, added %s.",
-                    issue["number"],
-                    remove_labels,
-                    add_labels,
-                )
-                # Redisから取得したIssueを完了した場合のみ、Redisのキーを削除
-                if previous_issue_id and issue.get("number") == previous_issue_id:
-                    self.redis_client.delete_key(f"agent_current_task:{agent_id}")
-                    logger.info(f"Removed agent_current_task:{agent_id} from Redis.")
-            except GithubException as e:
-                logger.error(
-                    "Failed to update issue #%s for agent %s: %s",
-                    issue["number"],
-                    agent_id,
-                    e,
-                    exc_info=True,
-                )
-            except Exception as e:
-                logger.error(
-                    "An unexpected error occurred while updating issue #%s for agent %s: %s",
-                    issue["number"],
-                    agent_id,
-                    e,
-                    exc_info=True,
-                )
+            for issue in previous_issues_to_complete:
+                remove_labels = ["in-progress", agent_id]
+                add_labels = ["needs-review"]
+                try:
+                    self.github_client.update_issue(
+                        issue_id=issue["number"],
+                        remove_labels=remove_labels,
+                        add_labels=add_labels,
+                    )
+                    logger.info(
+                        "[issue_id=%s, agent_id=%s] Updated labels: removed %s, added %s.",
+                        issue["number"],
+                        agent_id,
+                        remove_labels,
+                        add_labels,
+                    )
+                except GithubException as e:
+                    logger.error(
+                        "[issue_id=%s, agent_id=%s] Failed to update issue: %s",
+                        issue["number"],
+                        agent_id,
+                        e,
+                        exc_info=True,
+                    )
+                except Exception as e:
+                    logger.error(
+                        "[issue_id=%s, agent_id=%s] An unexpected error occurred while updating issue: %s",
+                        issue["number"],
+                        agent_id,
+                        e,
+                        exc_info=True,
+                    )
+        except GithubException as e:
+            logger.error(
+                "[agent_id=%s] Failed to find issues by labels: %s",
+                agent_id,
+                e,
+                exc_info=True,
+            )
 
     def _find_candidates_by_role(self, issues: list, agent_role: str) -> list:
         """指定された役割（role）ラベルを持つIssueをフィルタリングします。"""
@@ -189,7 +144,7 @@ class TaskService:
 
         if not candidate_issues:
             logger.info(
-                f"No issues found with role label '{agent_role}' that do not also have 'needs-review'."
+                f"[agent_role={agent_role}] No issues found with role label that do not also have 'needs-review'."
             )
         return candidate_issues
 
@@ -209,31 +164,33 @@ class TaskService:
 
             if not task.is_assignable():
                 logger.info(
-                    f"Issue #{task.issue_id} is not assignable (missing '成果物' section). Skipping."
+                    f"[issue_id={task.issue_id}] Issue is not assignable (missing '成果物' section). Skipping."
                 )
                 continue
 
             branch_name = task.extract_branch_name()
             if not branch_name:
                 logger.warning(
-                    f"Issue #{task.issue_id} の本文にブランチ名が見つかりませんでした。このIssueはスキップされます。"
+                    f"[issue_id={task.issue_id}] の本文にブランチ名が見つかりませんでした。このIssueはスキップされます。"
                 )
                 continue
 
             lock_key = f"issue_lock_{task.issue_id}"
-            if not self.redis_client.acquire_lock(lock_key, "locked", timeout=600):
+            if not self.redis_client.acquire_lock(lock_key, agent_id, timeout=600):
                 logger.warning(
-                    f"Issue #{task.issue_id} is locked by another agent. Skipping."
+                    f"[issue_id={task.issue_id}] Issue is locked by another agent. Skipping."
                 )
                 continue
 
             try:
                 logger.info(
-                    f"Lock acquired for issue #{task.issue_id}. Assigning task."
+                    f"[issue_id={task.issue_id}, agent_id={agent_id}] Lock acquired for issue. Assigning task."
                 )
                 self.github_client.add_label(task.issue_id, "in-progress")
                 self.github_client.add_label(task.issue_id, agent_id)
-                logger.info(f"Assigned agent '{agent_id}' to issue #{task.issue_id}.")
+                logger.info(
+                    f"[issue_id={task.issue_id}, agent_id={agent_id}] Assigned agent to issue."
+                )
 
                 self.github_client.create_branch(branch_name)
 
@@ -242,6 +199,13 @@ class TaskService:
                     title=task.title,
                     body=task.body,
                     branch_name=branch_name,
+                )
+
+                self.redis_client.set_value(
+                    f"agent_current_task:{agent_id}", str(task.issue_id), timeout=3600
+                )
+                logger.info(
+                    f"[issue_id={task.issue_id}, agent_id={agent_id}] Stored current task in Redis."
                 )
 
                 return TaskResponse(
@@ -255,7 +219,7 @@ class TaskService:
                 )
             except Exception as e:
                 logger.error(
-                    f"Failed to process issue #{task.issue_id} after acquiring lock: {e}",
+                    f"[issue_id={task.issue_id}, agent_id={agent_id}] Failed to process issue after acquiring lock: {e}",
                     exc_info=True,
                 )
                 try:
@@ -264,18 +228,21 @@ class TaskService:
                         remove_labels=["in-progress", agent_id],
                     )
                     logger.info(
-                        f"Rolled back labels for issue #{task.issue_id}: removed 'in-progress' and '{agent_id}'."
+                        f"[issue_id={task.issue_id}, agent_id={agent_id}] Rolled back labels."
                     )
                 except Exception as rollback_e:
                     logger.error(
-                        f"Failed to rollback labels for issue #{task.issue_id}: {rollback_e}",
+                        f"[issue_id={task.issue_id}, agent_id={agent_id}] Failed to rollback labels: {rollback_e}",
                         exc_info=True,
                     )
                 finally:
                     self.redis_client.release_lock(lock_key)
+                    logger.info(
+                        f"[issue_id={task.issue_id}, agent_id={agent_id}] Released lock."
+                    )
                 raise
 
-        logger.info("No assignable and unlocked issues found.")
+        logger.info(f"[agent_id={agent_id}] No assignable and unlocked issues found.")
         return None
 
     def request_task(
@@ -284,15 +251,6 @@ class TaskService:
         """
         エージェントの役割（role）に基づいて最適なIssueを探し、タスク情報を返します。
         利用可能なタスクがない場合、指定されたタイムアウト時間までタスクの出現を待ち続けます（ロングポーリング）。
-
-        Args:
-            agent_id (str): タスクを要求するエージェントのID。
-            agent_role (str): エージェントの役割。
-            timeout (int | None): ロングポーリングのタイムアウト時間（秒）。Noneの場合、待機せずに即時リターンします。
-                                  デフォルトは120秒です。
-
-        Returns:
-            TaskResponse | None: 見つかったタスクの情報。タイムアウトした場合はNoneを返します。
         """
         cached_issues_json = self.redis_client.get_value(OPEN_ISSUES_CACHE_KEY)
 
@@ -308,7 +266,8 @@ class TaskService:
                 exc_info=True,
             )
             return None
-        self.complete_previous_task(agent_id, all_issues)
+
+        self.complete_previous_task(agent_id)
 
         candidate_issues = self._find_candidates_by_role(all_issues, agent_role)
         if candidate_issues:
@@ -317,13 +276,6 @@ class TaskService:
             )
             task = self._find_first_assignable_task(candidate_issues, agent_id)
             if task:
-                # Redisに現在のタスク情報を保存
-                self.redis_client.set_value(
-                    f"agent_current_task:{agent_id}", str(task.issue_id), timeout=3600
-                )
-                logger.info(
-                    f"Stored current task issue #{task.issue_id} for agent {agent_id} in Redis."
-                )
                 return task
         else:
             logger.info(

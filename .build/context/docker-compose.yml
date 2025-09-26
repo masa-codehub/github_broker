@@ -29,6 +29,11 @@ services:
     # command: ["bash", "run.sh"]
     stdin_open: true
     tty: true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   github_broker:
     build:
@@ -50,12 +55,24 @@ services:
     depends_on:
       - redis
     command: ["python", "main.py"]
+    stdin_open: true
+    tty: true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   redis:
     image: redis:latest
     hostname: redis
     ports:
       - "6379:6379"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
 
 volumes:
   gemini_config:

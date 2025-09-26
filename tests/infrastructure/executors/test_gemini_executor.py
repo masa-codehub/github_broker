@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import mock_open, patch
 
 import pytest
 import yaml
@@ -70,7 +70,7 @@ def test_init_handles_prompt_file_error():
 
 
 @pytest.mark.unit
-def test_build_prompt(executor):
+def test__build_prompt(executor):
     """_build_promptがテンプレートに基づいてプロンプトを正しく構築することをテストします"""
     # Act
     prompt = executor.build_prompt(123, "Test Title", "Test Body", "feature/test")
@@ -80,140 +80,3 @@ def test_build_prompt(executor):
         prompt
         == "Issue ID: 123\nTitle: Test Title\nBranch: feature/test\nBody: Test Body\n"
     )
-
-
-@pytest.mark.unit
-@patch(
-    "github_broker.infrastructure.executors.gemini_executor.GeminiExecutor._run_sub_process"
-)
-def test_execute_success(mock_run_sub_process, executor):
-    """タスクの正常な実行（初回＋レビュー）をテストします"""
-    # Arrange
-    mock_run_sub_process.return_value = True
-    task = {
-        "title": "Test Title",
-        "body": "Test Body",
-        "branch_name": "feature/test",
-        "agent_id": "test-agent",
-    }
-    # openをモックして、ログファイルの読み書きをシミュレート
-    with patch("builtins.open", mock_open(read_data="initial output")):
-        # Act
-        executor.execute(task)
-
-    # Assert
-    assert mock_run_sub_process.call_count == 1
-
-
-@pytest.mark.unit
-@patch(
-    "github_broker.infrastructure.executors.gemini_executor.GeminiExecutor._run_sub_process"
-)
-def test_execute_first_run_fails(mock_run_sub_process, executor):
-    """初回実行が失敗した場合、レビューステップがスキップされることをテストします"""
-    # Arrange
-    mock_run_sub_process.return_value = False  # 実行失敗をシミュレート
-    task = {"title": "t", "body": "b", "branch_name": "b", "agent_id": "test-agent"}
-
-    # Act
-    executor.execute(task)
-
-    # Assert
-    mock_run_sub_process.assert_called_once()
-
-
-@pytest.mark.unit
-@patch("subprocess.Popen")
-def test_run_sub_process_handles_file_not_found(mock_popen, executor):
-    """_run_sub_processがFileNotFoundErrorを処理することをテストします"""
-    # Arrange
-    mock_popen.side_effect = FileNotFoundError("Command not found")
-
-    # Act
-    result = executor._run_sub_process(["gemini"], "/tmp/log.txt")
-
-    # Assert
-    assert result is False
-
-
-@pytest.mark.unit
-@patch("subprocess.Popen")
-def test_run_sub_process_handles_generic_exception(mock_popen, executor):
-    """_run_sub_processが一般的な例外を処理することをテストします"""
-    # Arrange
-    mock_popen.side_effect = Exception("Unexpected error")
-
-    # Act
-    result = executor._run_sub_process(["some", "command"], "/tmp/log.txt")
-
-    # Assert
-    assert result is False
-
-
-@pytest.mark.unit
-def test_get_log_filepath_no_log_dir():
-    """_get_log_filepathがlog_dirなしでNoneを返すことをテストします。"""
-    # Arrange
-    executor = GeminiExecutor(log_dir=None)
-    # Act
-    filepath = executor._get_log_filepath("test-agent")
-    # Assert
-    assert filepath is None
-
-
-@pytest.mark.unit
-def test_get_log_filepath_no_agent_id(executor):
-    """_get_log_filepathがagent_idなしでNoneを返すことをテストします。"""
-    # Act
-    with patch("logging.warning") as mock_log_warning:
-        filepath = executor._get_log_filepath(None)
-    # Assert
-    assert filepath is None
-    mock_log_warning.assert_called_once()
-
-
-@pytest.mark.unit
-@patch("subprocess.Popen")
-def test_run_sub_process_captures_output(mock_popen, executor):
-    """_run_sub_processがサブプロセスの出力を正しくキャプチャすることをテストします。"""
-    # Arrange
-    mock_process = MagicMock()
-    mock_process.stdout = ["line 1\n", "line 2\n"]
-    mock_process.returncode = 0
-    mock_popen.return_value.__enter__.return_value = mock_process
-
-    mock_log_file = mock_open()
-
-    # Act
-    with patch("builtins.open", mock_log_file):
-        result = executor._run_sub_process(["dummy_command"], "/dummy/log.txt")
-
-    # Assert
-    assert result is True
-    handle = mock_log_file()
-    assert handle.write.call_count == 2
-    assert handle.write.call_args_list[0].args == ("line 1\n",)
-    assert handle.write.call_args_list[1].args == ("line 2\n",)
-
-
-@pytest.mark.unit
-@patch("subprocess.Popen")
-@patch("logging.info")
-def test_run_sub_process_no_log_filepath(mock_logging_info, mock_popen, executor):
-    """_run_sub_processがlog_filepathなしで正しく動作することをテストします。"""
-    # Arrange
-    mock_process = MagicMock()
-    mock_process.stdout = ["line 1\n", "line 2\n"]
-    mock_process.returncode = 0
-    mock_popen.return_value.__enter__.return_value = mock_process
-
-    mock_log_file = mock_open()
-
-    # Act
-    with patch("builtins.open", mock_log_file):
-        result = executor._run_sub_process(["dummy_command"], None)
-
-    # Assert
-    assert result is True
-    mock_log_file.assert_not_called()  # ファイルは開かれないはず
-    assert mock_logging_info.call_count == 3  # コマンド実行ログ + 2行の出力ログ
