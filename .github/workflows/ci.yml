@@ -43,6 +43,36 @@ jobs:
         run: mypy . --ignore-missing-imports
       - name: Test with pytest
         run: pytest -m "unit" --cov=. --cov-report=xml
+      - name: Server startup test
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TESTING: true
+          REDIS_HOST: localhost
+        run: |
+          echo "Starting server startup test..."
+          echo "GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
+          echo "TESTING: $TESTING"
+          
+          # サーバーをバックグラウンドで起動（30秒でタイムアウト）
+          timeout 30s python main.py &
+          SERVER_PID=$!
+          
+          echo "Server PID: $SERVER_PID"
+          
+          # サーバーの起動を待つ（5秒）
+          sleep 5
+          
+          # プロセスが存在しているかを確認
+          if kill -0 $SERVER_PID 2>/dev/null; then
+            echo "✅ Server started successfully (PID: $SERVER_PID)"
+            # プロセスを終了
+            kill $SERVER_PID
+            wait $SERVER_PID 2>/dev/null || true
+            echo "✅ Server stopped successfully"
+          else
+            echo "❌ Server failed to start"
+            exit 1
+          fi
       - name: Upload coverage report
         if: success()
         uses: actions/upload-artifact@v4
