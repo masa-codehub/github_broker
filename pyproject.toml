@@ -154,7 +154,7 @@ filterwarnings = [
 ]
 
 # 出力設定
-addopts = "-v --tb=short --strict-markers --cov=github_broker --cov-report=term-missing"
+addopts = "-v --tb=short --strict-markers"
 
 # カスタムマーカーの定義
 markers = [
