@@ -1,9 +1,9 @@
 import json
 import logging
-import threading
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
+from github import GithubException
 
 from github_broker.application.task_service import OPEN_ISSUES_CACHE_KEY, TaskService
 from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
@@ -65,74 +65,6 @@ def create_mock_issue(
 
 
 @pytest.mark.unit
-def test_start_polling_fetches_and_caches_issues(
-    task_service, mock_github_client, mock_redis_client
-):
-    """start_pollingがIssueを取得し、単一キーでRedisにキャッシュすることをテストします。"""
-    # Arrange
-    issue1 = create_mock_issue(number=1, title="Poll Task 1", body="", labels=["bug"])
-    issue2 = create_mock_issue(
-        number=2, title="Poll Task 2", body="", labels=["feature"]
-    )
-    mock_issues = [issue1, issue2]
-    mock_github_client.get_open_issues.return_value = mock_issues
-
-    stop_event = threading.Event()
-
-    def stop_loop(*args, **kwargs):
-        if mock_github_client.get_open_issues.call_count == 1:
-            stop_event.set()
-        return mock_issues
-
-    mock_github_client.get_open_issues.side_effect = stop_loop
-
-    # Act
-    with patch("time.sleep"):
-        polling_thread = threading.Thread(
-            target=task_service.start_polling, args=(stop_event,)
-        )
-        polling_thread.start()
-        polling_thread.join(timeout=5)
-
-    # Assert
-    mock_github_client.get_open_issues.assert_called_once()
-    mock_redis_client.set_value.assert_called_once_with(
-        OPEN_ISSUES_CACHE_KEY, json.dumps(mock_issues)
-    )
-
-
-@pytest.mark.unit
-def test_start_polling_caches_empty_list_when_no_issues(
-    task_service, mock_github_client, mock_redis_client
-):
-    """start_pollingがIssueがない場合に空のリストをキャッシュすることをテストします。"""
-    # Arrange
-    mock_github_client.get_open_issues.return_value = []
-    stop_event = threading.Event()
-
-    def stop_loop(*args, **kwargs):
-        if mock_github_client.get_open_issues.call_count == 1:
-            stop_event.set()
-        return []
-
-    mock_github_client.get_open_issues.side_effect = stop_loop
-
-    # Act
-    with patch("time.sleep"):
-        polling_thread = threading.Thread(
-            target=task_service.start_polling, args=(stop_event,)
-        )
-        polling_thread.start()
-        polling_thread.join(timeout=5)
-
-    # Assert
-    mock_github_client.get_open_issues.assert_called_once()
-    mock_redis_client.set_value.assert_called_once_with(
-        OPEN_ISSUES_CACHE_KEY, json.dumps([])
-    )
-
-
-@pytest.mark.unit
 def test_request_task_selects_by_role_from_cache(
     task_service, mock_redis_client, mock_github_client
 ):
@@ -148,7 +80,7 @@ def test_request_task_selects_by_role_from_cache(
         labels=["feature", "BACKENDCODER"],
     )
     cached_issues = [issue1, issue2]
-    mock_redis_client.get_value.side_effect = [json.dumps(cached_issues), None]
+    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
     mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = True
 
@@ -161,9 +93,7 @@ def test_request_task_selects_by_role_from_cache(
     # Assert
     assert result is not None
     assert result.issue_id == 2
-    mock_redis_client.get_value.assert_has_calls(
-        [call(OPEN_ISSUES_CACHE_KEY), call(f"agent_current_task:{agent_id}")]
-    )
+    mock_redis_client.get_value.assert_called_once_with(OPEN_ISSUES_CACHE_KEY)
     mock_redis_client.acquire_lock.assert_called_once_with(
         "issue_lock_2", agent_id, timeout=600
     )
@@ -188,7 +118,7 @@ def test_request_task_no_matching_issue(
         number=1, title="Docs", body="## 成果物\n- docs", labels=["documentation"]
     )
     cached_issues = [issue1]
-    mock_redis_client.get_value.side_effect = [json.dumps(cached_issues), None]
+    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
     mock_github_client.find_issues_by_labels.return_value = []
     agent_id = "test-agent"
     agent_role = "BACKENDCODER"
@@ -198,30 +128,55 @@ def test_request_task_no_matching_issue(
 
     # Assert
     assert result is None
-    mock_redis_client.get_value.assert_has_calls(
-        [call(OPEN_ISSUES_CACHE_KEY), call(f"agent_current_task:{agent_id}")]
-    )
+    mock_redis_client.get_value.assert_called_once_with(OPEN_ISSUES_CACHE_KEY)
 
 
 @pytest.mark.unit
-def test_complete_previous_task_handles_invalid_redis_id(
-    task_service, mock_redis_client, mock_github_client, caplog
+def test_request_task_completes_previous_task(
+    task_service, mock_redis_client, mock_github_client
 ):
-    """Redisに保存されたIDが無効な場合にエラーを記録し、GitHub検索にフォールバックすることをテストします。"""
+    """request_taskが前タスクの完了処理を呼び出すことをテストします。"""
     # Arrange
     agent_id = "test-agent"
-    mock_redis_client.get_value.return_value = "invalid-id"
-    all_issues = []
+    agent_role = "BACKENDCODER"
+    prev_issue = create_mock_issue(
+        number=1,
+        title="Previous Task",
+        body="",
+        labels=["in-progress", agent_id],
+    )
+    new_issue = create_mock_issue(
+        number=2,
+        title="New Task",
+        body="## 成果物\n- new.py",
+        labels=["BACKENDCODER"],
+    )
+    cached_issues = [new_issue]  # Only new task in cache
+    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
+    mock_redis_client.acquire_lock.return_value = True
+
+    # Setup GitHub API to return previous issue for completion
+    mock_github_client.find_issues_by_labels.return_value = [prev_issue]
 
     # Act
-    with caplog.at_level(logging.ERROR):
-        task_service.complete_previous_task(agent_id, all_issues)
+    result = task_service.request_task(agent_id=agent_id, agent_role=agent_role)
 
     # Assert
-    assert "Invalid issue ID 'invalid-id' stored in Redis" in caplog.text
+    # Check that find_issues_by_labels was called for completion
     mock_github_client.find_issues_by_labels.assert_called_once_with(
         labels=["in-progress", agent_id]
     )
+    # Check that update_issue was called for the previous task completion
+    update_calls = mock_github_client.update_issue.call_args_list
+    assert len(update_calls) >= 1, "update_issue should be called at least once"
+    # The first call should be for completing the previous task
+    first_call = update_calls[0]
+    assert first_call[1]["issue_id"] == prev_issue["number"]
+    assert first_call[1]["remove_labels"] == ["in-progress", agent_id]
+    assert first_call[1]["add_labels"] == ["needs-review"]
+
+    assert result is not None
+    assert result.issue_id == new_issue["number"]
 
 
 @pytest.mark.unit
@@ -257,3 +212,247 @@ def test_find_first_assignable_task_skips_locked_issue(task_service, mock_redis_
     mock_redis_client.acquire_lock.assert_any_call(
         f"issue_lock_{issue_unlocked['number']}", agent_id, timeout=600
     )
+
+
+@pytest.mark.parametrize(
+    "exception_to_raise, expected_log_message",
+    [
+        (
+            GithubException(status=500, data="Server Error"),
+            "Failed to update issue",
+        ),
+        (Exception("Unexpected error"), "An unexpected error occurred"),
+    ],
+)
+@pytest.mark.unit
+def test_complete_previous_task_handles_exceptions(
+    exception_to_raise,
+    expected_log_message,
+    task_service,
+    mock_redis_client,
+    mock_github_client,
+    caplog,
+):
+    """complete_previous_taskが例外を適切に処理することをテストします。"""
+    # Arrange
+    prev_issue_1 = create_mock_issue(
+        number=101,
+        title="Previous Task 1",
+        body="",
+        labels=["in-progress", "test-agent"],
+    )
+    prev_issue_2 = create_mock_issue(
+        number=102,
+        title="Previous Task 2",
+        body="",
+        labels=["in-progress", "test-agent"],
+    )
+    new_issue = create_mock_issue(
+        number=201,
+        title="New Task",
+        body="## 成果物\n- new.py",
+        labels=["BACKENDCODER"],
+    )
+    cached_issues = [new_issue]  # Only new task in cache
+    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
+    mock_redis_client.acquire_lock.return_value = True
+
+    # Setup GitHub API calls
+    mock_github_client.find_issues_by_labels.return_value = [prev_issue_1, prev_issue_2]
+
+    agent_id = "test-agent"
+    agent_role = "BACKENDCODER"
+
+    # 最初のupdate_issueで例外を発生させ、2番目は成功させる
+    mock_github_client.update_issue.side_effect = [
+        exception_to_raise,
+        None,  # 2番目のcomplete_previous_task呼び出しは成功
+        None,  # add_labelの呼び出し
+        None,  # add_labelの呼び出し
+    ]
+
+    with caplog.at_level(logging.ERROR):
+        # Act
+        result = task_service.request_task(agent_id=agent_id, agent_role=agent_role)
+
+        # Assert
+        # find_issues_by_labelsが呼び出されたことを確認
+        mock_github_client.find_issues_by_labels.assert_called_once_with(
+            labels=["in-progress", agent_id]
+        )
+        # update_issueが複数回呼び出されたことを確認（complete_previous_task + add_labels）
+        assert mock_github_client.update_issue.call_count >= 2
+        # 最初のIssueでエラーがログに記録されたことを確認
+        assert expected_log_message in caplog.text
+        # 新しいタスクが正常に返されたことを確認
+        assert result is not None
+        assert result.issue_id == new_issue["number"]
+
+
+@pytest.mark.unit
+def test_request_task_stores_current_task_in_redis(
+    task_service, mock_redis_client, mock_github_client
+):
+    """タスク割り当て時にRedisに現在のタスクIDを保存することをテストします。"""
+    # Arrange
+    agent_id = "test-agent"
+    agent_role = "BACKENDCODER"
+    issue = create_mock_issue(
+        number=1,
+        title="Test Task",
+        body="## 成果物\n- test.py",
+        labels=[agent_role],
+    )
+    mock_redis_client.get_value.return_value = json.dumps([issue])
+    mock_github_client.find_issues_by_labels.return_value = []
+    mock_redis_client.acquire_lock.return_value = True
+
+    # Act
+    task_service.request_task(agent_id=agent_id, agent_role=agent_role)
+
+    # Assert
+    mock_redis_client.set_value.assert_called_once_with(
+        f"agent_current_task:{agent_id}", str(issue["number"]), timeout=3600
+    )
+
+
+@pytest.mark.unit
+@patch("time.sleep", return_value=None)
+def test_complete_previous_task_finds_and_completes_issues_via_github_api(
+    mock_sleep, task_service, mock_redis_client, mock_github_client
+):
+    """complete_previous_taskがGitHub APIから直接Issueを検索して完了処理を行うことをテストします。"""
+    # Arrange
+    agent_id = "test-agent"
+    previous_issue = create_mock_issue(
+        number=101,
+        title="Previous Task",
+        body="",
+        labels=["in-progress", agent_id],
+    )
+    mock_github_client.find_issues_by_labels.return_value = [previous_issue]
+
+    # Act
+    task_service.complete_previous_task(agent_id)
+
+    # Assert
+    mock_github_client.find_issues_by_labels.assert_called_once_with(
+        labels=["in-progress", agent_id]
+    )
+    mock_github_client.update_issue.assert_called_once_with(
+        issue_id=previous_issue["number"],
+        remove_labels=["in-progress", agent_id],
+        add_labels=["needs-review"],
+    )
+
+
+@pytest.mark.unit
+@patch("time.sleep", return_value=None)
+def test_complete_previous_task_no_issues_found_via_github_api(
+    mock_sleep, task_service, mock_redis_client, mock_github_client
+):
+    """
+    GitHub API経由でin-progressのIssueが見つからない場合に、何も処理しないことをテストします。
+    """
+    # Arrange
+    agent_id = "test-agent"
+    mock_github_client.find_issues_by_labels.return_value = []
+
+    # Act
+    task_service.complete_previous_task(agent_id)
+
+    # Assert
+    mock_github_client.find_issues_by_labels.assert_called_once_with(
+        labels=["in-progress", agent_id]
+    )
+    # 更新処理は呼び出されないことを確認
+    mock_github_client.update_issue.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("time.sleep", return_value=None)
+def test_complete_previous_task_handles_multiple_issues(
+    mock_sleep, task_service, mock_redis_client, mock_github_client
+):
+    """
+    複数のin-progressのIssueが見つかった場合に、すべて完了処理を行うことをテストします。
+    """
+    # Arrange
+    agent_id = "test-agent"
+    previous_issue_1 = create_mock_issue(
+        number=101,
+        title="Previous Task 1",
+        body="",
+        labels=["in-progress", agent_id],
+    )
+    previous_issue_2 = create_mock_issue(
+        number=102,
+        title="Previous Task 2",
+        body="",
+        labels=["in-progress", agent_id],
+    )
+    mock_github_client.find_issues_by_labels.return_value = [
+        previous_issue_1,
+        previous_issue_2,
+    ]
+
+    # Act
+    task_service.complete_previous_task(agent_id)
+
+    # Assert
+    mock_github_client.find_issues_by_labels.assert_called_once_with(
+        labels=["in-progress", agent_id]
+    )
+    # 両方のIssueが更新されることを確認
+    assert mock_github_client.update_issue.call_count == 2
+    mock_github_client.update_issue.assert_any_call(
+        issue_id=previous_issue_1["number"],
+        remove_labels=["in-progress", agent_id],
+        add_labels=["needs-review"],
+    )
+    mock_github_client.update_issue.assert_any_call(
+        issue_id=previous_issue_2["number"],
+        remove_labels=["in-progress", agent_id],
+        add_labels=["needs-review"],
+    )
+
+
+@pytest.mark.unit
+@patch("time.sleep", return_value=None)
+def test_complete_previous_task_handles_github_exception(
+    mock_sleep, task_service, mock_redis_client, mock_github_client, caplog
+):
+    """
+    complete_previous_task内でGitHub APIの例外が発生した場合の処理をテストします。
+    """
+    # Arrange
+    agent_id = "test-agent"
+    previous_issue = create_mock_issue(
+        number=101,
+        title="Previous Task",
+        body="",
+        labels=["in-progress", agent_id],
+    )
+    mock_github_client.find_issues_by_labels.return_value = [previous_issue]
+    mock_github_client.update_issue.side_effect = GithubException(
+        status=500, data="GitHub API Error"
+    )
+
+    with caplog.at_level(logging.ERROR):
+        # Act
+        task_service.complete_previous_task(agent_id)
+
+        # Assert
+        mock_github_client.find_issues_by_labels.assert_called_once_with(
+            labels=["in-progress", agent_id]
+        )
+        mock_github_client.update_issue.assert_called_once_with(
+            issue_id=previous_issue["number"],
+            remove_labels=["in-progress", agent_id],
+            add_labels=["needs-review"],
+        )
+        # エラーログが記録されることを確認
+        assert (
+            f"[issue_id={previous_issue['number']}, agent_id={agent_id}] Failed to update issue"
+            in caplog.text
+        )
