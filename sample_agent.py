@@ -1,5 +1,7 @@
 import logging
 import os
+import shlex
+import subprocess
 import time
 
 from github_broker import AgentClient
@@ -39,6 +41,37 @@ if __name__ == "__main__":
                 logging.info(
                     f"新しいタスクが割り当てられました: #{assigned_task.get('issue_id')} - {assigned_task.get('title')}"
                 )
+
+                prompt = assigned_task.get("prompt")
+                if prompt:
+                    # SECURITY WARNING:
+                    # The following code executes the 'prompt' string as a shell command.
+                    # It uses shlex.split() to safely parse the command and avoid shell injection vulnerabilities.
+                    # However, the command itself comes from a remote server and could be arbitrary.
+                    # This code assumes that the 'prompt' comes from a trusted source.
+                    # DO NOT use this pattern with untrusted input.
+                    logging.info("プロンプトを実行しています...")
+                    try:
+                        result = subprocess.run(
+                            shlex.split(prompt),
+                            text=True,
+                            capture_output=True,
+                            check=True,
+                        )
+                        logging.info(f"プロンプト実行結果 (stdout):\n{result.stdout}")
+                        if result.stderr:
+                            logging.warning(
+                                f"プロンプト実行結果 (stderr):\n{result.stderr}"
+                            )
+                    except subprocess.CalledProcessError as e:
+                        logging.error(f"プロンプトの実行中にエラーが発生しました: {e}")
+                        logging.error(f"stdout: {e.stdout}")
+                        logging.error(f"stderr: {e.stderr}")
+                else:
+                    logging.warning(
+                        "割り当てられたタスクにプロンプトが含まれていません。"
+                    )
+
                 logging.info("タスクの実行プロセスが完了しました。")
                 time.sleep(5)  # 短い待機時間
             else:
