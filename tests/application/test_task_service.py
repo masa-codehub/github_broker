@@ -667,6 +667,129 @@ def test_request_task_stores_current_task_in_redis(
 
 @pytest.mark.unit
 @patch("time.sleep", return_value=None)
+@patch("time.time")
+def test_request_task_long_polling_timeout(
+    mock_time, mock_sleep, task_service, mock_redis_client, mock_github_client
+):
+    """ロングポーリングがタイムアウト時間に達した場合にNoneを返すことをテストします。"""
+    # Arrange
+    cached_issues = []  # 空のIssueリスト
+    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
+    
+    # 時間の経過をシミュレート（0秒から開始して、各チェックで時間が進む）
+    mock_time.side_effect = [0, 6, 12, 16]  # 開始時、最初のsleep後、2回目のsleep後、3回目のsleep後
+    
+    agent_id = "test-agent"
+    agent_role = "BACKENDCODER"
+    timeout = 15  # 15秒でタイムアウト
+
+    # Act
+    result = task_service.request_task(agent_id=agent_id, agent_role=agent_role, timeout=timeout)
+
+    # Assert
+    assert result is None
+    # sleep が適切な回数呼ばれていることを確認（5秒間隔で3回）
+    assert mock_sleep.call_count == 3
+    mock_sleep.assert_has_calls([call(5), call(5), call(3)])  # 最後は残り時間に合わせて3秒
+
+
+@pytest.mark.unit
+@patch("time.sleep", return_value=None)
+@patch("time.time")
+def test_request_task_long_polling_finds_task_during_wait(
+    mock_time, mock_sleep, task_service, mock_redis_client, mock_github_client
+):
+    """ロングポーリング中にタスクが見つかった場合に即座に返すことをテストします。"""
+    # Arrange  
+    issue = create_mock_issue(
+        number=123,
+        title="Found Task",
+        body="## 成果物\n- found.py",
+        labels=["BACKENDCODER"],
+    )
+    
+    # 最初は空、2回目の呼び出し時にタスクが利用可能になる
+    mock_redis_client.get_value.side_effect = [
+        json.dumps([]),  # 最初のチェック
+        None,            # complete_previous_task内での呼び出し
+        json.dumps([issue]),  # 2回目の_check_for_available_task（タスクが見つかる）
+    ]
+    
+    mock_redis_client.acquire_lock.return_value = True
+    
+    # 時間経過のシミュレート
+    mock_time.side_effect = [0, 6]  # 開始時、1回目のsleep後
+    
+    agent_id = "test-agent"
+    agent_role = "BACKENDCODER"
+    timeout = 30
+
+    # Act
+    result = task_service.request_task(agent_id=agent_id, agent_role=agent_role, timeout=timeout)
+
+    # Assert
+    assert result is not None
+    assert result.issue_id == 123
+    # 1回だけsleepが呼ばれる（2回目のチェックでタスクが見つかるため）
+    assert mock_sleep.call_count == 1
+    mock_sleep.assert_called_with(5)
+
+
+@pytest.mark.unit
+@patch("time.sleep", return_value=None)
+def test_request_task_no_timeout_returns_immediately(
+    mock_sleep, task_service, mock_redis_client, mock_github_client
+):
+    """timeout=Noneの場合に即座にNoneを返すことをテストします。"""
+    # Arrange
+    cached_issues = []
+    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
+    
+    agent_id = "test-agent"
+    agent_role = "BACKENDCODER"
+
+    # Act
+    result = task_service.request_task(agent_id=agent_id, agent_role=agent_role, timeout=None)
+
+    # Assert
+    assert result is None
+    # sleepが呼ばれないことを確認
+    mock_sleep.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("time.sleep", return_value=None)
+def test_request_task_finds_task_immediately_no_polling(
+    mock_sleep, task_service, mock_redis_client, mock_github_client
+):
+    """最初のチェックでタスクが見つかった場合にポーリングせずに即座に返すことをテストします。"""
+    # Arrange
+    issue = create_mock_issue(
+        number=456,
+        title="Immediate Task",
+        body="## 成果物\n- immediate.py",
+        labels=["BACKENDCODER"],
+    )
+    cached_issues = [issue]
+    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
+    mock_redis_client.acquire_lock.return_value = True
+    
+    agent_id = "test-agent"
+    agent_role = "BACKENDCODER"
+    timeout = 30
+
+    # Act
+    result = task_service.request_task(agent_id=agent_id, agent_role=agent_role, timeout=timeout)
+
+    # Assert
+    assert result is not None
+    assert result.issue_id == 456
+    # sleepが呼ばれないことを確認（即座にタスクが見つかったため）
+    mock_sleep.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("time.sleep", return_value=None)
 def test_complete_previous_task_uses_redis_for_previous_issue_id(
     mock_sleep, task_service, mock_redis_client, mock_github_client
 ):

@@ -294,6 +294,57 @@ class TaskService:
         Returns:
             TaskResponse | None: 見つかったタスクの情報。タイムアウトした場合はNoneを返します。
         """
+        start_time = time.time()
+        check_interval = 5  # 5秒ごとにチェック
+        
+        # 最初のチェック（前回タスクの完了処理も含む）
+        task = self._check_for_available_task(agent_id, agent_role, is_first_check=True)
+        if task:
+            return task
+            
+        # タイムアウトが指定されていない場合は即座に返す
+        if timeout is None:
+            logger.info("No timeout specified, returning immediately.")
+            return None
+            
+        logger.info(f"No task found initially. Starting long polling for {timeout} seconds...")
+        
+        # ロングポーリングループ
+        while True:
+            elapsed_time = time.time() - start_time
+            
+            # タイムアウトチェック
+            if elapsed_time >= timeout:
+                logger.info(f"Long polling timeout ({timeout}s) reached. No task found.")
+                return None
+                
+            # 待機時間を計算（タイムアウトを超えないように調整）
+            remaining_time = timeout - elapsed_time
+            wait_time = min(check_interval, remaining_time)
+            
+            logger.debug(f"Waiting {wait_time}s before next check (elapsed: {elapsed_time:.1f}s)")
+            time.sleep(wait_time)
+            
+            # タスクをチェック（前回タスクの完了処理はスキップ）
+            task = self._check_for_available_task(agent_id, agent_role, is_first_check=False)
+            if task:
+                logger.info(f"Task found during long polling after {elapsed_time:.1f}s")
+                return task
+                
+    def _check_for_available_task(
+        self, agent_id: str, agent_role: str, is_first_check: bool = True
+    ) -> TaskResponse | None:
+        """
+        利用可能なタスクをチェックして返します。ロングポーリング用のヘルパーメソッド。
+        
+        Args:
+            agent_id (str): タスクを要求するエージェントのID。
+            agent_role (str): エージェントの役割。
+            is_first_check (bool): 最初のチェックかどうか。最初のチェック時のみ前回タスクの完了処理を行います。
+            
+        Returns:
+            TaskResponse | None: 見つかったタスクの情報。見つからなかった場合はNoneを返します。
+        """
         cached_issues_json = self.redis_client.get_value(OPEN_ISSUES_CACHE_KEY)
 
         if not cached_issues_json:
@@ -308,11 +359,14 @@ class TaskService:
                 exc_info=True,
             )
             return None
-        self.complete_previous_task(agent_id, all_issues)
+            
+        # 最初のチェック時のみ前回のタスクを完了処理
+        if is_first_check:
+            self.complete_previous_task(agent_id, all_issues)
 
         candidate_issues = self._find_candidates_by_role(all_issues, agent_role)
         if candidate_issues:
-            logger.info(
+            logger.debug(
                 f"Found {len(candidate_issues)} candidate issues for role '{agent_role}'."
             )
             task = self._find_first_assignable_task(candidate_issues, agent_id)
@@ -326,9 +380,8 @@ class TaskService:
                 )
                 return task
         else:
-            logger.info(
+            logger.debug(
                 f"No candidate issues found for role '{agent_role}' in cached issues."
             )
 
-        logger.info("No assignable task found from cached issues.")
         return None
