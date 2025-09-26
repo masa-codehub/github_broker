@@ -32,13 +32,6 @@
 
 ```mermaid
 graph TD
-    subgraph "外部世界 (External World)"
-        Human["人間 (管理者/レビュー担当)"]
-        Workers["ワーカー・エージェント群 (クライアント)"]
-        GitHub["GitHub (データストア)"]
-        Gemini["Gemini (LLM)"]
-    end
-
     subgraph "私たちが作るシステム (Internal System)"
         subgraph "Task Broker Server"
             direction LR
@@ -47,15 +40,29 @@ graph TD
         Redis["Redis (キャッシュ / 分散ロック)"]
     end
 
+    subgraph "外部世界 (External World)"
+        Human["人間 (管理者/レビュー担当)"]
+        Workers["ワーカー・エージェント群 (クライアント)"]
+        GitHub["GitHub (データストア)"]
+        Gemini["Gemini (LLM)"]
+    end
+
     %% システム間の連携
     Human -- "Issue作成 / PRマージ" --> GitHub
+    ApiServer -- "Issueラベル更新 / ブランチ作成" --> GitHub
+    ApiServer -- "キャッシュからIssueを取得" --> Redis
+    ApiServer -- "Lock / Unlock" --> Redis
+
     Workers -- "タスク要求 (APIリクエスト)" --> ApiServer
     ApiServer -- "プロンプト生成 & タスク割り当て (APIレスポンス)" --> Workers
     Workers -- "プロンプト生成" --> Gemini
 
-    ApiServer -- "キャッシュからIssueを取得" --> Redis
-    ApiServer -- "Lock / Unlock" --> Redis
-    ApiServer -- "Issueラベル更新 / ブランチ作成" --> GitHub
+    %% ▼▼▼ ここから追加 ▼▼▼
+    %% 上下のレイアウトを固定するための、見えないリンク
+    Redis --> Human
+    linkStyle 7 stroke-width:0px, stroke:transparent
+    %% ▲▲▲ ここまで追加 ▲▲▲
+
 ```
 
 ----
@@ -168,10 +175,10 @@ graph TD
 
 ```mermaid
 sequenceDiagram
-    participant PollingService as ポーリングサービス (Background)
     participant Worker as ワーカーエージェント
     participant ApiServer as APIサーバー
     participant Redis
+    participant PollingService as ポーリングサービス (Background)
     participant GitHub
 
     loop 定期的なポーリング
