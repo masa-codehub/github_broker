@@ -43,6 +43,49 @@ jobs:
         run: mypy . --ignore-missing-imports
       - name: Test with pytest
         run: pytest -m "unit" --cov=. --cov-report=xml
+      - name: Server startup test
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: "test"
+          GEMINI_API_KEY: "test"
+          TESTING: true
+          REDIS_HOST: localhost
+        run: |
+          echo "Starting server startup test..."
+          
+          # サーバーをバックグラウンドで起動し、ログをファイルに出力
+          python main.py > server.log 2>&1 &
+          SERVER_PID=$!
+          
+          echo "Server starting in background with PID: $SERVER_PID"
+          
+          # サーバーの起動ログを監視（最大20秒）
+          timeout=20
+          elapsed=0
+          while ! grep -q "Application startup complete" server.log; do
+            if [ $elapsed -ge $timeout ]; then
+              echo "❌ Server startup timed out after $timeout seconds."
+              echo "--- Server Log ---"
+              cat server.log
+              echo "--- End Log ---"
+              # タイムアウトしたらバックグラウンドプロセスを終了させる
+              kill $SERVER_PID 2>/dev/null || true
+              exit 1
+            fi
+            sleep 1
+            elapsed=$((elapsed + 1))
+          done
+          
+          echo "✅ Server started successfully."
+          echo "--- Server Log ---"
+          cat server.log
+          echo "--- End Log ---"
+
+          # プロセスを終了
+          echo "Stopping server..."
+          kill $SERVER_PID
+          wait $SERVER_PID 2>/dev/null || true
+          echo "✅ Server stopped successfully"
       - name: Upload coverage report
         if: success()
         uses: actions/upload-artifact@v4
