@@ -73,23 +73,22 @@ ml = [
 # --- Black (コードフォーマッター) の設定 ---
 [tool.black]
 line-length = 88
-target-version = ['py313']
-include = '\.pyi?$'
-extend-exclude = '''
-/(
+target-version = ["py313"]
+include = ".pyi?$"
+extend-exclude = """
+/( 
   # ディレクトリを除外
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
+  \\.eggs
+  | \\.git
+  | \\.hg
+  | \\.mypy_cache
+  | \\.tox
+  | \\.venv
   | _build
   | buck-out
   | build
   | dist
-)/
-'''
+)/"""
 
 
 
@@ -155,6 +154,7 @@ filterwarnings = [
 
 # 出力設定
 addopts = "-v --tb=short --strict-markers"
+asyncio_mode = "auto"
 
 # カスタムマーカーの定義
 markers = [

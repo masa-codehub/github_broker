@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import threading
@@ -60,8 +61,6 @@ class TaskService:
                     )
                     logger.info("Finished caching all open issues under a single key.")
                 else:
-                    # Issueが0件の場合も空のリストをキャッシュに保存することで、
-                    # クローズされたIssueがキャッシュに残り続けるのを防ぐ
                     self.redis_client.set_value(OPEN_ISSUES_CACHE_KEY, json.dumps([]))
                     logger.info("No open issues found. Cached an empty list.")
 
@@ -123,7 +122,6 @@ class TaskService:
                 f"No previous task found in Redis for agent {agent_id}. Searching GitHub."
             )
 
-        # Redisから取得できなかった、またはRedisの情報が不正だった場合のフォールバック
         if not previous_issues_to_complete:
             previous_issues_to_complete = [
                 issue
@@ -154,7 +152,6 @@ class TaskService:
                     remove_labels,
                     add_labels,
                 )
-                # Redisから取得したIssueを完了した場合のみ、Redisのキーを削除
                 if previous_issue_id and issue.get("number") == previous_issue_id:
                     self.redis_client.delete_key(f"agent_current_task:{agent_id}")
                     logger.info(f"Removed agent_current_task:{agent_id} from Redis.")
@@ -278,7 +275,7 @@ class TaskService:
         logger.info("No assignable and unlocked issues found.")
         return None
 
-    def request_task(
+    async def request_task(
         self, agent_id: str, agent_role: str, timeout: int | None = 120
     ) -> TaskResponse | None:
         """
@@ -295,53 +292,57 @@ class TaskService:
             TaskResponse | None: 見つかったタスクの情報。タイムアウトした場合はNoneを返します。
         """
         start_time = time.time()
-        check_interval = 5  # 5秒ごとにチェック
-        
-        # 最初のチェック（前回タスクの完了処理も含む）
-        task = self._check_for_available_task(agent_id, agent_role, is_first_check=True)
+        check_interval = 5
+
+        task = await self._check_for_available_task(
+            agent_id, agent_role, is_first_check=True
+        )
         if task:
             return task
-            
-        # タイムアウトが指定されていない場合は即座に返す
+
         if timeout is None:
             logger.info("No timeout specified, returning immediately.")
             return None
-            
-        logger.info(f"No task found initially. Starting long polling for {timeout} seconds...")
-        
-        # ロングポーリングループ
+
+        logger.info(
+            f"No task found initially. Starting long polling for {timeout} seconds..."
+        )
+
         while True:
             elapsed_time = time.time() - start_time
-            
-            # タイムアウトチェック
+
             if elapsed_time >= timeout:
-                logger.info(f"Long polling timeout ({timeout}s) reached. No task found.")
+                logger.info(
+                    f"Long polling timeout ({timeout}s) reached. No task found."
+                )
                 return None
-                
-            # 待機時間を計算（タイムアウトを超えないように調整）
+
             remaining_time = timeout - elapsed_time
             wait_time = min(check_interval, remaining_time)
-            
-            logger.debug(f"Waiting {wait_time}s before next check (elapsed: {elapsed_time:.1f}s)")
-            time.sleep(wait_time)
-            
-            # タスクをチェック（前回タスクの完了処理はスキップ）
-            task = self._check_for_available_task(agent_id, agent_role, is_first_check=False)
+
+            logger.debug(
+                f"Waiting {wait_time}s before next check (elapsed: {elapsed_time:.1f}s)"
+            )
+            await asyncio.sleep(wait_time)
+
+            task = await self._check_for_available_task(
+                agent_id, agent_role, is_first_check=False
+            )
             if task:
                 logger.info(f"Task found during long polling after {elapsed_time:.1f}s")
                 return task
-                
-    def _check_for_available_task(
+
+    async def _check_for_available_task(
         self, agent_id: str, agent_role: str, is_first_check: bool = True
     ) -> TaskResponse | None:
         """
         利用可能なタスクをチェックして返します。ロングポーリング用のヘルパーメソッド。
-        
+
         Args:
             agent_id (str): タスクを要求するエージェントのID。
             agent_role (str): エージェントの役割。
             is_first_check (bool): 最初のチェックかどうか。最初のチェック時のみ前回タスクの完了処理を行います。
-            
+
         Returns:
             TaskResponse | None: 見つかったタスクの情報。見つからなかった場合はNoneを返します。
         """
@@ -359,8 +360,7 @@ class TaskService:
                 exc_info=True,
             )
             return None
-            
-        # 最初のチェック時のみ前回のタスクを完了処理
+
         if is_first_check:
             self.complete_previous_task(agent_id, all_issues)
 
@@ -371,7 +371,6 @@ class TaskService:
             )
             task = self._find_first_assignable_task(candidate_issues, agent_id)
             if task:
-                # Redisに現在のタスク情報を保存
                 self.redis_client.set_value(
                     f"agent_current_task:{agent_id}", str(task.issue_id), timeout=3600
                 )
