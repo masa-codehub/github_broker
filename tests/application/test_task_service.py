@@ -253,11 +253,11 @@ def test_complete_previous_task_handles_exceptions(
         body="## 成果物\n- new.py",
         labels=["BACKENDCODER"],
     )
-    cached_issues = [new_issue]  # Only new task in cache
+    cached_issues = [new_issue]  # キャッシュには新しいタスクのみ
     mock_redis_client.get_value.return_value = json.dumps(cached_issues)
     mock_redis_client.acquire_lock.return_value = True
 
-    # Setup GitHub API calls
+    # GitHub API呼び出しをセットアップ
     mock_github_client.find_issues_by_labels.return_value = [prev_issue_1, prev_issue_2]
 
     agent_id = "test-agent"
