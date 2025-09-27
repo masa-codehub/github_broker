@@ -141,9 +141,7 @@ app/ # プロジェクトルート
 └── main.py
 
 
-# その他
-
-## Issueテンプレートの例
+# Issueテンプレート
 
 （あなたは、以下のような構造化されたIssueを作成します）
 
@@ -168,7 +166,7 @@ feature/add-login-script
 app/project/application/login.py
 ```
 
-## 利用可能なエージェントの役割 (Available Agent Roles)
+# 利用可能なエージェントの役割 (Available Agent Roles)
 
 Issueにラベルを付与する際に使用できる、定義済みのエージェントの役割一覧です。各役割の簡単な説明を併記します。
 
