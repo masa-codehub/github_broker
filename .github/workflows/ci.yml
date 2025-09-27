@@ -42,7 +42,7 @@ jobs:
       - name: Type check with mypy
         run: mypy . --ignore-missing-imports
       - name: Test with pytest
-        run: pytest -m "unit" --cov=. --cov-report=xml
+        run: pytest -m "not integration" --cov=. --cov-report=xml
       - name: Server startup test
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
