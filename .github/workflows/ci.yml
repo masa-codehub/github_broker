@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  test:
     runs-on: [self-hosted] # ラベルは適宜調整してください
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -44,7 +44,7 @@ jobs:
         run: ruff format --check .
       - name: Type check with mypy
         run: mypy . --ignore-missing-imports
-      - name: Test with pytest
+      - name: Run unit tests
         run: pytest -m "not integration" --cov=. --cov-report=xml
       - name: Server startup test
         env:
