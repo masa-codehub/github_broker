@@ -102,6 +102,16 @@ pre-commit install
     gh --version
     ```
 
+### 5. 統合ログの表示
+
+開発中のサーバーとクライアントのインタラクションを効率的に確認するために、`docker-compose logs -f` コマンドを使用します。このコマンドは、`docker-compose.yml` で定義されたすべてのサービスからのログをリアルタイムで統合し、色分けして表示します。
+
+```bash
+docker-compose -f .build/context/docker-compose.yml logs -f
+```
+
+これにより、システム全体の動作を一目で把握し、問題の特定やデバッグを迅速に行うことができます。
+
 ---
 
 ## 各フェーズと担当エージェントの責任
