@@ -13,13 +13,12 @@ logging.basicConfig(
 # --------------------
 
 
-if __name__ == "__main__":
+def main(run_once=False):
+    """エージェントのメイン実行ループ。"""
     # --- エージェントの設定 ---
     agent_id = os.getenv("AGENT_NAME", "sample-agent-001")
-    # AgentClientとmain.pyの仕様に合わせ、hostとportで接続先を指定
     host = os.getenv("BROKER_HOST", "localhost")
     port = int(os.getenv("BROKER_PORT", 8080))
-
     agent_role = os.getenv("AGENT_ROLE", "BACKENDCODER")
     # --------------------------
 
@@ -34,7 +33,6 @@ if __name__ == "__main__":
     while True:
         try:
             logging.info("サーバーに新しいタスクをリクエストしています...")
-            # agent_idとcapabilitiesは初期化時に渡しているため、引数は不要
             assigned_task = client.request_task()
 
             if assigned_task:
@@ -73,11 +71,21 @@ if __name__ == "__main__":
                     )
 
                 logging.info("タスクの実行プロセスが完了しました。")
-                time.sleep(5)  # 短い待機時間
+                if run_once:
+                    break
+                time.sleep(5)
             else:
                 logging.info("利用可能なタスクがありません。30分後に再試行します。")
-                time.sleep(30 * 60)  # 30分待機
+                if run_once:
+                    break
+                time.sleep(30 * 60)
 
         except Exception as e:
             logging.error(f"エラーが発生しました: {e}。60分後に再試行します...")
-            time.sleep(60 * 60)  # 60分待機
+            if run_once:
+                break
+            time.sleep(60 * 60)
+
+
+if __name__ == "__main__":
+    main()
