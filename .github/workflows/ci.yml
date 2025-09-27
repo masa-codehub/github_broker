@@ -53,22 +53,21 @@ jobs:
         run: |
           echo "Starting server startup test..."
           
-          # サーバーをバックグラウンドで起動し、ログをファイルに出力
+          # Start the server in the background and log to a file
           python main.py > server.log 2>&1 &
           SERVER_PID=$!
           
           echo "Server starting in background with PID: $SERVER_PID"
           
-          # サーバーの起動ログを監視（最大20秒）
+          # Monitor server startup using health check endpoint (max 20 seconds)
           timeout=20
           elapsed=0
-          while ! grep -q "Application startup complete" server.log; do
+          while ! curl -sf http://localhost:8000/health > /dev/null; do
             if [ $elapsed -ge $timeout ]; then
-              echo "❌ Server startup timed out after $timeout seconds."
+              echo "❌ Server health check timed out after $timeout seconds."
               echo "--- Server Log ---"
               cat server.log
               echo "--- End Log ---"
-              # タイムアウトしたらバックグラウンドプロセスを終了させる
               kill $SERVER_PID 2>/dev/null || true
               exit 1
             fi
@@ -81,9 +80,21 @@ jobs:
           cat server.log
           echo "--- End Log ---"
 
-          # プロセスを終了
+          # Stop the server
           echo "Stopping server..."
           kill $SERVER_PID
+          # Wait up to 5 seconds for graceful shutdown
+          for i in {1..5}; do
+            if ! kill -0 $SERVER_PID 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          # If still running, force kill
+          if kill -0 $SERVER_PID 2>/dev/null; then
+            echo "Process did not terminate after SIGTERM, sending SIGKILL..."
+            kill -9 $SERVER_PID
+          fi
           wait $SERVER_PID 2>/dev/null || true
           echo "✅ Server stopped successfully"
       - name: Upload coverage report

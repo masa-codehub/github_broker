@@ -16,6 +16,11 @@ def get_task_service() -> TaskService:
 router = APIRouter()
 
 
+@router.get("/health", status_code=status.HTTP_200_OK)
+def health_check():
+    return {"status": "ok"}
+
+
 @router.post(
     "/request-task",
     response_model=TaskResponse,
