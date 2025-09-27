@@ -34,9 +34,7 @@ def _create_container() -> punq.Container:
         github_token=settings.GITHUB_TOKEN,
     )
 
-    gemini_executor = GeminiExecutor(
-        prompt_file="/app/github_broker/infrastructure/prompts/gemini_executor.yml"
-    )
+    gemini_executor = GeminiExecutor(prompt_file=settings.GEMINI_EXECUTOR_PROMPT_FILE)
 
     # 3. 構築した依存関係をすべて使ってTaskServiceをインスタンス化
     task_service = TaskService(

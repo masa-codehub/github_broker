@@ -75,7 +75,7 @@ ml = [
 line-length = 88
 target-version = ["py313"]
 include = ".pyi?$"
-extend-exclude = """
+extend-exclude = '''
 /( 
   # ディレクトリを除外
   \\.eggs
@@ -88,9 +88,7 @@ extend-exclude = """
   | buck-out
   | build
   | dist
-)/"""
-
-
+)/'''
 
 # --- Ruff (高速リンター) の設定 ---
 [tool.ruff]
@@ -168,7 +166,7 @@ junit_family = "xunit2"
 
 # --- setuptoolsの設定 (パッケージを自動検出させる) ---
 [tool.setuptools.packages.find]
-where = ["."]  # プロジェクトのルートディレクトリを探す
+where = ["."]
 include = ["github_broker*"]  # "github_broker"で始まるディレクトリをパッケージとして含める
 exclude = ["tests*"]  # "tests"ディレクトリはパッケージに含めない
 
