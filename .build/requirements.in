@@ -30,6 +30,7 @@ mypy
 types-PyYAML
 types-requests
 types-redis
+trio
 
 # 他に必要な開発ツールがあれば以下に追加
 #例:
