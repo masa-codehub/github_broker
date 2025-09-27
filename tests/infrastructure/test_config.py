@@ -28,6 +28,7 @@ def clear_env_vars():
     os.environ.update(original_env)
 
 
+@pytest.mark.unit
 def test_settings_loads_from_env_vars():
     os.environ["GITHUB_TOKEN"] = "test_github_token"
     os.environ["GITHUB_REPOSITORY"] = "test_owner/test_repo"
@@ -48,6 +49,7 @@ def test_settings_loads_from_env_vars():
     assert settings.TESTING is True
 
 
+@pytest.mark.unit
 def test_settings_uses_default_values():
     # 必須の環境変数を設定
     os.environ["GITHUB_TOKEN"] = "dummy_github_token"
@@ -63,6 +65,7 @@ def test_settings_uses_default_values():
     assert settings.POLLING_INTERVAL_SECONDS == 600
 
 
+@pytest.mark.unit
 def test_settings_raises_error_if_required_env_vars_missing():
     # GITHUB_TOKENが欠けている場合
     with pytest.raises(ValidationError):
