@@ -1,9 +1,2 @@
-prompt_template: |
-  You are an AI agent. Your task is to resolve the following GitHub issue.
-
-  Issue ID: {issue_id}
-  Title: {title}
-  Body: {body}
-  Branch Name: {branch_name}
-
-  Please provide the necessary steps to resolve this issue.
+prompt_template: >
+  /app/run.sh --issue-id {issue_id} --title {title} --body {body} --branch-name "{branch_name}"

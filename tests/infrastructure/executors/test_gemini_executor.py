@@ -1,16 +1,15 @@
+import os
 from unittest.mock import mock_open, patch
 
 import pytest
 import yaml
 
+import github_broker
 from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
 
 PROMPT_FILE_CONTENT = """
-prompt_template: |
-  Issue ID: {issue_id}
-  Title: {title}
-  Branch: {branch_name}
-  Body: {body}
+prompt_template: >
+  /app/run.sh --issue-id {issue_id} --title {title} --body {body} --branch-name "{branch_name}"
 review_prompt: |
   Original: {original_prompt}
   Output: {execution_output}
@@ -39,19 +38,27 @@ def executor(mock_prompts):
 def test_init_loads_prompts_from_file(mock_prompts):
     """__init__がプロンプトファイルを正しく読み込むことをテストします"""
     # Arrange
-    prompt_file_path = "dummy/path/prompts.yml"
+    prompt_file_path = "prompts/gemini_executor.yml"
     with (
         patch("builtins.open", mock_open(read_data=PROMPT_FILE_CONTENT)) as mock_file,
         patch("yaml.safe_load", return_value=mock_prompts) as mock_safe_load,
     ):
-        # Act
         executor_instance = GeminiExecutor(prompt_file=prompt_file_path)
 
-        # Assert
-        mock_file.assert_called_once_with(prompt_file_path, encoding="utf-8")
+        # GeminiExecutorが内部でパスを解決するのと同じロジックを適用
+        expected_path = os.path.join(
+            os.path.dirname(
+                github_broker.infrastructure.executors.gemini_executor.__file__
+            ),
+            "..",
+            "..",
+            prompt_file_path,
+        )
+        mock_file.assert_called_once_with(expected_path, encoding="utf-8")
         mock_safe_load.assert_called_once()
         assert (
-            executor_instance.build_prompt_template == mock_prompts["prompt_template"]
+            executor_instance.build_prompt_template
+            == mock_prompts["prompt_template"].strip()
         )
 
 
@@ -78,5 +85,5 @@ def test__build_prompt(executor):
     # Assert
     assert (
         prompt
-        == "Issue ID: 123\nTitle: Test Title\nBranch: feature/test\nBody: Test Body\n"
+        == "/app/run.sh --issue-id 123 --title 'Test Title' --body 'Test Body' --branch-name \"feature/test\""
     )

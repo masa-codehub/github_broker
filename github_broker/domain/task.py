@@ -19,7 +19,11 @@ class Task:
     def extract_branch_name(self) -> str | None:
         """Issueの本文からブランチ名を抽出します。"""
         if self.body:
-            match = re.search(r"## ブランチ名\s+`?([^\s`]+)`?", self.body)
+            match = re.search(
+                r"## ブランチ名(?: \(Branch name\))?\s*`?([^\s`]+)`?",
+                self.body,
+                re.MULTILINE,
+            )
             if match:
                 branch_name = match.group(1).strip()
                 return branch_name.replace("issue-xx", f"issue-{self.issue_id}")

@@ -45,6 +45,10 @@ def test_is_assignable(body, expected):
         ("\n\n## ブランチ名\n\n`feature/branch-2`\n", "feature/branch-2"),
         ("some text\n## ブランチ名 `feature/branch-3`", "feature/branch-3"),
         ("## ブランチ名 feature/branch-4", "feature/branch-4"),
+        (
+            "## ブランチ名 (Branch name)\nbugfix/fix-prompt-generation-logic",
+            "bugfix/fix-prompt-generation-logic",
+        ),
         ("no branch name section", None),
         ("", None),
     ],
