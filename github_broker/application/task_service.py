@@ -2,7 +2,7 @@ import json
 import logging
 import threading
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from github import GithubException
 from pydantic import HttpUrl
@@ -72,90 +72,63 @@ class TaskService:
 
         logger.info("Polling stopped.")
 
-    def complete_previous_task(self, agent_id: str, all_issues: list[dict[str, Any]]):
+    def complete_previous_task(self, agent_id: str):
         """
         前タスクの完了処理を行います。
-        in-progressとagent_idラベルを持つIssueを検索し、それらのラベルを削除し、needs-reviewラベルを付与します。
+        in-progressとagent_idラベルを持つIssueをGitHub API経由で直接検索し、それらのラベルを削除し、needs-reviewラベルを付与します。
         """
-        logger.info(f"[agent_id={agent_id}] Completing previous task.")
-
-        previous_issue_id: int | None = None
-        previous_issues_to_complete: list[dict[str, Any]] = []
+        logger.info("[agent_id=%s] Completing previous task.", agent_id)
         try:
-            previous_issue_id_from_redis = self.redis_client.get_value(
-                f"agent_current_task:{agent_id}"
-            )
-            if previous_issue_id_from_redis:
-                try:
-                    previous_issue_id = int(previous_issue_id_from_redis)
-                    found_issue = next(
-                        (
-                            issue
-                            for issue in all_issues
-                            if issue.get("number") == previous_issue_id
-                        ),
-                        None,
-                    )
-                    if found_issue:
-                        previous_issues_to_complete = [found_issue]
-                        logger.info(
-                            f"[issue_id={previous_issue_id}, agent_id={agent_id}] Found previous in-progress issue from Redis."
-                        )
-                    else:
-                        logger.warning(
-                            f"[issue_id={previous_issue_id}, agent_id={agent_id}] Issue from Redis not found in current open issues. Falling back to GitHub search."
-                        )
-                except ValueError:
-                    logger.error(
-                        f"[agent_id={agent_id}] Invalid issue ID '{previous_issue_id_from_redis}' stored in Redis. Falling back to GitHub search."
-                    )
-        except RedisError as e:
-            logger.error(
-                f"[agent_id={agent_id}] Redis error when getting previous task: {e}. Falling back to GitHub search.",
-                exc_info=True,
-            )
-
-        if not previous_issues_to_complete:
-            logger.info(
-                f"[agent_id={agent_id}] No previous task found in Redis. Searching GitHub."
-            )
             previous_issues_to_complete = self.github_client.find_issues_by_labels(
                 labels=["in-progress", agent_id]
             )
 
-        if not previous_issues_to_complete:
-            logger.info(
-                f"[agent_id={agent_id}] No in-progress issues found for this agent via GitHub search."
-            )
-            return
-
-        for issue in previous_issues_to_complete:
-            remove_labels = ["in-progress", agent_id]
-            add_labels = ["needs-review"]
-            try:
-                self.github_client.update_issue(
-                    issue_id=issue["number"],
-                    remove_labels=remove_labels,
-                    add_labels=add_labels,
-                )
+            if not previous_issues_to_complete:
                 logger.info(
-                    f"[issue_id={issue['number']}, agent_id={agent_id}] Updated labels: removed {remove_labels}, added {add_labels}."
+                    "[agent_id=%s] No in-progress issues found for this agent via GitHub search.",
+                    agent_id,
                 )
-                if previous_issue_id and issue.get("number") == previous_issue_id:
-                    self.redis_client.delete_key(f"agent_current_task:{agent_id}")
-                    logger.info(
-                        f"[agent_id={agent_id}] Deleted previous task ID {previous_issue_id} from Redis."
+                return
+
+            for issue in previous_issues_to_complete:
+                remove_labels = ["in-progress", agent_id]
+                add_labels = ["needs-review"]
+                try:
+                    self.github_client.update_issue(
+                        issue_id=issue["number"],
+                        remove_labels=remove_labels,
+                        add_labels=add_labels,
                     )
-            except GithubException as e:
-                logger.error(
-                    f"[issue_id={issue['number']}, agent_id={agent_id}] Failed to update issue: {e}",
-                    exc_info=True,
-                )
-            except Exception as e:
-                logger.error(
-                    f"[issue_id={issue['number']}, agent_id={agent_id}] An unexpected error occurred while updating issue: {e}",
-                    exc_info=True,
-                )
+                    logger.info(
+                        "[issue_id=%s, agent_id=%s] Updated labels: removed %s, added %s.",
+                        issue["number"],
+                        agent_id,
+                        remove_labels,
+                        add_labels,
+                    )
+                except GithubException as e:
+                    logger.error(
+                        "[issue_id=%s, agent_id=%s] Failed to update issue: %s",
+                        issue["number"],
+                        agent_id,
+                        e,
+                        exc_info=True,
+                    )
+                except Exception as e:
+                    logger.error(
+                        "[issue_id=%s, agent_id=%s] An unexpected error occurred while updating issue: %s",
+                        issue["number"],
+                        agent_id,
+                        e,
+                        exc_info=True,
+                    )
+        except GithubException as e:
+            logger.error(
+                "[agent_id=%s] Failed to find issues by labels: %s",
+                agent_id,
+                e,
+                exc_info=True,
+            )
 
     def _find_candidates_by_role(self, issues: list, agent_role: str) -> list:
         """指定された役割（role）ラベルを持つIssueをフィルタリングします。"""
@@ -294,7 +267,7 @@ class TaskService:
             )
             return None
 
-        self.complete_previous_task(agent_id, all_issues)
+        self.complete_previous_task(agent_id)
 
         candidate_issues = self._find_candidates_by_role(all_issues, agent_role)
         if candidate_issues:
