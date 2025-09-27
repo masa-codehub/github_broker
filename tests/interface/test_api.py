@@ -1,5 +1,5 @@
 import os
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -23,6 +23,7 @@ def client():
 def mock_task_service():
     """TaskServiceの依存関係をモックするためのフィクスチャ。"""
     mock_service = MagicMock(spec=TaskService)
+    mock_service.request_task = AsyncMock()
     app.dependency_overrides[get_task_service] = lambda: mock_service
     yield mock_service
     # ティアダウン：オーバーライドをクリーンアップ
@@ -30,7 +31,8 @@ def mock_task_service():
 
 
 @pytest.mark.unit
-def test_request_task_success(client, mock_task_service):
+@pytest.mark.anyio
+async def test_request_task_success(client, mock_task_service):
     """/request-taskエンドポイントへの成功したタスクリクエストをテストします。"""
     # Arrange
     expected_task = TaskResponse(
@@ -46,6 +48,7 @@ def test_request_task_success(client, mock_task_service):
     request_body = {
         "agent_id": "test-agent",
         "agent_role": "BACKENDCODER",
+        "timeout": 60,
     }
 
     # Act
@@ -54,20 +57,23 @@ def test_request_task_success(client, mock_task_service):
     # Assert
     assert response.status_code == 200
     assert response.json() == expected_task.model_dump(mode="json")
-    mock_task_service.request_task.assert_called_once_with(
+    mock_task_service.request_task.assert_awaited_once_with(
         agent_id=request_body["agent_id"],
         agent_role=request_body["agent_role"],
+        timeout=request_body["timeout"],
     )
 
 
 @pytest.mark.unit
-def test_request_task_no_task_available(client, mock_task_service):
+@pytest.mark.anyio
+async def test_request_task_no_task_available(client, mock_task_service):
     """利用可能なタスクがない場合（204 No Content）の/request-taskエンドポイントをテストします。"""
     # Arrange
     mock_task_service.request_task.return_value = None
     request_body = {
         "agent_id": "test-agent",
         "agent_role": "BACKENDCODER",
+        "timeout": 10,
     }
 
     # Act
@@ -75,14 +81,16 @@ def test_request_task_no_task_available(client, mock_task_service):
 
     # Assert
     assert response.status_code == 204
-    mock_task_service.request_task.assert_called_once_with(
+    mock_task_service.request_task.assert_awaited_once_with(
         agent_id=request_body["agent_id"],
         agent_role=request_body["agent_role"],
+        timeout=request_body["timeout"],
     )
 
 
 @pytest.mark.unit
-def test_request_task_lock_error(client, mock_task_service):
+@pytest.mark.anyio
+async def test_request_task_lock_error(client, mock_task_service):
     """LockAcquisitionErrorが発生した場合の/request-taskエンドポイントをテストします。"""
     # Arrange
     error_message = "サーバーがビジー状態です。後でもう一度お試しください。"
@@ -98,7 +106,8 @@ def test_request_task_lock_error(client, mock_task_service):
     # Assert
     assert response.status_code == 503
     assert response.json() == {"message": error_message}
-    mock_task_service.request_task.assert_called_once_with(
+    mock_task_service.request_task.assert_awaited_once_with(
         agent_id=request_body["agent_id"],
         agent_role=request_body["agent_role"],
+        timeout=120,
     )

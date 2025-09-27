@@ -18,7 +18,7 @@ authors = [
 ]
 description = ""
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -48,6 +48,7 @@ test = [
     "pytest",
     "pytest-cov", # テストカバレッジを計測するツール
     "httpx",
+    "trio",
 ]
 dev = [
     "ruff==0.13.0",          # 高速なリンター兼フォーマッター
@@ -73,30 +74,27 @@ ml = [
 # --- Black (コードフォーマッター) の設定 ---
 [tool.black]
 line-length = 88
-target-version = ['py312']
-include = '\.pyi?$'
+target-version = ["py313"]
+include = ".pyi?$"
 extend-exclude = '''
-/(
+/( 
   # ディレクトリを除外
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
+  \\.eggs
+  | \\.git
+  | \\.hg
+  | \\.mypy_cache
+  | \\.tox
+  | \\.venv
   | _build
   | buck-out
   | build
   | dist
-)/
-'''
-
-
+)/'''
 
 # --- Ruff (高速リンター) の設定 ---
 [tool.ruff]
 line-length = 88
-target-version = "py312"
+target-version = "py313"
 
 [tool.ruff.lint]
 # 有効にするルールセット
@@ -155,6 +153,7 @@ filterwarnings = [
 
 # 出力設定
 addopts = "-v --tb=short --strict-markers --cov=github_broker --cov-report=term-missing"
+asyncio_mode = "auto"
 
 # カスタムマーカーの定義
 markers = [
@@ -168,13 +167,13 @@ junit_family = "xunit2"
 
 # --- setuptoolsの設定 (パッケージを自動検出させる) ---
 [tool.setuptools.packages.find]
-where = ["."]  # プロジェクトのルートディレクトリを探す
+where = ["."]
 include = ["github_broker*"]  # "github_broker"で始まるディレクトリをパッケージとして含める
 exclude = ["tests*"]  # "tests"ディレクトリはパッケージに含めない
 
 # --- mypyの設定 ---
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.13"
 ignore_missing_imports = false
 
 [[tool.mypy.overrides]]
