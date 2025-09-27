@@ -1,5 +1,6 @@
 import logging
 import os
+import shlex
 
 import yaml
 
@@ -36,10 +37,15 @@ class GeminiExecutor:
             os.makedirs(self.log_dir, exist_ok=True)
 
         try:
-            logging.info(f"Attempting to open prompt file from CWD: {os.getcwd()}")
+            # prompt_fileが相対パスの場合、現在のファイルからの絶対パスに変換
+            if not os.path.isabs(prompt_file):
+                prompt_file = os.path.join(
+                    os.path.dirname(__file__), "..", "..", prompt_file
+                )
+            logging.info(f"Attempting to open prompt file: {prompt_file}")
             with open(prompt_file, encoding="utf-8") as f:
                 prompts = yaml.safe_load(f)
-            self.build_prompt_template = prompts["prompt_template"]
+            self.build_prompt_template = prompts["prompt_template"].strip()
         except (FileNotFoundError, KeyError) as e:
             logging.error(f"プロンプトファイルの読み込みまたは解析に失敗しました: {e}")
             # フォールバックとして空のテンプレートを設定
@@ -72,5 +78,8 @@ class GeminiExecutor:
             ...
         """
         return self.build_prompt_template.format(
-            issue_id=issue_id, title=title, body=body, branch_name=branch_name
+            issue_id=issue_id,
+            title=shlex.quote(title),
+            body=shlex.quote(body),
+            branch_name=branch_name,
         )
