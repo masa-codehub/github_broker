@@ -22,6 +22,9 @@ jobs:
       #  run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev lsb-release
 
       # actions/setup-python を使うことで、pipのキャッシュが効くようになります
+      - name: Install system dependencies (curl)
+        run: sudo apt-get update && sudo apt-get install -y curl
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -43,6 +46,61 @@ jobs:
         run: mypy . --ignore-missing-imports
       - name: Test with pytest
         run: pytest -m "not integration" --cov=. --cov-report=xml
+      - name: Server startup test
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: "test"
+          TESTING: true
+          REDIS_HOST: localhost
+          PATH: /usr/bin:$PATH # Add /usr/bin to PATH for curl
+        run: |
+          echo "Starting server startup test..."
+          
+          # Start the server in the background and log to a file
+          python main.py > server.log 2>&1 &
+          SERVER_PID=$!
+          
+          echo "Server starting in background with PID: $SERVER_PID"
+          
+          # Monitor server startup using health check endpoint (max 20 seconds)
+          timeout=20
+          elapsed=0
+          while ! curl -sf http://localhost:8000/health > /dev/null; do
+            if [ $elapsed -ge $timeout ]; then
+              echo "❌ Server health check timed out after $timeout seconds."
+              echo "--- Server Log ---"
+              cat server.log
+              echo "--- End Log ---"
+              kill $SERVER_PID 2>/dev/null || true
+              exit 1
+            fi
+            sleep 1
+            elapsed=$((elapsed + 1))
+          done
+          
+          echo "✅ Server started successfully."
+          echo "--- Server Log ---"
+          cat server.log
+          echo "--- End Log ---"
+
+          # Stop the server
+          echo "Stopping server..."
+          kill $SERVER_PID
+          # Wait up to 5 seconds for graceful shutdown
+          for i in {1..5}; do
+            if ! kill -0 $SERVER_PID 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          # If still running, force kill
+          if kill -0 $SERVER_PID 2>/dev/null; then
+            echo "Process did not terminate after SIGTERM, sending SIGKILL..."
+            kill -9 $SERVER_PID
+          fi
+          wait $SERVER_PID 2>/dev/null || true
+          echo "✅ Server stopped successfully"
       - name: Upload coverage report
         if: success()
         uses: actions/upload-artifact@v4

@@ -49,9 +49,8 @@ RUN pip install pip-tools
 RUN pip-compile requirements.in
 RUN pip install --no-cache-dir -r requirements.txt
 
-# # 開発モード
-# COPY pyproject.toml .
-# RUN pip install -e .
+# アプリケーションコードをコンテナにコピー
+COPY . /app
 
 # Pythonが.pycファイルを生成しないようにします。
 ENV PYTHONDONTWRITEBYTECODE=1
