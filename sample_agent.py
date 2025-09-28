@@ -1,6 +1,6 @@
 import logging
 import os
-import shlex
+import shutil
 import subprocess
 import time
 
@@ -42,9 +42,20 @@ def main(run_once=False):
 
                 prompt = assigned_task.get("prompt")
                 if prompt:
-                    # Construct the gemini cli command
-                    command = ["gemini", "cli", "-p", prompt]
-                    logging.info(f"gemini cli コマンドを実行しています: {' '.join(command)}")
+                    # geminiコマンドの存在を確認
+                    if not shutil.which("gemini"):
+                        logging.error(
+                            "'gemini' command not found. Please ensure the Gemini CLI is installed and in your PATH."
+                        )
+                        continue
+
+                    # promptをサニタイズし、コマンドを構築
+                    safe_prompt = (
+                        prompt.replace("\n", " ").replace("\r", " ").replace("\x00", "")
+                    )
+                    command = ["gemini", "cli", "-p", "--", safe_prompt]
+
+                    logging.info("gemini cli コマンドを実行しています...")
                     try:
                         result = subprocess.run(
                             command,

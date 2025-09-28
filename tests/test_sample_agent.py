@@ -17,10 +17,11 @@ def sample_task():
 
 
 @pytest.mark.unit
+@patch("shutil.which", return_value="/usr/bin/gemini")
 @patch("subprocess.run")
 @patch("sample_agent.AgentClient")
 def test_main_requests_and_executes_task(
-    mock_agent_client_class, mock_subprocess_run, sample_task
+    mock_agent_client_class, mock_subprocess_run, mock_shutil_which, sample_task
 ):
     """Tests that the main function requests a task and executes it if one is available."""
     # Arrange
@@ -29,7 +30,10 @@ def test_main_requests_and_executes_task(
     mock_agent_client_class.return_value = mock_client_instance
 
     mock_subprocess_run.return_value = subprocess.CompletedProcess(
-        args=["echo", "Hello World"], returncode=0, stdout="Hello World", stderr=""
+        args=["gemini", "cli", "-p", "--", "echo 'Hello World'"],
+        returncode=0,
+        stdout="Hello World",
+        stderr="",
     )
 
     # Act
@@ -38,8 +42,12 @@ def test_main_requests_and_executes_task(
     # Assert
     mock_agent_client_class.assert_called_once()
     mock_client_instance.request_task.assert_called_once()
+    mock_shutil_which.assert_called_once_with("gemini")
     mock_subprocess_run.assert_called_once_with(
-        ["echo", "Hello World"], text=True, capture_output=True, check=True
+        ["gemini", "cli", "-p", "--", "echo 'Hello World'"],
+        text=True,
+        capture_output=True,
+        check=True,
     )
 
 
