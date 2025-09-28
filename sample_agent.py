@@ -65,13 +65,13 @@ def main(run_once=False):
                             capture_output=True,
                             check=True,
                         )
-                        logging.info(f"プロンプト実行結果 (stdout):\n{result.stdout}")
+                        logging.info(f"gemini cli 実行結果 (stdout):\n{result.stdout}")
                         if result.stderr:
                             logging.warning(
-                                f"プロンプト実行結果 (stderr):\n{result.stderr}"
+                                f"gemini cli 実行結果 (stderr):\n{result.stderr}"
                             )
                     except subprocess.CalledProcessError as e:
-                        logging.error(f"プロンプトの実行中にエラーが発生しました: {e}")
+                        logging.error(f"gemini cli の実行中にエラーが発生しました: {e}")
                         logging.error(f"stdout: {e.stdout}")
                         logging.error(f"stderr: {e.stderr}")
                 else:

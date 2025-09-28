@@ -42,12 +42,12 @@ def test_main_requests_and_executes_task(
     # Assert
     mock_agent_client_class.assert_called_once()
     mock_client_instance.request_task.assert_called_once()
-    safe_prompt = (
-        sample_task["prompt"].replace("\n", " ").replace("\r", " ").replace("\x00", "")
-    )
-    expected_command = ["gemini", "cli", "-p", "--", safe_prompt]
+    mock_shutil_which.assert_called_once_with("gemini")
     mock_subprocess_run.assert_called_once_with(
-        expected_command, text=True, capture_output=True, check=True
+        ["gemini", "cli", "-p", "--", "echo 'Hello World'"],
+        text=True,
+        capture_output=True,
+        check=True,
     )
 
 

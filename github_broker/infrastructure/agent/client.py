@@ -70,39 +70,6 @@ class AgentClient:
             task = response.json()
             logging.info("New task assigned:")
             logging.info(json.dumps(task, indent=2, ensure_ascii=False))
-
-            if task.get("prompt"):
-                logging.info(f"Executing prompt: {task['prompt']}")
-                try:
-                    command_parts = shlex.split(task["prompt"])
-                    result = subprocess.run(
-                        command_parts,
-                        check=True,
-                        text=True,
-                        capture_output=True,
-                    )
-                    logging.info(
-                        f"Prompt executed successfully. Stdout: {result.stdout.strip()}"
-                    )
-                    if result.stderr:
-                        logging.warning(
-                            f"Prompt execution produced stderr: {result.stderr.strip()}"
-                        )
-                except subprocess.CalledProcessError as e:
-                    stderr = e.stderr.strip() if e.stderr else "N/A"
-                    logging.error(f"Prompt execution failed with error: {e}")
-                    logging.error(f"Stderr: {stderr}")
-                    raise PromptExecutionError(
-                        f"Prompt execution failed with stderr: {stderr}"
-                    ) from e
-                except Exception as e:
-                    logging.error(
-                        f"An unexpected error occurred during prompt execution: {e}"
-                    )
-                    raise PromptExecutionError(
-                        f"An unexpected error occurred during prompt execution: {e}"
-                    ) from e
-
             return task
 
         except requests.exceptions.RequestException as e:
