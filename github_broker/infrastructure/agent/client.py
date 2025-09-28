@@ -72,20 +72,38 @@ class AgentClient:
             logging.info(json.dumps(task, indent=2, ensure_ascii=False))
 
             if "prompt" in task and task["prompt"]:
+                # Define an allowlist of permitted commands
+                allowed_commands = [
+                    "echo",
+                    "ls",
+                    "pwd",
+                    # Add other safe commands as needed
+                ]
                 try:
-                    logging.info(f"Executing prompt: {task['prompt']}")
-                    subprocess.run(
-                        shlex.split(task["prompt"]),
-                        check=True,
-                        text=True,
-                        capture_output=True,
-                    )
-                    logging.info("Prompt executed successfully.")
+                    prompt_args = shlex.split(task["prompt"])
+                    if prompt_args and prompt_args[0] in allowed_commands:
+                        logging.info(f"Executing prompt: {task['prompt']}")
+                        subprocess.run(
+                            prompt_args,
+                            check=True,
+                            text=True,
+                            capture_output=True,
+                            timeout=timeout,
+                        )
+                        logging.info("Prompt executed successfully.")
+                    else:
+                        logging.error(
+                            f"Prompt '{task['prompt']}' is not in the allowlist and will not be executed."
+                        )
+                        raise PromptExecutionError(
+                            f"Prompt '{task['prompt']}' is not allowed."
+                        )
                 except subprocess.CalledProcessError as e:
-                    logging.error(f"Prompt execution failed: {e.stderr}")
-                    raise PromptExecutionError(
-                        f"Prompt execution failed: {e.stderr}"
-                    ) from e
+                    error_message = (
+                        f"Prompt execution failed. {e}. Stderr: {e.stderr.strip()}"
+                    )
+                    logging.error(error_message)
+                    raise PromptExecutionError(error_message) from e
             return task
 
         except requests.exceptions.RequestException as e:
