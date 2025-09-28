@@ -81,7 +81,7 @@ class GeminiExecutor:
         """
         return self.build_prompt_template.format(
             issue_id=issue_id,
-            title=shlex.quote(title),
-            body=shlex.quote(body),
+            title=title,
+            body=body,
             branch_name=branch_name,
         )
