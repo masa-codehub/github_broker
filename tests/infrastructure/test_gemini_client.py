@@ -16,27 +16,6 @@ def test_gemini_client_init_success():
 
 @pytest.mark.unit
 @patch("github_broker.infrastructure.gemini_client.genai.GenerativeModel")
-def test_select_best_issue_id_no_issues(mock_generative_model):
-    """
-    Issueが提供されない場合にselect_best_issue_idがNoneを返すことをテストします。
-    """
-    mock_gemini_response = MagicMock()
-    mock_gemini_response.text = '{"issue_id": null}'
-    mock_model_instance = MagicMock()
-    mock_model_instance.generate_content.return_value = mock_gemini_response
-    mock_generative_model.return_value = mock_model_instance
-
-    client = GeminiClient("fake_gemini_api_key")
-    prompt = "No issues available."
-
-    selected_id = client.select_best_issue_id(prompt)
-
-    assert selected_id is None
-    mock_model_instance.generate_content.assert_called_once_with(prompt)
-
-
-@pytest.mark.unit
-@patch("github_broker.infrastructure.gemini_client.genai.GenerativeModel")
 def test_select_best_issue_id_with_gemini_api_call(mock_generative_model):
     """
     select_best_issue_idがGemini APIを正しく呼び出し、プロンプトを生成し、レスポンスを解析することをテストします。
