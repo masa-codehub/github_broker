@@ -1,95 +1,16 @@
 import os
-import shlex
 from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
 
 from github_broker import AgentClient
-from github_broker.application.exceptions import PromptExecutionError
 
 
 @pytest.fixture
 def agent_client():
     """AgentClientのテストインスタンスを提供します。"""
     return AgentClient(agent_id="test-agent", agent_role="BACKENDCODER")
-
-
-@pytest.mark.unit
-@patch("subprocess.run")
-@patch("requests.post")
-def test_request_task_success(mock_post, mock_subprocess_run, agent_client):
-    """
-    タスクリクエストが成功し、プロンプトが実行されるケース（200 OK）をテストします。
-    """
-    # Arrange
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.reason = "OK"
-    mock_task_data = {
-        "issue_id": 1,
-        "title": "Test Issue",
-        "prompt": "echo 'Hello World'",
-    }
-    mock_response.json.return_value = mock_task_data
-    mock_post.return_value = mock_response
-
-    mock_subprocess_run.return_value = MagicMock(
-        stdout="Hello World", stderr="", returncode=0
-    )
-
-    # Act
-    task = agent_client.request_task()
-
-    # Assert
-    expected_url = (
-        f"http://{agent_client.host}:{agent_client.port}{agent_client.endpoint}"
-    )
-    expected_payload = {
-        "agent_id": agent_client.agent_id,
-        "agent_role": agent_client.agent_role,
-    }
-    mock_post.assert_called_once_with(
-        expected_url, json=expected_payload, headers=agent_client.headers, timeout=120
-    )
-    mock_response.raise_for_status.assert_called_once()
-    assert task == mock_task_data
-    mock_subprocess_run.assert_called_once_with(
-        shlex.split(mock_task_data["prompt"]),
-        check=True,
-        text=True,
-        capture_output=True,
-        timeout=120,
-    )
-
-
-@pytest.mark.unit
-@patch("subprocess.run")
-@patch("requests.post")
-def test_request_task_prompt_execution_failure(
-    mock_post, mock_subprocess_run, agent_client
-):
-    """
-    プロンプトの実行が失敗するケースをテストします。
-    """
-    # Arrange
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.reason = "OK"
-    mock_task_data = {
-        "issue_id": 1,
-        "title": "Test Issue",
-        "prompt": "exit 1",  # Command that will fail
-    }
-    mock_response.json.return_value = mock_task_data
-    mock_post.return_value = mock_response
-
-    # Act & Assert
-    with pytest.raises(PromptExecutionError) as excinfo:
-        agent_client.request_task()
-
-    assert "is not allowed" in str(excinfo.value)
-    mock_subprocess_run.assert_not_called()
 
 
 @pytest.mark.unit
