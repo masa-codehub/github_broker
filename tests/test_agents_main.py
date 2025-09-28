@@ -75,7 +75,7 @@ def test_main_task_assigned_with_prompt(
 
     mock_agent_client.return_value.request_task.assert_called_once()
     mock_subprocess_run.assert_called_once_with(
-        ["gemini", "cli", "-p", "--", "test prompt content"],
+        ["gemini", "--yolo", "-p", "test prompt content"],
         text=True,
         capture_output=True,
         check=True,
@@ -148,7 +148,7 @@ def test_main_prompt_sanitization(
     main(run_once=True)
 
     mock_subprocess_run.assert_called_once_with(
-        ["gemini", "cli", "-p", "--", expected_safe_prompt],
+        ["gemini", "--yolo", "-p", expected_safe_prompt],
         text=True,
         capture_output=True,
         check=True,
