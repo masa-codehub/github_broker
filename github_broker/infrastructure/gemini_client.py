@@ -1,6 +1,5 @@
 import json
 import logging
-import textwrap
 
 import google.generativeai as genai
 
