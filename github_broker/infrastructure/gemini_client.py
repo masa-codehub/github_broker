@@ -16,9 +16,7 @@ class GeminiClient:
         genai.configure(api_key=self._api_key)
         self._model = genai.GenerativeModel("gemini-2.5-flash")
 
-    def select_best_issue_id(
-        self, issues: list[dict], capabilities: list[str]
-    ) -> int | None:
+    def select_best_issue_id(self, prompt: str) -> int | None:
         """
         Gemini APIを使用して、エージェントの機能に基づいてリストから最適なIssue IDを選択します。
         API呼び出しが失敗した場合、リストの最初のIssueを選択するフォールバックを行います。
@@ -30,11 +28,6 @@ class GeminiClient:
         Returns:
             int or None: 選択されたIssueのID、または適切なIssueが見つからない場合はNone。
         """
-        if not issues:
-            return None
-
-        prompt = self._build_prompt(issues, capabilities)
-
         try:
             response = self._model.generate_content(prompt)
             response_json = json.loads(response.text)
@@ -44,37 +37,6 @@ class GeminiClient:
             return int(issue_id)
         except Exception as e:
             logging.warning(
-                f"Gemini API呼び出しが失敗しました: {e}。基本的な選択にフォールバックします。"
+                f"Gemini API呼び出しが失敗しました: {e}。適切なIssueが見つかりませんでした。"
             )
-            # 最初のIssueを選択するフォールバック
-            return issues[0].get("id")
-
-    def _build_prompt(self, issues: list[dict], capabilities: list[str]) -> str:
-        """
-        Gemini APIに送信するプロンプトを構築します。
-        """
-        # 'body'または'labels'が欠落している場合に備えて.get()を使用
-        issues_str = "\n".join(
-            [
-                f"- ID: {i['id']}, Title: {i['title']}, Body: {i.get('body', '')}, Labels: {i.get('labels', [])}"
-                for i in issues
-            ]
-        )
-        capabilities_str = ", ".join(capabilities)
-
-        prompt = f"""
-        あなたは熟練したソフトウェア開発プロジェクトマネージャーです。あなたのタスクは、開発者エージェントが次に作業するのに最も適したIssueを選択することです。
-
-        利用可能なIssueは以下の通りです:
-        {issues_str}
-
-        開発者エージェントの機能は以下の通りです:
-        {capabilities_str}
-
-        エージェントの機能と各Issueの情報（タイトル、本文、ラベル）に基づいて、エージェントが取り組むのに最も適切なIssueはどれですか？
-        必要な技術スキル、Issueのコンテキスト、およびエージェントの明示された機能を考慮してください。
-
-        {{'issue_id': <id>}}の形式のJSONオブジェクトのみで応答してください。<id>は選択されたIssueの整数IDです。他のテキスト、説明、またはマークダウン形式を含めないでください。
-        適切なIssueがない場合は、{{'issue_id': null}}で応答してください。
-        """
-        return textwrap.dedent(prompt)
+            return None

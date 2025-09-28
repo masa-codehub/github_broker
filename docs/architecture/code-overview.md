@@ -62,12 +62,7 @@ github_broker/
         -   `LockAcquisitionError`: タスクのロック取得に失敗した場合に発生する例外。
 
 -   **`github_broker/application/task_service.py`**
-    -   **概要**: GitHub Issueの管理、タスクのアサイン、ブランチの作成、**そしてサーバーサイドでのプロンプト生成**など、アプリケーションの主要なビジネスロジックを担うサービスです。インフラストラクチャ層のクライアント（Redis, GitHub, Gemini）をDIで受け取ります。
-    -   **主要なクラス/関数**:
-        -   `TaskService`:
-            -   `__init__()`: RedisClient, GitHubClient, GeminiClientをDIで受け取り初期化します。
-            -   `complete_previous_task(agent_id: str)`: 以前のタスク（in-progress状態のIssue）を完了状態（needs-review）に更新します。
-            -   `request_task(agent_id: str) -> TaskResponse | None`: GitHubからアサイン可能なIssueを探し、ロックし、タスク情報を返します。**サーバーサイドでプロンプトを生成し、Gemini APIを使用して最適なIssueを選択します。**
+    -   **概要**: GitHub Issueの管理、タスクのアサイン、ブランチの作成、そしてサーバーサイドでのプロンプト生成など、アプリケーションの主要なビジネスロジックを担うサービスです。インフラストラクチャ層のクライアント（Redis, GitHub, GeminiExecutor）をDIで受け取ります。`GeminiExecutor`を使用してプロンプトを生成し、そのプロンプトを基に最適なIssueを選択します。
 
 ### 3. Interface Layer (インターフェース層)
 
@@ -105,12 +100,11 @@ github_broker/
         -   `container` (punq.Container): DIコンテナインスタンス。
 
 -   **`github_broker/infrastructure/gemini_client.py`**
-    -   **概要**: Google Gemini APIと連携するためのクライアントです。与えられたIssueのリストから最適なIssueを選択する機能を提供します。
+    -   **概要**: Google Gemini APIと連携するためのクライアントです。`GeminiExecutor`が生成したプロンプトをLLMに渡し、その結果に基づいて最適なIssueを選択する機能を提供します。
     -   **主要なクラス/関数**:
         -   `GeminiClient`:
             -   `__init__()`: Gemini APIキーを設定し、モデルをセットアップします。
-            -   `select_best_issue_id(issues: list[dict], capabilities: list[str]) -> int | None`: Gemini APIを使用して、エージェントの機能に基づいて最適なIssue IDを選択します。
-            -   `_build_prompt()`: Gemini APIに送信するプロンプトを構築します。
+            -   `select_best_issue_id(prompt: str) -> int | None`: Gemini APIを使用して、与えられたプロンプトに基づいて最適なIssue IDを選択します。
 
 -   **`github_broker/infrastructure/github_client.py`**
     -   **概要**: PyGithubライブラリを使用してGitHub APIと連携するためのクライアントです。Issueの取得、ラベルの追加/削除、ブランチの作成など、GitHubリポジトリ操作に関する機能を提供します。
@@ -143,7 +137,7 @@ github_broker/
             -   `request_task()`: サーバーに新しいタスクをリクエストします。
 
 -   **`github_broker/infrastructure/executors/gemini_executor.py`**
-    -   **概要**: **サーバーサイドでのプロンプト生成ロジックを担う主要なコンポーネントです。** プロンプトテンプレートとタスク情報を基に、クライアントが実行するための最終的なプロンプト文字列を構築します。
+    -   **概要**: **サーバーサイドでのプロンプト生成ロジックを担う主要なコンポーネントです。** プロンプトテンプレートとタスク情報を基に、クライアントがLLMに渡す自然言語プロンプトを構築します。
     -   **主要なクラス/関数**:
         -   `GeminiExecutor`:
             -   `__init__()`: プロンプトテンプレートのパスなどを設定し初期化します。

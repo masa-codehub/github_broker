@@ -55,7 +55,7 @@ graph TD
 
     Workers -- "タスク要求 (APIリクエスト)" --> ApiServer
     ApiServer -- "プロンプト生成 & タスク割り当て (APIレスポンス)" --> Workers
-    Workers -- "プロンプト生成" --> Gemini
+    ApiServer -- "プロンプト生成" --> Gemini
 
     %% ▼▼▼ ここから追加 ▼▼▼
     %% 上下のレイアウトを固定するための、見えないリンク
@@ -90,7 +90,7 @@ graph TD
           "body": "The login button should be blue, not red...",
           "labels": ["bug", "ui"],
           "branch_name": "bugfix/issue-123",
-          "prompt": "[具体的なプロンプト内容]"
+          "prompt": "string" // クライアントがLLMに渡す自然言語プロンプト。クライアントはこのプロンプトを解釈し、自身の環境で適切なコマンド（例: `gemini cli run ...`）を組み立てて実行する。
         }
         ```
       * **成功 (204 No Content):** 割り当てるべき適切なタスクが見つからなかった場合。ボディは空。
