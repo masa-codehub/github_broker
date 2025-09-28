@@ -1,6 +1,5 @@
 import os
 import shlex
-import subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -60,6 +59,7 @@ def test_request_task_success(mock_post, mock_subprocess_run, agent_client):
         check=True,
         text=True,
         capture_output=True,
+        timeout=120,
     )
 
 
@@ -84,21 +84,12 @@ def test_request_task_prompt_execution_failure(
     mock_response.json.return_value = mock_task_data
     mock_post.return_value = mock_response
 
-    mock_subprocess_run.side_effect = subprocess.CalledProcessError(
-        returncode=1, cmd=shlex.split(mock_task_data["prompt"]), stderr="Command failed"
-    )
-
     # Act & Assert
     with pytest.raises(PromptExecutionError) as excinfo:
         agent_client.request_task()
 
-    assert "Prompt execution failed" in str(excinfo.value)
-    mock_subprocess_run.assert_called_once_with(
-        shlex.split(mock_task_data["prompt"]),
-        check=True,
-        text=True,
-        capture_output=True,
-    )
+    assert "is not allowed" in str(excinfo.value)
+    mock_subprocess_run.assert_not_called()
 
 
 @pytest.mark.unit
