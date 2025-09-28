@@ -85,7 +85,7 @@ def test_init_handles_prompt_file_error():
 
 
 @pytest.mark.unit
-def test__build_prompt(executor, mock_prompts):
+def test_build_natural_language_prompt(executor, mock_prompts):
     """_build_promptがテンプレートに基づいてプロンプトを正しく構築することをテストします"""
     # Act
     prompt = executor.build_prompt(123, "Test Title", "Test Body", "feature/test")
