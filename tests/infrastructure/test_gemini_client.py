@@ -15,18 +15,24 @@ def test_gemini_client_init_success():
 
 
 @pytest.mark.unit
-def test_select_best_issue_id_no_issues():
+@patch("github_broker.infrastructure.gemini_client.genai.GenerativeModel")
+def test_select_best_issue_id_no_issues(mock_generative_model):
     """
     Issueが提供されない場合にselect_best_issue_idがNoneを返すことをテストします。
     """
+    mock_gemini_response = MagicMock()
+    mock_gemini_response.text = '{"issue_id": null}'
+    mock_model_instance = MagicMock()
+    mock_model_instance.generate_content.return_value = mock_gemini_response
+    mock_generative_model.return_value = mock_model_instance
+
     client = GeminiClient("fake_gemini_api_key")
+    prompt = "No issues available."
 
-    issues = []
-    capabilities = ["python"]
-
-    selected_id = client.select_best_issue_id(issues, capabilities)
+    selected_id = client.select_best_issue_id(prompt)
 
     assert selected_id is None
+    mock_model_instance.generate_content.assert_called_once_with(prompt)
 
 
 @pytest.mark.unit
@@ -48,42 +54,36 @@ def test_select_best_issue_id_with_gemini_api_call(mock_generative_model):
 
     client = GeminiClient("fake_gemini_api_key")
 
-    issues = [
-        {
-            "id": 101,
-            "title": "データベースモジュールのリファクタリング",
-            "body": "DBモジュールは複雑すぎます。",
-            "labels": ["refactoring", "python"],
-        },
-        {
-            "id": 102,
-            "title": "ログインバグの修正",
-            "body": "ユーザーがログインできません。",
-            "labels": ["bug", "frontend"],
-        },
-    ]
-    capabilities = ["python", "refactoring", "backend"]
+    # 事前に構築されたプロンプトを準備
+    pre_built_prompt = (
+        "あなたは熟練したソフトウェア開発プロジェクトマネージャーです。\n"
+        "以下のIssue情報に基づいて、最適なIssue IDをJSON形式で出力してください。\n"
+        "Issue IDのみを出力し、他のテキストは含めないでください。\n"
+        "\n"
+        "---\n"
+        "Issue ID: 101\n"
+        "タイトル: データベースモジュールのリファクタリング\n"
+        "本文: DBモジュールは複雑すぎます。\n"
+        "ラベル: refactoring, python\n"
+        "---\n"
+        "Issue ID: 102\n"
+        "タイトル: ログインバグの修正\n"
+        "本文: ユーザーがログインできません。\n"
+        "ラベル: bug, frontend\n"
+        "---\n"
+        "\n"
+        "エージェントの機能: python, refactoring, backend\n"
+        "\n"
+        "最適なIssue IDをJSON形式で出力してください。\n"
+        '例: {"issue_id": 123}'
+    )
 
     # Act
-    selected_id = client.select_best_issue_id(issues, capabilities)
+    selected_id = client.select_best_issue_id(pre_built_prompt)
 
     # Assert
     # モデルが呼び出されたことを確認
-    mock_model_instance.generate_content.assert_called_once()
-
-    # モデルに送信された実際のプロンプトを取得
-    actual_prompt = mock_model_instance.generate_content.call_args[0][0]
-
-    # プロンプトに重要な情報が含まれていることを確認
-    assert "データベースモジュールのリファクタリング" in actual_prompt
-    assert "python" in actual_prompt
-    assert "refactoring" in actual_prompt
-    assert "backend" in actual_prompt
-    # プロンプトからキーフレーズを確認
-    assert (
-        "あなたは熟練したソフトウェア開発プロジェクトマネージャーです。"
-        in actual_prompt
-    )
+    mock_model_instance.generate_content.assert_called_once_with(pre_built_prompt)
 
     # 結果が正しく解析されたことを確認
     assert selected_id == 101
@@ -101,39 +101,11 @@ def test_select_best_issue_id_handles_null_id(mock_generative_model):
     mock_generative_model.return_value = mock_model_instance
 
     client = GeminiClient("fake_gemini_api_key")
-    issues = [{"id": 1, "title": "Test"}]
-    capabilities = ["test"]
+    prompt = "Issue IDを返さないプロンプト"
 
     # Act
-    selected_id = client.select_best_issue_id(issues, capabilities)
+    selected_id = client.select_best_issue_id(prompt)
 
     # Assert
     assert selected_id is None
-
-
-@pytest.mark.unit
-@patch("github_broker.infrastructure.gemini_client.genai.GenerativeModel")
-def test_select_best_issue_id_fallback_on_api_error(mock_generative_model):
-    """
-    API呼び出しが失敗した場合にselect_best_issue_idが最初のIssueにフォールバックすることをテストします。
-    """
-    # Arrange
-    # API呼び出しが例外を発生させるようにモック
-    mock_model_instance = MagicMock()
-    mock_model_instance.generate_content.side_effect = Exception("API Key Invalid")
-    mock_generative_model.return_value = mock_model_instance
-
-    client = GeminiClient("fake_gemini_api_key")
-
-    issues = [
-        {"id": 201, "title": "最初のIssue"},
-        {"id": 202, "title": "2番目のIssue"},
-    ]
-    capabilities = ["*"]
-
-    # Act
-    selected_id = client.select_best_issue_id(issues, capabilities)
-
-    # Assert
-    # フォールバック機能が最初のIssueのIDを返したことを確認
-    assert selected_id == 201
+    mock_model_instance.generate_content.assert_called_once_with(prompt)
