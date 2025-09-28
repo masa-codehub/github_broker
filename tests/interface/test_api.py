@@ -7,11 +7,11 @@ from fastapi.testclient import TestClient
 # DIコンテナをテストモードで読み込むために、最初に環境変数を設定
 os.environ["TESTING"] = "true"
 
+from broker_main import app
 from github_broker.application.exceptions import LockAcquisitionError
 from github_broker.application.task_service import TaskService
 from github_broker.interface.api import get_task_service
 from github_broker.interface.models import TaskResponse
-from main import app
 
 
 @pytest.fixture
