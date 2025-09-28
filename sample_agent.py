@@ -42,27 +42,23 @@ def main(run_once=False):
 
                 prompt = assigned_task.get("prompt")
                 if prompt:
-                    # SECURITY WARNING:
-                    # The following code executes the 'prompt' string as a shell command.
-                    # It uses shlex.split() to safely parse the command and avoid shell injection vulnerabilities.
-                    # However, the command itself comes from a remote server and could be arbitrary.
-                    # This code assumes that the 'prompt' comes from a trusted source.
-                    # DO NOT use this pattern with untrusted input.
-                    logging.info("プロンプトを実行しています...")
+                    # Construct the gemini cli command
+                    command = ["gemini", "cli", "-p", prompt]
+                    logging.info(f"gemini cli コマンドを実行しています: {' '.join(command)}")
                     try:
                         result = subprocess.run(
-                            shlex.split(prompt),
+                            command,
                             text=True,
                             capture_output=True,
                             check=True,
                         )
-                        logging.info(f"プロンプト実行結果 (stdout):\n{result.stdout}")
+                        logging.info(f"gemini cli 実行結果 (stdout):\n{result.stdout}")
                         if result.stderr:
                             logging.warning(
-                                f"プロンプト実行結果 (stderr):\n{result.stderr}"
+                                f"gemini cli 実行結果 (stderr):\n{result.stderr}"
                             )
                     except subprocess.CalledProcessError as e:
-                        logging.error(f"プロンプトの実行中にエラーが発生しました: {e}")
+                        logging.error(f"gemini cli の実行中にエラーが発生しました: {e}")
                         logging.error(f"stdout: {e.stdout}")
                         logging.error(f"stderr: {e.stderr}")
                 else:
