@@ -39,8 +39,10 @@ class GeminiExecutor:
         try:
             # prompt_fileが相対パスの場合、現在のファイルからの絶対パスに変換
             if not os.path.isabs(prompt_file):
-                prompt_file = os.path.join(
-                    os.path.dirname(__file__), "..", "..", prompt_file
+                # prompt_fileが相対パスの場合、このファイルからの相対パスとして解決します
+                filename = os.path.basename(prompt_file)
+                prompt_file = os.path.abspath(
+                    os.path.join(os.path.dirname(__file__), "..", "prompts", filename)
                 )
             logging.info(f"Attempting to open prompt file: {prompt_file}")
             with open(prompt_file, encoding="utf-8") as f:
