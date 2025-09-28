@@ -209,7 +209,7 @@ logs/
 .gemini/GEMINI.md
 messages/
 context.md
-commit_message.txt
+commit_message*
 
 # Track package-lock.json
 !package-lock.json
