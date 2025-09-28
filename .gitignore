@@ -208,6 +208,7 @@ logs/
 
 .gemini/GEMINI.md
 messages/
+context.md
 
 # Track package-lock.json
 !package-lock.json
