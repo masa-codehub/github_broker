@@ -44,9 +44,6 @@ class AgentClient:
 
         Returns:
             Optional[Dict[str, Any]]: 割り当てられたタスク情報、または利用可能なタスクがない場合はNone。
-
-        Raises:
-            PromptExecutionError: サーバーから受け取ったプロンプトの実行に失敗した場合。
         """
         payload = {"agent_id": self.agent_id, "agent_role": self.agent_role}
         url = f"http://{self.host}:{self.port}{self.endpoint}"
