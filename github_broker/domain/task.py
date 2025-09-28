@@ -19,7 +19,18 @@ class Task:
     def extract_branch_name(self) -> str | None:
         """Issueの本文からブランチ名を抽出します。"""
         if self.body:
-            match = re.search(r"## ブランチ名\s+`?([^\s`]+)`?", self.body)
+            # 正規表現パターン:
+            # `## ブランチ名`: リテラル文字列 "## ブランチ名" にマッチ
+            # `(?: \(Branch name\))?`: オプションの非キャプチャグループで、"(Branch name)" にマッチ (英語の注釈に対応)
+            # `\s*`: 0個以上の空白文字にマッチ
+            # ``?`: オプションのバッククォートにマッチ
+            # `([^\s`]+)`: 1個以上の空白文字またはバッククォート以外の文字にマッチし、これをキャプチャグループ1とする (ブランチ名本体)
+            # ``?`: オプションのバッククォートにマッチ
+            match = re.search(
+                r"## ブランチ名(?: \(Branch name\))?\s*`?([^\s`]+)`?",
+                self.body,
+                re.MULTILINE,
+            )
             if match:
                 branch_name = match.group(1).strip()
                 return branch_name.replace("issue-xx", f"issue-{self.issue_id}")
