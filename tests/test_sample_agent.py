@@ -17,10 +17,11 @@ def sample_task():
 
 
 @pytest.mark.unit
+@patch("shutil.which", return_value="/usr/bin/gemini")
 @patch("subprocess.run")
 @patch("sample_agent.AgentClient")
 def test_main_requests_and_executes_task(
-    mock_agent_client_class, mock_subprocess_run, sample_task
+    mock_agent_client_class, mock_subprocess_run, mock_shutil_which, sample_task
 ):
     """Tests that the main function requests a task and executes it if one is available."""
     # Arrange
@@ -29,7 +30,10 @@ def test_main_requests_and_executes_task(
     mock_agent_client_class.return_value = mock_client_instance
 
     mock_subprocess_run.return_value = subprocess.CompletedProcess(
-        args=["echo", "Hello World"], returncode=0, stdout="Hello World", stderr=""
+        args=["gemini", "cli", "-p", "--", "echo 'Hello World'"],
+        returncode=0,
+        stdout="Hello World",
+        stderr="",
     )
 
     # Act
@@ -38,15 +42,20 @@ def test_main_requests_and_executes_task(
     # Assert
     mock_agent_client_class.assert_called_once()
     mock_client_instance.request_task.assert_called_once()
+    safe_prompt = (
+        sample_task["prompt"].replace("\n", " ").replace("\r", " ").replace("\x00", "")
+    )
+    expected_command = ["gemini", "cli", "-p", "--", safe_prompt]
     mock_subprocess_run.assert_called_once_with(
-        ["echo", "Hello World"], text=True, capture_output=True, check=True
+        expected_command, text=True, capture_output=True, check=True
     )
 
 
 @pytest.mark.unit
+@patch("shutil.which", return_value="/usr/bin/gemini")
 @patch("sample_agent.AgentClient")
 @patch("sample_agent.time.sleep")
-def test_main_handles_no_task(mock_sleep, mock_agent_client_class):
+def test_main_handles_no_task(mock_sleep, mock_agent_client_class, mock_shutil_which):
     """Tests that the main function handles the case where no task is available."""
     # Arrange
     mock_client_instance = MagicMock()
@@ -62,9 +71,10 @@ def test_main_handles_no_task(mock_sleep, mock_agent_client_class):
 
 
 @pytest.mark.unit
+@patch("shutil.which", return_value="/usr/bin/gemini")
 @patch("sample_agent.AgentClient")
 @patch("sample_agent.time.sleep")
-def test_main_handles_exception(mock_sleep, mock_agent_client_class):
+def test_main_handles_exception(mock_sleep, mock_agent_client_class, mock_shutil_which):
     """Tests that the main function handles exceptions during task request and logs an error."""
     # Arrange
     mock_client_instance = MagicMock()
