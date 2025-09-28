@@ -1,6 +1,6 @@
 import logging
 import os
-import shlex
+import shutil
 import subprocess
 import time
 
@@ -30,6 +30,13 @@ def main(run_once=False):
     # AgentClientを初期化
     client = AgentClient(agent_id=agent_id, agent_role=agent_role, host=host, port=port)
 
+    # geminiコマンドの存在をチェック
+    if not shutil.which("gemini"):
+        logging.error(
+            "'gemini' command not found. Please ensure it is installed and in your PATH."
+        )
+        return
+
     while True:
         try:
             logging.info("サーバーに新しいタスクをリクエストしています...")
@@ -42,16 +49,18 @@ def main(run_once=False):
 
                 prompt = assigned_task.get("prompt")
                 if prompt:
-                    # SECURITY WARNING:
-                    # The following code executes the 'prompt' string as a shell command.
-                    # It uses shlex.split() to safely parse the command and avoid shell injection vulnerabilities.
-                    # However, the command itself comes from a remote server and could be arbitrary.
-                    # This code assumes that the 'prompt' comes from a trusted source.
-                    # DO NOT use this pattern with untrusted input.
                     logging.info("プロンプトを実行しています...")
                     try:
+                        # promptをサニタイズし、コマンドインジェクションを防ぐ
+                        safe_prompt = (
+                            prompt.replace("\n", " ")
+                            .replace("\r", " ")
+                            .replace("\x00", "")
+                        )
+                        command = ["gemini", "cli", "-p", "--", safe_prompt]
+
                         result = subprocess.run(
-                            shlex.split(prompt),
+                            command,
                             text=True,
                             capture_output=True,
                             check=True,

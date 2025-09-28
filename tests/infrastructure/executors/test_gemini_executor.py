@@ -7,13 +7,19 @@ import yaml
 import github_broker
 from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
 
-PROMPT_FILE_CONTENT = """
-prompt_template: >
-  /app/run.sh --issue-id {issue_id} --title {title} --body {body} --branch-name "{branch_name}"
-review_prompt: |
-  Original: {original_prompt}
-  Output: {execution_output}
-"""
+# Load the actual prompt content from the production file
+PROMPT_FILE_PATH = os.path.abspath(
+    os.path.join(
+        os.path.dirname(
+            github_broker.infrastructure.executors.gemini_executor.__file__
+        ),
+        "..",
+        "prompts",
+        "gemini_executor.yml",
+    )
+)
+with open(PROMPT_FILE_PATH, encoding="utf-8") as f:
+    PROMPT_FILE_CONTENT = f.read()
 
 
 @pytest.fixture
@@ -79,13 +85,20 @@ def test_init_handles_prompt_file_error():
 
 
 @pytest.mark.unit
-def test__build_prompt(executor):
+def test__build_prompt(executor, mock_prompts):
     """_build_promptがテンプレートに基づいてプロンプトを正しく構築することをテストします"""
     # Act
     prompt = executor.build_prompt(123, "Test Title", "Test Body", "feature/test")
 
     # Assert
-    assert (
-        prompt
-        == "/app/run.sh --issue-id 123 --title 'Test Title' --body 'Test Body' --branch-name \"feature/test\""
+    expected_prompt = (
+        mock_prompts["prompt_template"]
+        .strip()
+        .format(
+            issue_id=123,
+            title="Test Title",
+            body="Test Body",
+            branch_name="feature/test",
+        )
     )
+    assert prompt == expected_prompt
