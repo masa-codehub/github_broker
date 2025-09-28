@@ -30,6 +30,13 @@ def main(run_once=False):
     # AgentClientを初期化
     client = AgentClient(agent_id=agent_id, agent_role=agent_role, host=host, port=port)
 
+    # geminiコマンドの存在をチェック
+    if not shutil.which("gemini"):
+        logging.error(
+            "'gemini' command not found. Please ensure it is installed and in your PATH."
+        )
+        return
+
     while True:
         try:
             logging.info("サーバーに新しいタスクをリクエストしています...")
@@ -42,21 +49,16 @@ def main(run_once=False):
 
                 prompt = assigned_task.get("prompt")
                 if prompt:
-                    # geminiコマンドの存在を確認
-                    if not shutil.which("gemini"):
-                        logging.error(
-                            "'gemini' command not found. Please ensure the Gemini CLI is installed and in your PATH."
-                        )
-                        continue
-
-                    # promptをサニタイズし、コマンドを構築
-                    safe_prompt = (
-                        prompt.replace("\n", " ").replace("\r", " ").replace("\x00", "")
-                    )
-                    command = ["gemini", "cli", "-p", "--", safe_prompt]
-
-                    logging.info("gemini cli コマンドを実行しています...")
+                    logging.info("プロンプトを実行しています...")
                     try:
+                        # promptをサニタイズし、コマンドインジェクションを防ぐ
+                        safe_prompt = (
+                            prompt.replace("\n", " ")
+                            .replace("\r", " ")
+                            .replace("\x00", "")
+                        )
+                        command = ["gemini", "cli", "-p", "--", safe_prompt]
+
                         result = subprocess.run(
                             command,
                             text=True,

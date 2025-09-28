@@ -52,9 +52,10 @@ def test_main_requests_and_executes_task(
 
 
 @pytest.mark.unit
+@patch("shutil.which", return_value="/usr/bin/gemini")
 @patch("sample_agent.AgentClient")
 @patch("sample_agent.time.sleep")
-def test_main_handles_no_task(mock_sleep, mock_agent_client_class):
+def test_main_handles_no_task(mock_sleep, mock_agent_client_class, mock_shutil_which):
     """Tests that the main function handles the case where no task is available."""
     # Arrange
     mock_client_instance = MagicMock()
@@ -70,9 +71,10 @@ def test_main_handles_no_task(mock_sleep, mock_agent_client_class):
 
 
 @pytest.mark.unit
+@patch("shutil.which", return_value="/usr/bin/gemini")
 @patch("sample_agent.AgentClient")
 @patch("sample_agent.time.sleep")
-def test_main_handles_exception(mock_sleep, mock_agent_client_class):
+def test_main_handles_exception(mock_sleep, mock_agent_client_class, mock_shutil_which):
     """Tests that the main function handles exceptions during task request and logs an error."""
     # Arrange
     mock_client_instance = MagicMock()
