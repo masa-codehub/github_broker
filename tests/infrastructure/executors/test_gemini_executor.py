@@ -46,13 +46,15 @@ def test_init_loads_prompts_from_file(mock_prompts):
         executor_instance = GeminiExecutor(prompt_file=prompt_file_path)
 
         # GeminiExecutorが内部でパスを解決するのと同じロジックを適用
-        expected_path = os.path.join(
-            os.path.dirname(
-                github_broker.infrastructure.executors.gemini_executor.__file__
-            ),
-            "..",
-            "..",
-            prompt_file_path,
+        expected_path = os.path.abspath(
+            os.path.join(
+                os.path.dirname(
+                    github_broker.infrastructure.executors.gemini_executor.__file__
+                ),
+                "..",
+                "prompts",
+                os.path.basename(prompt_file_path),
+            )
         )
         mock_file.assert_called_once_with(expected_path, encoding="utf-8")
         mock_safe_load.assert_called_once()
