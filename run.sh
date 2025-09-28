@@ -18,11 +18,9 @@ bash .build/update_gemini_context.sh
 # pre-commitの設定
 pre-commit install --install-hooks
 
-# # ファイルの存在を確認（main.pyに変える）
-# if [ -f "sample_agent.py" ]; then
-#     echo "main process start"
-#     python "sample_agent.py"
-# fi
-# echo "main process done"
-
-cat context.md | gemini --model "gemini-2.5-flash" --yolo
+# ファイルの存在を確認（main.pyに変える）
+if [ -f "sample_agent.py" ]; then
+    echo "main process start"
+    python "sample_agent.py"
+fi
+echo "main process done"
