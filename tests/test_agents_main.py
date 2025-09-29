@@ -1,6 +1,6 @@
 import os
 import subprocess
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
@@ -55,6 +55,7 @@ def test_main_no_task_assigned(
     mock_subprocess_run.assert_not_called()
 
 
+@patch("builtins.open", new_callable=mock_open)
 @patch("agents_main.AgentClient")
 @patch("agents_main.shutil.which")
 @patch("agents_main.subprocess.run")
@@ -62,23 +63,33 @@ def test_main_task_assigned_with_prompt(
     mock_subprocess_run,
     mock_shutil_which,
     mock_agent_client,
+    mock_file_open,
 ):
     mock_shutil_which.return_value = "/usr/bin/gemini"
+    prompt_content = "test prompt content"
     mock_agent_client.return_value.request_task.return_value = {
         "issue_id": 1,
         "title": "Test Task",
-        "prompt": "test prompt content",
+        "prompt": prompt_content,
     }
     mock_subprocess_run.return_value = MagicMock(stdout="cli output", stderr="")
 
     main(run_once=True)
 
     mock_agent_client.return_value.request_task.assert_called_once()
+
+    # Verify context.md was written correctly
+    mock_file_open.assert_called_once_with("context.md", "w", encoding="utf-8")
+    mock_file_open().write.assert_called_once_with(prompt_content)
+
+    # Verify subprocess was called correctly
+    expected_command = "cat context.md | gemini --model gemini-2.5-flash --yolo"
     mock_subprocess_run.assert_called_once_with(
-        ["gemini", "--yolo", "-p", "test prompt content"],
+        expected_command,
         text=True,
         capture_output=True,
         check=True,
+        shell=True,
     )
 
 
@@ -128,36 +139,6 @@ def test_main_exception_handling(
 @patch("agents_main.AgentClient")
 @patch("agents_main.shutil.which")
 @patch("agents_main.subprocess.run")
-@patch("agents_main.logging.warning")
-def test_main_prompt_sanitization(
-    mock_logging_warning,
-    mock_subprocess_run,
-    mock_shutil_which,
-    mock_agent_client,
-):
-    mock_shutil_which.return_value = "/usr/bin/gemini"
-    malicious_prompt = "test\n\r\x00prompt; rm -rf /"
-    expected_safe_prompt = "test prompt; rm -rf /"
-    mock_agent_client.return_value.request_task.return_value = {
-        "issue_id": 1,
-        "title": "Test Task",
-        "prompt": malicious_prompt,
-    }
-    mock_subprocess_run.return_value = MagicMock(stdout="cli output", stderr="")
-
-    main(run_once=True)
-
-    mock_subprocess_run.assert_called_once_with(
-        ["gemini", "--yolo", "-p", expected_safe_prompt],
-        text=True,
-        capture_output=True,
-        check=True,
-    )
-
-
-@patch("agents_main.AgentClient")
-@patch("agents_main.shutil.which")
-@patch("agents_main.subprocess.run")
 @patch("agents_main.logging.error")
 def test_main_subprocess_called_process_error(
     mock_logging_error,
@@ -171,14 +152,15 @@ def test_main_subprocess_called_process_error(
         "title": "Test Task",
         "prompt": "test prompt",
     }
+    command_str = "cat context.md | gemini --model gemini-2.5-flash --yolo"
     mock_subprocess_run.side_effect = subprocess.CalledProcessError(
-        returncode=1, cmd="gemini cli", output="", stderr="cli error"
+        returncode=1, cmd=command_str, output="", stderr="cli error"
     )
 
     main(run_once=True)
 
     mock_logging_error.assert_any_call(
-        "gemini cli の実行中にエラーが発生しました: Command 'gemini cli' returned non-zero exit status 1."
+        f"gemini cli の実行中にエラーが発生しました: Command '{command_str}' returned non-zero exit status 1."
     )
     mock_logging_error.assert_any_call("stdout: ")
     mock_logging_error.assert_any_call("stderr: cli error")
