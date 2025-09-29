@@ -52,35 +52,18 @@ class GeminiExecutor:
             # フォールバックとして空のテンプレートを設定
             self.build_prompt_template = ""
 
-    def build_prompt(
-        self, issue_id: int, title: str, body: str, branch_name: str
-    ) -> str:
+    def build_prompt(self, html_url: str, branch_name: str) -> str:
         """
         タスク情報に基づいて、エージェントが実行するためのプロンプトを構築します。
 
         Args:
-            issue_id (int): GitHub Issueの番号。
-            title (str): Issueのタイトル。
-            body (str): Issueの本文。
+            html_url (str): GitHub IssueのURL。
             branch_name (str): 作業用のブランチ名。
 
         Returns:
             str: 実行可能なコマンドを含むプロンプト文字列。
-
-        Example:
-            >>> executor = GeminiExecutor(prompt_file="path/to/prompts.yml")
-            >>> prompt = executor.build_prompt(
-            ...     issue_id=123,
-            ...     title="Fix bug",
-            ...     body="...",
-            ...     branch_name="fix/issue-123"
-            ... )
-            >>> print(prompt)
-            ...
         """
         return self.build_prompt_template.format(
-            issue_id=issue_id,
-            title=title,
-            body=body,
+            html_url=html_url,
             branch_name=branch_name,
         )

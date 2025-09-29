@@ -6,6 +6,9 @@ import pytest
 
 from agents_main import main
 
+# テスト全体で利用するコマンドの定数
+GEMINI_COMMAND = ["gemini", "--model", "gemini-2.5-flash", "--yolo"]
+
 
 @pytest.fixture(autouse=True)
 def mock_env_vars():
@@ -64,18 +67,22 @@ def test_main_task_assigned_with_prompt(
     mock_agent_client,
 ):
     mock_shutil_which.return_value = "/usr/bin/gemini"
+    prompt_content = "test prompt content"
     mock_agent_client.return_value.request_task.return_value = {
         "issue_id": 1,
         "title": "Test Task",
-        "prompt": "test prompt content",
+        "prompt": prompt_content,
     }
     mock_subprocess_run.return_value = MagicMock(stdout="cli output", stderr="")
 
     main(run_once=True)
 
     mock_agent_client.return_value.request_task.assert_called_once()
+
+    # Verify subprocess was called correctly
     mock_subprocess_run.assert_called_once_with(
-        ["gemini", "--yolo", "-p", "test prompt content"],
+        GEMINI_COMMAND,
+        input=prompt_content.strip(),
         text=True,
         capture_output=True,
         check=True,
@@ -128,16 +135,14 @@ def test_main_exception_handling(
 @patch("agents_main.AgentClient")
 @patch("agents_main.shutil.which")
 @patch("agents_main.subprocess.run")
-@patch("agents_main.logging.warning")
-def test_main_prompt_sanitization(
-    mock_logging_warning,
+def test_main_prompt_sanitization_removes_null_bytes(
     mock_subprocess_run,
     mock_shutil_which,
     mock_agent_client,
 ):
     mock_shutil_which.return_value = "/usr/bin/gemini"
-    malicious_prompt = "test\n\r\x00prompt; rm -rf /"
-    expected_safe_prompt = "test prompt; rm -rf /"
+    malicious_prompt = "test\n\r\x00prompt\x00 with nulls"
+    expected_safe_prompt = "test\n\rprompt with nulls"
     mock_agent_client.return_value.request_task.return_value = {
         "issue_id": 1,
         "title": "Test Task",
@@ -148,7 +153,8 @@ def test_main_prompt_sanitization(
     main(run_once=True)
 
     mock_subprocess_run.assert_called_once_with(
-        ["gemini", "--yolo", "-p", expected_safe_prompt],
+        GEMINI_COMMAND,
+        input=expected_safe_prompt.strip(),
         text=True,
         capture_output=True,
         check=True,
@@ -172,13 +178,13 @@ def test_main_subprocess_called_process_error(
         "prompt": "test prompt",
     }
     mock_subprocess_run.side_effect = subprocess.CalledProcessError(
-        returncode=1, cmd="gemini cli", output="", stderr="cli error"
+        returncode=1, cmd=GEMINI_COMMAND, output="", stderr="cli error"
     )
 
     main(run_once=True)
 
     mock_logging_error.assert_any_call(
-        "gemini cli の実行中にエラーが発生しました: Command 'gemini cli' returned non-zero exit status 1."
+        f"gemini cli の実行中にエラーが発生しました: Command '{GEMINI_COMMAND}' returned non-zero exit status 1."
     )
     mock_logging_error.assert_any_call("stdout: ")
     mock_logging_error.assert_any_call("stderr: cli error")

@@ -60,12 +60,14 @@ def main(run_once=False):
                 if prompt:
                     logging.info("プロンプトを実行しています...")
                     try:
-                        # promptを単一行に整形し、gemini cliに渡せるようにする
-                        safe_prompt = re.sub(r"[\s\x00]+", " ", prompt).strip()
-                        command = ["gemini", "--yolo", "-p", safe_prompt]
+                        # promptからnull文字のみを削除
+                        safe_prompt = re.sub(r"[\x00]+", "", prompt).strip()
+                        # geminiコマンドを実行し、標準入力経由でプロンプトを渡す
+                        command = ["gemini", "--model", "gemini-2.5-flash", "--yolo"]
 
                         result = subprocess.run(
                             command,
+                            input=safe_prompt,
                             text=True,
                             capture_output=True,
                             check=True,

@@ -88,16 +88,17 @@ def test_init_handles_prompt_file_error():
 def test_build_natural_language_prompt(executor, mock_prompts):
     """build_promptが自然言語プロンプトを正しく生成することをテストします"""
     # Act
-    prompt = executor.build_prompt(123, "Test Title", "Test Body", "feature/test")
+    prompt = executor.build_prompt(
+        html_url="https://github.com/example/repo/issues/123",
+        branch_name="feature/test",
+    )
 
     # Assert
     expected_prompt = (
         mock_prompts["prompt_template"]
         .strip()
         .format(
-            issue_id=123,
-            title="Test Title",
-            body="Test Body",
+            html_url="https://github.com/example/repo/issues/123",
             branch_name="feature/test",
         )
     )

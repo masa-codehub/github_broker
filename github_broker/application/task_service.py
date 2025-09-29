@@ -198,10 +198,7 @@ class TaskService:
                 self.github_client.create_branch(branch_name)
 
                 prompt = self.gemini_executor.build_prompt(
-                    issue_id=task.issue_id,
-                    title=task.title,
-                    body=task.body,
-                    branch_name=branch_name,
+                    html_url=task.html_url, branch_name=branch_name
                 )
 
                 self.redis_client.set_value(

@@ -65,7 +65,7 @@ jobs:
           echo "Starting server startup test..."
           
           # Start the server in the background and log to a file
-          python main.py > server.log 2>&1 &
+          python broker_main.py > server.log 2>&1 &
           SERVER_PID=$!
           
           echo "Server starting in background with PID: $SERVER_PID"

@@ -170,9 +170,7 @@ async def test_request_task_selects_by_role_from_cache(
         "issue_lock_2", agent_id, timeout=600
     )
     task_service.gemini_executor.build_prompt.assert_called_once_with(
-        issue_id=issue2["number"],
-        title=issue2["title"],
-        body=issue2["body"],
+        html_url=issue2["html_url"],
         branch_name="feature/issue-2",
     )
     mock_redis_client.set_value.assert_called_once_with(
