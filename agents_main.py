@@ -62,15 +62,22 @@ def main(run_once=False):
                     try:
                         # promptからnull文字のみを削除
                         safe_prompt = re.sub(r"[\x00]+", "", prompt).strip()
-                        # geminiコマンドを実行し、標準入力経由でプロンプトを渡す
-                        command = ["gemini", "--model", "gemini-2.5-flash", "--yolo"]
+
+                        # context.mdにsafe_promptを書き込む
+                        with open("context.md", "w", encoding="utf-8") as f:
+                            f.write(safe_prompt)
+
+                        # geminiコマンドを実行
+                        command = (
+                            "cat context.md | gemini --model gemini-2.5-flash --yolo"
+                        )
 
                         result = subprocess.run(
                             command,
-                            input=safe_prompt,
                             text=True,
                             capture_output=True,
                             check=True,
+                            shell=True,
                         )
                         logging.info(f"gemini cli 実行結果 (stdout):\n{result.stdout}")
                         if result.stderr:
