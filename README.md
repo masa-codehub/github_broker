@@ -83,7 +83,38 @@ curl -X POST "http://localhost:8080/api/v1/request-task" \
 各エンドポイントの詳細な仕様や他のリクエスト例については、[システム設計書](./docs/architecture/index.md#4-api仕様) を参照してください。
 
 
-## 4. カンバンシステム (タスク状態管理)
+## 4. エージェント実装例
+
+`agents_main.py`は、GitHub Task Brokerと連携するエージェントの基本的な実装例です。このエージェントは、定期的に新しいタスクをリクエストし、割り当てられたタスクのプロンプトを実行します。
+
+以下に、`agents_main.py`の主要な処理フローをMermaid形式のフローチャートで示します。
+
+```mermaid
+graph TD
+    A[開始] --> B{geminiコマンドの存在チェック};
+    B -- 存在しない --> C[エラーログ出力];
+    C --> D[終了];
+    B -- 存在する --> E[AgentClient初期化];
+    E --> F{ループ開始};
+    F --> G[新しいタスクをリクエスト];
+    G --> H{タスクが割り当てられたか？};
+    H -- はい --> I{プロンプトの実行};
+    I --> J{gemini cli 実行};
+    J -- 成功 --> K[タスク実行完了ログ];
+    K --> L[SUCCESS_SLEEP_SECONDS待機];
+    L --> F;
+    J -- 失敗 --> M[gemini cli エラーログ];
+    M --> L;
+    H -- いいえ --> N[利用可能なタスクなしログ];
+    N --> O[NO_TASK_SLEEP_SECONDS待機];
+    O --> F;
+    F -- エラー発生 --> P[エラーログ出力];
+    P --> Q[ERROR_SLEEP_SECONDS待機];
+    Q --> F;
+    F -- run_once=True --> R[終了];
+```
+
+## 5. カンバンシステム (タスク状態管理)
 
 本システムは、GitHubのラベルを利用してタスクの進行状況を管理します。
 
