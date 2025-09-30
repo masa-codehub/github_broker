@@ -194,8 +194,10 @@ sequenceDiagram
     GitHub-->>ApiServer: OK
 
     ApiServer->>ApiServer: (ロングポーリング開始：内部でタスクを繰り返し検索...)
+    ApiServer->>Redis: GET open_issues_cache (キャッシュされたIssueリストを取得)
+    Redis-->>ApiServer: Issue List from Cache
 
-    alt 割り当て可能なタスクが見つかった場合
+    alt 割り当て可能なタスクが見つかった場合 (キャッシュから)
         ApiServer->>Redis: SETNX issue_lock (個別Issueロック)
         Redis-->>ApiServer: OK
         ApiServer->>GitHub: PATCH /issues/{new_id} (ラベル更新)
@@ -203,7 +205,7 @@ sequenceDiagram
         ApiServer->>GitHub: POST /git/refs (ブランチ作成)
         GitHub-->>ApiServer: OK
         ApiServer-->>-Worker: 200 OK (新タスク情報) // ApiServerを非アクティブ化 (-)
-    else タイムアウトした場合
+    else タイムアウトした場合 (キャッシュから見つからず)
         ApiServer-->>Worker: 204 No Content // ここでもApiServerを非アクティブ化 (-)
     end
 ```
