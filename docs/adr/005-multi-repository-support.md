@@ -1,31 +1,24 @@
 # 005-multi-repository-support
 
 ## Context
-
-The current Redis key design in our system is implicitly tied to a single repository. Redis keys are generated without incorporating any repository-specific identification. For example, keys like `issue_lock` or `open_issues_cache` are global across the Redis instance. This design choice means that the system can only safely operate with one GitHub repository at a time. If multiple repositories were to be processed concurrently or managed by the same Redis instance, key collisions would occur, leading to data corruption or incorrect behavior (e.g., an issue lock for one repository affecting another, or cached issues from one repository overwriting those of another). This limitation prevents the system from scaling to support multiple GitHub repositories simultaneously, which is a critical requirement for future enhancements and broader applicability.
+現状のシステムでは、Redisキーの設計にリポジトリを識別する情報が含まれていません。例えば、`issue_lock` や `open_issues_cache` といったキーは、リポジトリ固有の情報を保持していません。このため、複数のリポジトリを同時に扱う場合、キーの衝突が発生し、データの一貫性が損なわれる可能性があります。結果として、現在の設計では単一のリポジトリしか安全に扱うことができません。
 
 ## Decision
+将来的なマルチリポジトリ対応を可能にするため、すべてのRedisキーにリポジトリを一意に識別するためのプレフィックスを追加します。具体的なプレフィックスの形式は `repo_{owner}_{repo_name}:` とします。
 
-To enable future multi-repository support, we will introduce a unique repository identifier prefix to all Redis keys. This prefix will follow the format `repo_{owner}_{repo_name}:`. All existing and future Redis keys will be prepended with this identifier.
+例:
+- `issue_lock` -> `repo_{owner}_{repo_name}:issue_lock`
+- `open_issues_cache` -> `repo_{owner}_{repo_name}:open_issues_cache`
 
-For example:
-- `issue_lock` will become `repo_{owner}_{repo_name}:issue_lock`
-- `open_issues_cache` will become `repo_{owner}_{repo_name}:open_issues_cache`
-
-The `{owner}` and `{repo_name}` will be dynamically determined based on the GitHub repository being processed. This ensures that each repository's data in Redis is isolated and uniquely identifiable, preventing conflicts when managing multiple repositories.
+このプレフィックスは、Redisキーを使用するすべての箇所で適用されるものとします。
 
 ## Consequences
+### メリット
+- **マルチリポジトリ対応:** 複数のGitHubリポジトリを同時に安全に扱うことが可能になります。各リポジトリのデータは独立して管理されるため、キーの衝突による問題が解消されます。
+- **スケーラビリティの向上:** 将来的にシステムが扱うリポジトリ数が増加しても、Redisキーの管理が容易になり、システムの拡張性が向上します。
+- **明確なデータ分離:** Redis内のデータがどのリポジトリに属するのかが明確になり、デバッグや運用がしやすくなります。
 
-### Benefits
-
-*   **Multi-repository Support:** The primary benefit is the ability to safely manage and process multiple GitHub repositories concurrently using a single Redis instance.
-*   **Data Isolation:** Each repository's data in Redis will be logically isolated, preventing cross-repository data corruption or unintended interactions.
-*   **Scalability:** The system can scale to handle a larger number of repositories without requiring separate Redis instances for each, simplifying infrastructure management.
-*   **Clarity:** Redis keys will become more descriptive, clearly indicating which repository they belong to, which aids in debugging and monitoring.
-
-### Impact on Existing Code
-
-*   **Redis Client Abstraction:** The Redis client or any component responsible for generating Redis keys will need to be updated to incorporate the repository identifier prefix. This change should ideally be encapsulated within a Redis key generation utility or a modified Redis client wrapper to minimize widespread code changes.
-*   **Configuration:** The system will need to be configured with the current repository's owner and name, which will be used to construct the Redis key prefix.
-*   **Migration:** Existing Redis data (if any) will become inaccessible with the new key format. A migration strategy will be required if backward compatibility with existing single-repository data is necessary. For a new system or a system with ephemeral Redis data, this might not be a significant concern.
-*   **Testing:** All Redis-related operations will need thorough testing to ensure that keys are correctly prefixed and that data is stored and retrieved as expected for multiple repositories.
+### 既存コードへの影響範囲
+- **Redisキー生成ロジックの変更:** Redisキーを生成しているすべての箇所で、新しいプレフィックスを追加するロジックを導入する必要があります。
+- **既存データの移行:** マルチリポジトリ対応を完全に実施する場合、既存の単一リポジトリのRedisデータを新しいキー形式に移行する必要があります。ただし、これは本ADRの範囲外であり、別途検討が必要です。
+- **テストの更新:** Redisキーの生成ロジックが変更されるため、関連する単体テストおよび統合テストの更新が必要になります。
