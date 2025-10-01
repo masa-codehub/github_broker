@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-OPEN_ISSUES_CACHE_KEY = "open_issues"
+
 
 
 class TaskService:
@@ -55,11 +55,11 @@ class TaskService:
                         f"Found {len(issues)} open issues. Caching them in Redis."
                     )
                     self.redis_client.set_value(
-                        OPEN_ISSUES_CACHE_KEY, json.dumps(issues)
+                        "open_issues", json.dumps(issues)
                     )
                     logger.info("Finished caching all open issues under a single key.")
                 else:
-                    self.redis_client.set_value(OPEN_ISSUES_CACHE_KEY, json.dumps([]))
+                    self.redis_client.set_value("open_issues", json.dumps([]))
                     logger.info("No open issues found. Cached an empty list.")
 
             except (GithubException, RedisError) as e:
@@ -309,7 +309,7 @@ class TaskService:
         Returns:
             TaskResponse | None: 見つかったタスクの情報。見つからなかった場合はNoneを返します。
         """
-        cached_issues_json = self.redis_client.get_value(OPEN_ISSUES_CACHE_KEY)
+        cached_issues_json = self.redis_client.get_value("open_issues")
 
         if not cached_issues_json:
             logger.warning("No issues found in Redis cache.")

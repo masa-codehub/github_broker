@@ -27,7 +27,11 @@ def _create_container() -> punq.Container:
         db=settings.REDIS_DB,
         decode_responses=True,
     )
-    redis_client = RedisClient(redis=redis_instance)
+    redis_client = RedisClient(
+        redis=redis_instance,
+        owner=settings.GITHUB_OWNER,
+        repo_name=settings.GITHUB_REPOSITORY,
+    )
 
     github_client = GitHubClient(
         github_repository=settings.GITHUB_REPOSITORY,

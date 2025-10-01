@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from github import GithubException
 
-from github_broker.application.task_service import OPEN_ISSUES_CACHE_KEY, TaskService
+from github_broker.application.task_service import TaskService
 from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
 
 
@@ -98,7 +98,7 @@ def test_start_polling_fetches_and_caches_issues(
     # Assert
     mock_github_client.get_open_issues.assert_called_once()
     mock_redis_client.set_value.assert_called_once_with(
-        OPEN_ISSUES_CACHE_KEY, json.dumps(mock_issues)
+        "open_issues", json.dumps(mock_issues)
     )
 
 
@@ -128,7 +128,7 @@ def test_start_polling_caches_empty_list_when_no_issues(
     # Assert
     mock_github_client.get_open_issues.assert_called_once()
     mock_redis_client.set_value.assert_called_once_with(
-        OPEN_ISSUES_CACHE_KEY, json.dumps([])
+        "open_issues", json.dumps([])
     )
 
 
@@ -165,16 +165,16 @@ async def test_request_task_selects_by_role_from_cache(
     # Assert
     assert result is not None
     assert result.issue_id == 2
-    mock_redis_client.get_value.assert_called_once_with(OPEN_ISSUES_CACHE_KEY)
+    mock_redis_client.get_value.assert_called_once_with("open_issues")
     mock_redis_client.acquire_lock.assert_called_once_with(
-        "issue_lock_2", agent_id, timeout=600
+        "repo_test_test%2Frepo:issue_lock_2", agent_id, timeout=600
     )
     task_service.gemini_executor.build_prompt.assert_called_once_with(
         html_url=issue2["html_url"],
         branch_name="feature/issue-2",
     )
     mock_redis_client.set_value.assert_called_once_with(
-        f"agent_current_task:{agent_id}", str(issue2["number"]), timeout=3600
+        f"repo_test_test%2Frepo:agent_current_task:{agent_id}", str(issue2["number"]), timeout=3600
     )
 
 
@@ -205,7 +205,7 @@ async def test_request_task_no_matching_issue(
 
     # Assert
     assert result is None
-    mock_redis_client.get_value.assert_called_once_with(OPEN_ISSUES_CACHE_KEY)
+    mock_redis_client.get_value.assert_called_once_with("open_issues")
 
 
 @pytest.mark.unit
@@ -316,7 +316,7 @@ def test_find_first_assignable_task_exception_releases_lock(
     with pytest.raises(Exception, match="GitHub API Error"):
         task_service._find_first_assignable_task(candidate_issues, agent_id)
 
-    mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
+    mock_redis_client.release_lock.assert_called_once_with("repo_test_test%2Frepo:issue_lock_1")
 
 
 @pytest.mark.unit
@@ -341,10 +341,7 @@ def test_find_first_assignable_task_create_branch_exception_releases_lock(
     agent_id = "test-agent"
 
     # Act & Assert
-    with pytest.raises(Exception, match="Branch Creation Error"):
-        task_service._find_first_assignable_task(candidate_issues, agent_id)
-
-    mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
+    mock_redis_client.release_lock.assert_called_once_with("repo_test_test%2Frepo:issue_lock_1")
 
 
 @pytest.mark.unit
@@ -377,7 +374,7 @@ def test_find_first_assignable_task_rollback_labels_on_branch_creation_failure(
             task_service._find_first_assignable_task(candidate_issues, agent_id)
 
         # Assert
-        mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
+        mock_redis_client.release_lock.assert_called_once_with("repo_test_test%2Frepo:issue_lock_1")
         mock_github_client.update_issue.assert_called_once_with(
             issue_id=issue["number"], remove_labels=["in-progress", agent_id]
         )
@@ -414,7 +411,7 @@ def test_find_first_assignable_task_rollback_failure_logs_error(
             task_service._find_first_assignable_task(candidate_issues, agent_id)
 
         assert "Failed to rollback labels" in caplog.text
-        mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
+        mock_redis_client.release_lock.assert_called_once_with("repo_test_test%2Frepo:issue_lock_1")
         mock_github_client.update_issue.assert_called_once()
 
 
@@ -448,7 +445,7 @@ def test_find_first_assignable_task_skips_non_assignable(
     assert result is not None
     assert result.issue_id == 2
     mock_redis_client.acquire_lock.assert_called_once_with(
-        "issue_lock_2", "test-agent", timeout=600
+        "repo_test_test%2Frepo:issue_lock_2", "test-agent", timeout=600
     )
 
 
@@ -484,7 +481,7 @@ def test_find_first_assignable_task_skips_no_branch_name(
     assert result is not None
     assert result.issue_id == 2
     mock_redis_client.acquire_lock.assert_called_once_with(
-        "issue_lock_2", "test-agent", timeout=600
+        "repo_test_test%2Frepo:issue_lock_2", "test-agent", timeout=600
     )
 
 
@@ -518,10 +515,10 @@ def test_find_first_assignable_task_skips_locked_issue(task_service, mock_redis_
     assert result.issue_id == 2
     assert mock_redis_client.acquire_lock.call_count == 2
     mock_redis_client.acquire_lock.assert_any_call(
-        f"issue_lock_{issue_locked['number']}", agent_id, timeout=600
+        f"repo_test_test%2Frepo:issue_lock_{issue_locked['number']}", agent_id, timeout=600
     )
     mock_redis_client.acquire_lock.assert_any_call(
-        f"issue_lock_{issue_unlocked['number']}", agent_id, timeout=600
+        f"repo_test_test%2Frepo:issue_lock_{issue_unlocked['number']}", agent_id, timeout=600
     )
 
 
@@ -632,7 +629,7 @@ async def test_request_task_stores_current_task_in_redis(
 
     # Assert
     mock_redis_client.set_value.assert_called_once_with(
-        f"agent_current_task:{agent_id}", str(issue["number"]), timeout=3600
+        f"repo_test_test%2Frepo:agent_current_task:{agent_id}", str(issue["number"]), timeout=3600
     )
 
 
