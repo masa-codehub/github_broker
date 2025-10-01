@@ -25,4 +25,4 @@ Accepted
 - **`WebhookService` の廃止:** `github_broker/application/webhook_service.py` および関連するインターフェース（`api.py`内のエンドポイントなど）は、今後のリファクタリング作業で完全に削除されます。
 - **`TaskService` の責務変更:** `TaskService` は、GitHub APIを定期的にポーリングしてIssue情報をローカルキャッシュ（Redis）に同期する責務を担うように変更されます。このポーリング処理は、独立したバックグラウンドプロセスとして起動されることを想定しています。
 - **`docs/architecture/webhook-based-architecture.md` の廃止:** このアーキテクチャドキュメントは現状と一致しなくなるため、**廃止 (Deprecated)** されます。今後のアーキテクチャに関する参照は、このADRおよび将来作成されるポーリング方式の設計ドキュメントを参照してください。
-- **設定ファイルの変更:** Webhookに関連する環境変数（`GITHUB_WEBHOOK_SECRET`など）は不要となります。
+
