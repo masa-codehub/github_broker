@@ -52,3 +52,16 @@
 -   `GEMINI_API_KEY`: `docker-compose.override.yml` を作成し、`agent` サービスの `environment` セクションで設定します。これはオプションです。
 
 これらのファイルを Git にコミットしないように注意し、ローカル環境でのみ使用してください。
+
+---
+### `.gitignore` の設定
+
+ローカル環境用のシークレットファイルが誤ってリポジトリにコミットされるのを防ぐため、プロジェクトの `.gitignore` ファイルに以下の行を追加してください。
+
+```
+# Local secrets and overrides
+github_token.txt
+docker-compose.override.yml
+```
+
+これにより、設定ミスによる機密情報の漏洩リスクをさらに低減できます。
