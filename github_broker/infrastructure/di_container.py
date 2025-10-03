@@ -27,11 +27,13 @@ def _create_container() -> punq.Container:
         db=settings.REDIS_DB,
         decode_responses=True,
     )
-    redis_client = RedisClient(
-        redis=redis_instance,
-        owner=settings.GITHUB_OWNER,
-        repo_name=settings.GITHUB_REPOSITORY,
-    )
+    try:
+        owner, repo_name = settings.GITHUB_REPOSITORY.split("/")
+    except ValueError as e:
+        raise ValueError(
+            "GITHUB_REPOSITORY in settings must be in 'owner/repo_name' format."
+        ) from e
+    redis_client = RedisClient(redis=redis_instance, owner=owner, repo_name=repo_name)
 
     github_client = GitHubClient(
         github_repository=settings.GITHUB_REPOSITORY,

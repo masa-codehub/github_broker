@@ -1,5 +1,6 @@
-import redis
 from urllib.parse import quote
+
+import redis
 
 
 class RedisClient:
@@ -16,9 +17,9 @@ class RedisClient:
         """
         キーにリポジトリプレフィックスを付与します。
         """
-        encoded_owner = quote(self.owner, safe='')
-        encoded_repo_name = quote(self.repo_name, safe='')
-        return f"repo_{encoded_owner}_{encoded_repo_name}:{key}"
+        encoded_owner = quote(self.owner, safe="")
+        encoded_repo_name = quote(self.repo_name, safe="")
+        return f"repo::{encoded_owner}::{encoded_repo_name}:{key}"
 
     def acquire_lock(self, lock_key: str, value: str, timeout: int = 600) -> bool:
         """
