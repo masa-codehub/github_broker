@@ -21,8 +21,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-
-
 class TaskService:
     repo_name: str
 
@@ -54,9 +52,7 @@ class TaskService:
                     logger.info(
                         f"Found {len(issues)} open issues. Caching them in Redis."
                     )
-                    self.redis_client.set_value(
-                        "open_issues", json.dumps(issues)
-                    )
+                    self.redis_client.set_value("open_issues", json.dumps(issues))
                     logger.info("Finished caching all open issues under a single key.")
                 else:
                     self.redis_client.set_value("open_issues", json.dumps([]))
