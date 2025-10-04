@@ -25,7 +25,6 @@ def test_di_container_resolves_task_service_instance():
         "GITHUB_TOKEN": "fake-token",
         "GEMINI_API_KEY": "fake-gemini-key",
         "GITHUB_INDEXING_WAIT_SECONDS": "10",
-
         "REDIS_HOST": "localhost",
         "REDIS_PORT": "6379",
         "REDIS_DB": "0",

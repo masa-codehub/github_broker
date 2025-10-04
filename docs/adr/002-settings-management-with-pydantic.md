@@ -40,7 +40,6 @@ class Settings(BaseSettings):
     GITHUB_TOKEN: str
     GEMINI_API_KEY: str
 
-
     # 一般的な設定 (環境変数から読み込む)
     BROKER_PORT: int = 8000
     GITHUB_REPOSITORY: str

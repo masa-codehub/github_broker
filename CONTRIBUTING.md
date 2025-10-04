@@ -21,7 +21,6 @@
     -   `github_token`: ご自身のGitHub Personal Access Tokenを記述します。
     -   `gemini_api_key`: ご自身のGemini APIキーを記述します。
 
-
     **（注意）`secrets`ディレクトリとその中のファイルは、Gitの追跡対象外（`.gitignore`に記載済み）です。**
 
 ### 3. コンテナのビルドと実行
