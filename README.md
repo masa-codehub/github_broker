@@ -51,7 +51,7 @@ graph TD
 
 ## Getting Started
 
-プロジェクトをローカルで実行するための手順です。
+プロジェクトをローカルで実行するための推奨手順です。
 
 1.  **リポジトリをクローン:**
     ```bash
@@ -59,18 +59,36 @@ graph TD
     cd github_broker
     ```
 
-2.  **環境変数の設定:**
-    `.build/context/secrets/` 内のサンプルファイルを参考に、必要なAPIキーなどを設定してください。
+2.  **Docker Composeファイルと.envファイルの準備:**
+    プロジェクトを実行するための設定ファイルを、ルートディレクトリにコピーします。
     ```bash
-    cp .build/context/secrets/gemini_api_key.sample .build/context/secrets/gemini_api_key
-    cp .build/context/secrets/github_token.sample .build/context/secrets/github_token
-    # 各ファイルに実際のキーを記述
+    cp .build/context/docker-compose.yml .
+    cp .build/context/.env.sample .env
     ```
+    `.env`ファイルは、必要に応じてご自身の環境に合わせて編集してください。
 
-3.  **Dockerコンテナの起動:**
+3.  **機密情報の設定 (Docker Secrets):**
+    APIキーなどの機密情報は、Docker Secretsを通じて安全にコンテナに渡されます。
+    
+    まず、プロジェクトのルートに`secrets`ディレクトリを作成します。
     ```bash
-    ./run.sh up -d --build
+    mkdir secrets
     ```
+    次に、サンプルを参考に`secrets`ディレクトリ内にAPIキーを記述したファイルを作成します。
+    ```bash
+    cp .build/context/secrets/github_token.sample secrets/github_token
+    cp .build/context/secrets/gemini_api_key.sample secrets/gemini_api_key
+    ```
+    作成した`secrets/github_token`と`secrets/gemini_api_key`に、ご自身の有効なキーを記述してください。
+    
+    **Note:** `secrets`ディレクトリは`.gitignore`によってバージョン管理の対象外となっています。
+
+4.  **Dockerコンテナのビルドと起動:**
+    全ての設定が完了したら、以下のコマンドでコンテナをビルドし、バックグラウンドで起動します。
+    ```bash
+    docker-compose up --build -d
+    ```
+    APIサーバーは `http://localhost:8000` で、各エージェントは`http://localhost:8080`で利用可能になります。
 
 詳細な手順やトラブルシューティングについては、[Development Setup Guide](./docs/guides/development-setup.md)を参照してください。
 
