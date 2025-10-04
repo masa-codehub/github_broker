@@ -26,17 +26,10 @@ sequenceDiagram
         GitHubClient-->>-TaskService: OK
     end
 
-    TaskService->>TaskService: 1. 役割に合うタスクを候補化 (フィルタリング)
-    Note over TaskService: フィルタリング条件:
-    Note over TaskService: - エージェントの役割に合致
-    Note over TaskService: - `in-progress` ラベルが付いていない
-    Note over TaskService: - `needs-review` ラベルが付いている場合、レビューコメント待機時間（例: 24時間）が経過している
+    TaskService->>TaskService: 1. 役割に合うタスクを候補化 (フィルタリング: in-progress, needs-reviewラベルがないもの)
     
     alt 割り当て可能なタスク候補あり
-        Note over TaskService: 優先順位に基づき最初の候補を選択 (selected_issue_id)
-        Note over TaskService: 優先順位の考慮事項:
-        Note over TaskService: - `priority-high` > `priority-medium` > `priority-low`
-        Note over TaskService: - 同一優先度内では作成日時が古いもの
+        Note over TaskService: 優先順位に基づき最初の候補を選択 (selected_issue_id) (優先度、レビューコメント待機時間も考慮)
         TaskService->>+RedisClient: acquire_lock(issue_lock_{selected_issue_id}, "locked", timeout=600)
         RedisClient-->>-TaskService: Lock Acquired / Failed
 

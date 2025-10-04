@@ -102,3 +102,55 @@ except Exception as e:
 - `labels` (list[str]): Issueに付与されているラベルのリスト
 - `branch_name` (str): 作業用に作成されたブランチ名
 - `prompt` (str): エージェントが実行すべきコマンドを含むプロンプト
+- `task_type` (Literal['development', 'review']): タスクの種類を示す文字列。これに基づいてエージェントは動的に振る舞いを変更します。
+
+## 4. 動的なタスク実行フロー
+
+`AgentClient`を利用するエージェントは、`request_task`メソッドから返される`task_type`の値に基づいて、その後の実行フローを動的に変更することが期待されます。これにより、エージェントは開発タスクとレビューコメント修正タスクのような異なる種類のタスクに柔軟に対応できます。
+
+### 4.1. `task_type`に基づくコマンドの切り替え
+
+エージェントは、`task`オブジェクト内の`task_type`キーの値をチェックし、それに応じて適切なコマンドやスクリプトを実行します。
+
+```python
+import subprocess
+
+# ... (クライアントの初期化とタスク要求のコード)
+
+if task:
+    task_type = task.get('task_type')
+    prompt = task.get('prompt')
+    branch_name = task.get('branch_name')
+
+    if task_type == 'development':
+        logging.info("開発タスクを検出しました。Gemini CLIを実行します。")
+        # 例: Gemini CLIを呼び出して開発タスクを実行
+        subprocess.run(["gemini", "cli", "run", "--prompt", prompt, "--branch", branch_name])
+    elif task_type == 'review':
+        logging.info("レビューコメント修正タスクを検出しました。コード修正スクリプトを実行します。")
+        # 例: コード修正用のスクリプトを呼び出す
+        # このスクリプトはprompt内のPR URLやレビューコメントを解析し、修正を行う
+        subprocess.run(["python", "./scripts/code_correction_agent.py", "--prompt", prompt, "--branch", branch_name])
+    else:
+        logging.warning(f"未知のタスクタイプ: {task_type}")
+else:
+    logging.info("割り当て可能なタスクはありませんでした。")
+```
+
+### 4.2. コンテキスト更新スクリプトの呼び出し
+
+タスクの実行前または実行後に、エージェントの実行環境のコンテキストを最新の状態に保つために、`update_gemini_context.sh`のようなスクリプトを呼び出すことが推奨されます。これにより、エージェントは常に最新のコードベースや依存関係で作業できます。
+
+```python
+# ... (タスク要求前)
+logging.info("Geminiコンテキストを更新します...")
+subprocess.run(["./.build/update_gemini_context.sh"])
+
+# ... (タスク実行ロジック)
+
+# ... (タスク実行後)
+logging.info("Geminiコンテキストを再度更新します (クリーンアップのためなど)...")
+subprocess.run(["./.build/update_gemini_context.sh"])
+```
+
+この動的な実行フローにより、`AgentClient`を利用するエージェントは、サーバーからの指示に柔軟に対応し、多様なタスクを効率的に処理することが可能になります。
