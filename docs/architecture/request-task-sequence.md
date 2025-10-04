@@ -30,12 +30,12 @@ sequenceDiagram
     Note over TaskService: フィルタリング条件:
 - エージェントの役割に合致
 - `in-progress`ラベルがない
-- `needs-review`ラベルがある場合、一定時間経過していること
+- `needs-review`ラベルがある場合、一定時間経過していること (updated_at と現在時刻を比較)
     
     alt 割り当て可能なタスク候補あり
         Note over TaskService: 優先順位に基づき最適なタスクを選択 (selected_issue_id)
-- 優先度 (`priority-high` > `priority-medium` > `priority-low`)
-- 同一優先度内では作成日時が最も古いもの
+        TaskService->>TaskService: 優先度でソート (priority-high > priority-medium > priority-low)
+        TaskService->>TaskService: 同一優先度内では作成日時が最も古いものを選択
         TaskService->>+RedisClient: acquire_lock(issue_lock_{selected_issue_id}, "locked", timeout=600)
         RedisClient-->>-TaskService: Lock Acquired / Failed
 
