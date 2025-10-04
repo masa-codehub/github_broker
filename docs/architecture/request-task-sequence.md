@@ -27,9 +27,16 @@ sequenceDiagram
     end
 
     TaskService->>TaskService: 1. 役割に合うタスクを候補化 (フィルタリング)
+    Note over TaskService: フィルタリング条件:
+    Note over TaskService: - エージェントの役割に合致
+    Note over TaskService: - `in-progress` ラベルが付いていない
+    Note over TaskService: - `needs-review` ラベルが付いている場合、レビューコメント待機時間（例: 24時間）が経過している
     
     alt 割り当て可能なタスク候補あり
         Note over TaskService: 優先順位に基づき最初の候補を選択 (selected_issue_id)
+        Note over TaskService: 優先順位の考慮事項:
+        Note over TaskService: - `priority-high` > `priority-medium` > `priority-low`
+        Note over TaskService: - 同一優先度内では作成日時が古いもの
         TaskService->>+RedisClient: acquire_lock(issue_lock_{selected_issue_id}, "locked", timeout=600)
         RedisClient-->>-TaskService: Lock Acquired / Failed
 
@@ -71,8 +78,13 @@ sequenceDiagram
 3.  **Issueキャッシュの取得:** `TaskService`は、まず`RedisClient`を介して、バックグラウンドで定期的にキャッシュされているオープンなIssueのリストを取得します。
 4.  **前タスクの完了処理:** エージェントに以前割り当てられていた`in-progress`状態のタスク(`prev_issue_id`)がないか確認します。もし存在すれば、そのIssueのラベルを`needs-review`に更新し、`in-progress`と`[agent_id]`ラベルを削除します。
 5.  **タスク候補の選定:**
-    *   **候補のフィルタリング:** Redisから取得したIssueリストから、エージェントの`agent_role`に合致し、かつ`in-progress`や`needs-review`ラベルが付いていないタスクをフィルタリングします。
-    *   **最適Issue選択:** フィルタリングされた候補Issueが存在する場合、`TaskService`は優先順位（例: 作成日が最も古い）に基づき、最初の候補を最適なIssueとして選択します (`selected_issue_id`)。
+    *   **候補のフィルタリング:** Redisから取得したIssueリストから、以下の条件を満たすタスクをフィルタリングします。
+        *   エージェントの`agent_role`に合致する。
+        *   `in-progress`ラベルが付いていない。
+        *   `needs-review`ラベルが付いている場合、そのIssueが`needs-review`ラベルを付与されてから一定時間（例: 24時間）が経過していることを確認します。これは、ポーリング時にIssueの`updated_at`タイムスタンプと現在の時刻を比較することで実現されます。
+    *   **最適Issue選択:** フィルタリングされた候補Issueが存在する場合、`TaskService`は以下の優先順位に基づき、最適なIssueを選択します (`selected_issue_id`)。
+        *   **優先度ラベル:** `priority-high` > `priority-medium` > `priority-low` の順に優先します。
+        *   **作成日時:** 同一優先度内では、作成日時が最も古いIssueを優先します。
     *   **ロック取得:** 選択されたIssue (`selected_issue_id`) に対して、`RedisClient`を使用して分散ロックの取得を試みます。これにより、複数のエージェントが同時に同じIssueを処理することを防ぎます。
     *   **前提条件チェック:** ロック取得に成功した場合、Issueの本文に「成果物」セクションが正しく定義されているかなどの前提条件をチェックします。
 6.  **タスク割り当てとレスポンス:**
