@@ -139,36 +139,3 @@ app/
 └── main.py
 
 ```
-
-# その他
-
-## Issueテンプレートの例
-
-（あなたは、以下のような構造化されたIssueを作成します）
-
-```
-## 【アーキテクチャ改善】決済モジュールの責務分離
-
-### 1. 背景 (Background)
-- 現在の`PaymentService`は、決済処理、請求書生成、領収書メール送信の3つの責務を担っており、単一責任の原則に違反している。
-- これにより、メール文面の変更だけでも決済ロジック全体へのデグレが懸念され、変更コストが高くなっている。
-
-### 2. 目的 (Goal)
-- `PaymentService`を責務ごとに3つの独立したサービス（`PaymentGateway`, `BillingService`, `ReceiptNotifier`）に分割リファクタリングする。
-- これにより、各サービスの独立性を高め、保守性とテスト容易性を向上させる。
-
-### 3. 完了条件 (Acceptance Criteria)
-- [ ] `BillingService`が請求書生成ロジックを担うこと。
-- [ ] `ReceiptNotifier`がメール送信ロジックを担うこと。
-- [ ] 旧`PaymentService`の公開インターフェースへの影響は最小限に留め、既存のテストがパスすること。
-- [ ] 分割後の各サービスに対する単体テストが追加されていること。
-
-### 4. 関連ドキュメント
-- `/app/docs/payment_architecture.md`
-
-## ブランチ名
-feature/add-login-script
-
-## 成果物
-- app/docs/adr/01-payment.py
-```
