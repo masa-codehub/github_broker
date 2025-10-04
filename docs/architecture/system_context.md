@@ -91,7 +91,7 @@ graph TD
           "labels": ["bug", "ui"],
           "branch_name": "bugfix/issue-123",
           "prompt": "string", // クライアントがLLMに渡す自然言語プロンプト。クライアントはこのプロンプトを解釈し、自身の環境で適切なコマンド（例: `gemini cli run ...`）を組み立てて実行する。
-          "task_type": "development" // タスクの種類を示す文字列 (例: "development", "review")
+          "task_type": "Literal['development', 'review']" // タスクの種類 (開発 or 修正)
         }
         ```
       * **成功 (204 No Content):** 割り当てるべき適切なタスクが見つからなかった場合。ボディは空。
