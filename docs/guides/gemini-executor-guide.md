@@ -90,43 +90,64 @@ class TaskService:
         return None
 ```
 
+<<<<<<< HEAD
 この設計により、プロンプトの生成ロジックはサーバーサイドにカプセル化され、クライアントは受け取ったプロンプトを実行するだけのシンプルな責務に集中できます。
 
-## 4. コード修正プロンプトの仕様
+## 4. コード修正用プロンプトの仕様
 
-`GeminiExecutor`は、レビューコメント修正タスクのために、以下の構造を持つプロンプトを生成します。このプロンプトは、特定のPull Request (PR) とそのレビューコメントのコンテキストをAIエージェントに提供し、適切なコード修正を促すことを目的としています。
+`GeminiExecutor`は、AIエージェントがGitHubのプルリクエスト（PR）に対するレビューコメントに基づいてコード修正を行うためのプロンプトを生成します。このプロンプトは、エージェントが修正対象のPR、関連するレビューコメント、および修正に必要なコンテキストを正確に理解できるように設計されています。
 
-### 4.1. プロンプトテンプレート構造
+### 4.1. プロンプトテンプレートの構造
 
-プロンプトテンプレートはYAMLファイル（例: `github_broker/infrastructure/prompts/gemini_executor.yml`）内で定義され、以下のプレースホルダーを使用して動的に情報が埋め込まれます。
+コード修正用プロンプトは、以下の要素を組み合わせて構成されます。
 
-```yaml
-# gemini_executor.yml (例)
-review_comment_correction_prompt: |
-  あなたは熟練したソフトウェアエンジニアです。
-  以下のPull Requestのレビューコメントに基づいて、コード修正を行ってください。
+-   **システム指示 (System Instruction):** エージェントの役割（コード修正担当）と、期待される行動（レビューコメントに基づく修正）を定義します。
+-   **PR情報 (Pull Request Information):** 修正対象のPRに関する詳細情報（URL、タイトル、説明など）を提供します。これにより、エージェントはPRの全体像を把握できます。
+-   **レビューコメント (Review Comments):** 修正の具体的な指示を含むレビューコメントの本文を提供します。複数のコメントがある場合は、それぞれが明確に区別されるように含めます。
+-   **コードスニペット (Code Snippets):** レビューコメントが指摘しているコードの周辺部分を、コンテキストとして提供します。これにより、エージェントは修正箇所を特定しやすくなります。
 
-  Pull Request URL: {{ pr_url }}
-  レビューコメント:
-  ```
-  {{ review_comment_body }}
-  ```
+### 4.2. PRのURLとレビューコメントの埋め込み
 
-  修正が必要なファイルは以下の通りです。
-  {{ file_diffs }}
+`GeminiExecutor`は、`build_code_correction_prompt`のような専用のメソッドを通じて、以下の情報をプロンプトに埋め込みます。
 
-  あなたの修正は、レビューコメントの意図を正確に反映し、既存のコードベースの品質基準を満たす必要があります。
-  修正が完了したら、変更をコミットし、Pull Requestを更新してください。
+-   **PRのURL:** `https://github.com/{owner}/{repo}/pull/{pull_number}` の形式で、修正対象のPRへの直接リンクをプロンプト内に含めます。
+-   **レビューコメント:** 各レビューコメントは、以下の形式でプロンプトに埋め込まれます。
+
+    ```
+    --- Review Comment ---
+    File: {file_path}
+    Line: {line_number}
+    Comment: {comment_body}
+    --- End Review Comment ---
+    ```
+
+    -   `{file_path}`: コメントが付けられたファイルのパス。
+    -   `{line_number}`: コメントが付けられた行番号。
+    -   `{comment_body}`: レビューコメントの本文。
+
+### 4.3. プロンプト生成例
+
 ```
+あなたはGitHubのプルリクエストに対するコード修正を担当するAIエージェントです。以下のレビューコメントに基づき、指定されたプルリクエストのコードを修正してください。
 
-### 4.2. プレースホルダーと埋め込み情報
+--- Pull Request Information ---
+URL: https://github.com/masa-codehub/github_broker/pull/123
+Title: Feature: Add new user authentication
+Description: This PR introduces a new user authentication mechanism using OAuth2.
 
-`GeminiExecutor`は、`build_prompt`メソッドが呼び出された際に、以下の情報を対応するプレースホルダーに埋め込みます。
+--- Review Comment ---
+File: github_broker/application/user_service.py
+Line: 45
+Comment: Consider adding a try-except block for the external API call to handle potential network errors gracefully.
+--- End Review Comment ---
 
-| プレースホルダー        | 説明                                                              | 取得元                                                              |
-| :-------------------- | :---------------------------------------------------------------- | :------------------------------------------------------------------ |
-| `{{ pr_url }}`        | 修正対象のPull RequestのURL。                                     | GitHub APIから取得したPull Request情報                              |
-| `{{ review_comment_body }}` | 修正の根拠となるレビューコメントの本文。                          | GitHub APIから取得したレビューコメント情報                          |
-| `{{ file_diffs }}`    | 修正対象ファイルの差分情報。                                      | GitHub APIから取得したPull Requestのファイル差分情報                |
+--- Code Snippet (github_broker/application/user_service.py:40-50) ---
+def authenticate_user(self, username, password):
+    # ...
+    response = external_auth_api.login(username, password) # <-- This line is pointed by the comment
+    # ...
+--- End Code Snippet ---
 
-この構造により、AIエージェントは具体的なPRのコンテキストとレビューコメントの内容を直接プロンプトとして受け取り、効率的かつ正確なコード修正作業を行うことができます。
+あなたの修正案を提案してください。
+```
+この設計により、プロンプトの生成ロジックはサーバーサイドにカプセル化され、クライアントは受け取ったプロンプトを実行するだけのシンプルな責務に集中できます。
