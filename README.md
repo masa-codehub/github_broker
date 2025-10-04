@@ -1,126 +1,104 @@
-# GitHub Task Broker
+# GitHub Broker
 
-## 解決したい課題
+[![CI](https://github.com/masa-codehub/github_broker/actions/workflows/ci.yml/badge.svg)](https://github.com/masa-codehub/github_broker/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-複数の自律型AIエージェント（AI開発者）が、同じGitHubリポジトリ上で同時に作業すると、「どのタスク（Issue）を誰がやるのか」が分からなくなり、同じ作業を始めてしまうなどの**コンフリクト（競合）**が発生します。
-
-このシステムは、中央集権的な司令塔として各エージェントからのタスク要求を調整し、知的かつ排他的にタスクを割り当てることで、この問題を解決します。
+**人間とAIの対話を通じてプロダクト開発を駆動させる、自律型AIエージェントチームのためのフレームワーク**
 
 ---
 
-このシステムは、複数の自律型ワーカーエージェントに対し、GitHubのIssueを知的かつ排他的に割り当てるための中央集権型サーバーです。エージェント間の競合を防ぎ、開発ワークフローの自動化と効率化を実現します。
+## コンセプト
 
-## 設計思想
+GitHub Brokerは、人間とAI（特にPRODUCT_MANAGERエージェント）との戦略的な対話を通じて、開発の方向性を決定し、具体的なIssueを生成します。そして、そのIssueに基づき、自律的なAI開発エージェントチームが設計、実装、テストを自動で実行する、新しいプロダクト開発の形を実現するためのフレームワークです。
 
-このシステムは、クリーンアーキテクチャとテスト駆動開発(TDD)の原則に基づいて構築されています。
+## プロジェクトのビジョン
 
-### クリーンアーキテクチャ
+私たちは、**人間とAIの協調による、高速で自律的な開発サイクル**の実現を目指しています。
 
-ソフトウェアを関心事によってレイヤーに分割することで、ビジネスロジックをフレームワークや外部サービスから独立させ、保守性、適応性、テスト容易性の高い構造を目指します。
+人間はより創造的で戦略的な意思決定に集中し、AIは具体的な実装タスクを効率的に処理することで、プロダクトの価値を最大化し、市場投入までの時間を劇的に短縮します。
 
--   `domain`: プロジェクト全体で共通のビジネスルール。最も安定した層。
--   `application`: ユースケース層。アプリケーション固有のビジネスロジックを実装。
--   `interface`: 外部との境界。API定義(FastAPI)やデータモデル(Pydantic)など。
--   `infrastructure`: 外部サービスとの連携。GitHub、Redis、Gemini APIクライアントなど。
+## 登場人物
 
-## 1. 設定
+本プロジェクトにおける主要な役割です。
 
-アプリケーションの動作には、環境変数の設定が必要です。
+-   **人間 (Human):** プロダクトの全体的なビジョンやビジネス目標を提示し、AIとの対話を通じて戦略を洗練させます。
+-   **PRODUCT_MANAGER (AI):** 人間との対話を通じて戦略を理解し、具体的な開発タスク（GitHub Issues）に分解します。プロジェクト全体の進捗を管理する役割も担います。
+-   **開発エージェントチーム (AI):** 各Issueに対して、設計、コーディング、テスト、プルリクエスト作成までを自律的に行います。
 
-### クイックスタート: `.env` ファイルの作成
+## 主要なユースケース（ワークフロー）
 
-すぐに試すには、サンプルファイルをコピーして`.env`ファイルを作成します。
-
-```bash
-cp .build/context/.env.sample .env
-```
-
-各変数の詳細な説明や設定値については、[運用・デプロイ要件定義書](./docs/architecture/operational-requirements.md#8-環境変数) を参照してください。
-
-## 2. 実行方法
-
-### 2.1. Dockerでの実行 (推奨)
-
-設定が完了したら、以下のコマンドでAPIサーバーとRedisを含むシステム全体をDocker Composeを使って起動します。
-
-```bash
-docker-compose -f .build/context/docker-compose.yml up --build
-```
-
-APIサーバーは `http://localhost:8080` で利用可能になります。
-
-### 2.2. ローカルでの実行 (開発用)
-
-1.  **仮想環境の作成と有効化:**
-    ```bash
-    python -m venv .venv
-    source .venv/bin/activate
-    ```
-
-2.  **依存関係のインストール:**
-    ```bash
-    pip install -e .[test,dev]
-    ```
-
-3.  **サーバーの起動:**
-    `.env` ファイルが読み込まれるようにして、uvicornでサーバーを起動します。
-    ```bash
-    uvicorn github_broker.interface.api:app --reload --port 8080
-    ```
-
-## 3. APIの使用方法
-
-APIサーバーが起動したら、`POST`リクエストを`/api/v1/request-task`エンドポイントに送信することで、新しいタスクを要求できます。
-
-### クイックスタート: `curl` でタスクをリクエストする
-
-```bash
-curl -X POST "http://localhost:8080/api/v1/request-task" \
--H "Content-Type: application/json" \
--d '{ "agent_id": "my-test-agent-1", "agent_role": "CODER" }'
-```
-
-各エンドポイントの詳細な仕様や他のリクエスト例については、[システム設計書](./docs/architecture/index.md#4-api仕様) を参照してください。
-
-
-## 4. エージェント実装例
-
-`agents_main.py`は、GitHub Task Brokerと連携するエージェントの基本的な実装例です。このエージェントは、定期的に新しいタスクをリクエストし、割り当てられたタスクのプロンプトを実行します。
-
-以下に、`agents_main.py`の主要な処理フローをMermaid形式のフローチャートで示します。
+GitHub Brokerは以下のワークフローを通じて、アイデアをコードに変換します。
 
 ```mermaid
 graph TD
-    A[開始] --> B{geminiコマンドの存在チェック};
-    B -- 存在しない --> C[エラーログ出力];
-    C --> D[終了];
-    B -- 存在する --> E[AgentClient初期化];
-    E --> F{ループ開始};
-    F --> G[新しいタスクをリクエスト];
-    G --> H{タスクが割り当てられたか？};
-    H -- はい --> I{プロンプトが存在するか？};
-    I -- はい --> J{gemini cli 実行};
-    J -- 成功 --> K[タスク実行完了ログ];
-    K --> L[SUCCESS_SLEEP_SECONDS待機];
-    L --> F;
-    J -- 失敗 --> M[gemini cli エラーログ];
-    M --> L;
-    I -- いいえ --> S[プロンプトなし警告ログ];
-    S --> L;
-    H -- いいえ --> N[利用可能なタスクなしログ];
-    N --> O[NO_TASK_SLEEP_SECONDS待機];
-    O --> F;
-    F -- エラー発生 --> P[エラーログ出力];
-    P --> Q[ERROR_SLEEP_SECONDS待機];
-    Q --> F;
-    F -- run_once=True --> R[終了];
+    A[1. 現状分析と戦略立案] -->|人間とAIの対話| B(2. Issueの自動生成);
+    B -->|Brokerがタスクを割り当て| C{3. 自律的な開発サイクル};
+    C -->|設計・実装| D[4. コード生成];
+    D -->|テスト・検証| E[5. プルリクエスト作成];
+    E -->|人間がレビュー・マージ| F(6. デプロイ);
+    F --> A;
 ```
 
-`run_once=True`は、主にテストやデバッグのためにループを一度だけ実行してエージェントを終了させるためのフラグです。
+このサイクルを通じて、継続的なプロダクト改善が自律的に行われます。
 
-## 5. カンバンシステム (タスク状態管理)
+## アーキテクチャ概要
 
-本システムは、GitHubのラベルを利用してタスクの進行状況を管理します。
+本システムは、Clean Architectureに基づいた疎結合なコンポーネントで構成されています。全体のシステム構成やコンポーネント間の連携については、以下のC4モデル図を参照してください。
 
--   `in-progress`と`[agent_id]`: あるエージェントにタスクが割り当てられると、これら2つの状態ラベルが自動的にIssueに付与されます。これにより、特定のタスクがどのエージェントによって処理中であるかが一意に識別され、他のエージェントへの重複割り当てを防ぎます。
--   `needs-review`: エージェントが次のタスクをリクエストすると、前回割り当てられていたIssueから`in-progress`と`[agent_id]`のラベルが削除され、代わりにこのラベルが付与されます。これにより、人間によるレビュー待ちの状態であることを示します。
+-   [**System Context Diagram**](./docs/architecture/system_context.md)
+
+詳細なコードの構成については、[Code Overview](./docs/architecture/code-overview.md)をご覧ください。
+
+## Getting Started
+
+プロジェクトをローカルで実行するための推奨手順です。
+
+1.  **リポジトリをクローン:**
+    ```bash
+    git clone https://github.com/masa-codehub/github_broker.git
+    cd github_broker
+    ```
+
+2.  **Docker Composeファイルと.envファイルの準備:**
+    プロジェクトを実行するための設定ファイルを、ルートディレクトリにコピーします。
+    ```bash
+    cp .build/context/docker-compose.yml .
+    cp .build/context/.env.sample .env
+    ```
+    `.env`ファイルは、必要に応じてご自身の環境に合わせて編集してください。
+
+3.  **機密情報の設定 (Docker Secrets):**
+    APIキーなどの機密情報は、Docker Secretsを通じて安全にコンテナに渡されます。
+    
+    まず、プロジェクトのルートに`secrets`ディレクトリを作成します。
+    ```bash
+    mkdir secrets
+    ```
+    次に、サンプルを参考に`secrets`ディレクトリ内にAPIキーを記述したファイルを作成します。
+    ```bash
+    cp .build/context/secrets/github_token.sample secrets/github_token
+    cp .build/context/secrets/gemini_api_key.sample secrets/gemini_api_key
+    ```
+    作成した`secrets/github_token`と`secrets/gemini_api_key`に、ご自身の有効なキーを記述してください。
+    
+    **Note:** `secrets`ディレクトリは`.gitignore`によってバージョン管理の対象外となっています。
+
+4.  **Dockerコンテナのビルドと起動:**
+    全ての設定が完了したら、以下のコマンドでコンテナをビルドし、バックグラウンドで起動します。
+    ```bash
+    docker-compose up --build -d
+    ```
+    APIサーバーは `http://localhost:8000` で、各エージェントは`http://localhost:8080`で利用可能になります。
+
+詳細な手順やトラブルシューティングについては、[Development Setup Guide](./docs/guides/development-setup.md)を参照してください。
+
+## Contributing
+
+本プロジェクトへの貢献に興味を持っていただきありがとうございます！
+バグ報告、機能提案、プルリクエストなど、あらゆる形の貢献を歓迎します。
+
+詳細は [CONTRIBUTING.md](./CONTRIBUTING.md) をご覧ください。
+
+## License
+
+このプロジェクトは [MIT License](./LICENSE) の下で公開されています。
