@@ -66,10 +66,16 @@ if __name__ == "__main__":
     redis_db = int(os.getenv("REDIS_DB", 0))
 
     try:
+        owner, repo_name = github_repository.split("/")
+    except ValueError:
+        print("Error: GITHUB_REPOSITORY must be in 'owner/repo_name' format.")  # noqa: T201
+        sys.exit(1)
+
+    try:
         r = redis.Redis(
             host=redis_host, port=redis_port, db=redis_db, decode_responses=True
         )
-        redis_client = RedisClient(redis=r)
+        redis_client = RedisClient(redis=r, owner=owner, repo_name=repo_name)
     except Exception as e:
         print(f"Error connecting to Redis: {e}")  # noqa: T201
         sys.exit(1)

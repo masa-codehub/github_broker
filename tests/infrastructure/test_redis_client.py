@@ -14,7 +14,9 @@ def mock_redis_instance():
 @pytest.fixture
 def redis_client(mock_redis_instance):
     """モックされたRedisインスタンスを持つRedisClientインスタンス。"""
-    return RedisClient(mock_redis_instance)
+    owner = "test_owner"
+    repo_name = "test_repo"
+    return RedisClient(mock_redis_instance, owner, repo_name)
 
 
 @pytest.mark.unit
@@ -29,8 +31,9 @@ def test_acquire_lock(redis_client, mock_redis_instance):
     result = redis_client.acquire_lock(lock_key, value, timeout)
 
     # 検証
+    expected_prefixed_key = "repo::test_owner::test_repo:test_lock"
     mock_redis_instance.set.assert_called_once_with(
-        lock_key, value, ex=timeout, nx=True
+        expected_prefixed_key, value, ex=timeout, nx=True
     )
     assert result is True
 
@@ -45,7 +48,8 @@ def test_release_lock(redis_client, mock_redis_instance):
     result = redis_client.release_lock(lock_key)
 
     # 検証
-    mock_redis_instance.delete.assert_called_once_with(lock_key)
+    expected_prefixed_key = "repo::test_owner::test_repo:test_lock"
+    mock_redis_instance.delete.assert_called_once_with(expected_prefixed_key)
     assert result is True
 
 
@@ -73,7 +77,8 @@ def test_get_value(redis_client, mock_redis_instance):
     result = redis_client.get_value(key)
 
     # 検証
-    mock_redis_instance.get.assert_called_once_with(key)
+    expected_prefixed_key = "repo::test_owner::test_repo:test_key"
+    mock_redis_instance.get.assert_called_once_with(expected_prefixed_key)
     assert result == value  # .decode("utf-8")を削除
 
 
@@ -101,7 +106,10 @@ def test_set_value(redis_client, mock_redis_instance):
     redis_client.set_value(key, value, timeout)
 
     # 検証
-    mock_redis_instance.set.assert_called_once_with(key, value, ex=timeout)
+    expected_prefixed_key = "repo::test_owner::test_repo:test_key"
+    mock_redis_instance.set.assert_called_once_with(
+        expected_prefixed_key, value, ex=timeout
+    )
 
 
 @pytest.mark.unit
@@ -113,4 +121,5 @@ def test_delete_key(redis_client, mock_redis_instance):
     redis_client.delete_key(key)
 
     # 検証
-    mock_redis_instance.delete.assert_called_once_with(key)
+    expected_prefixed_key = "repo::test_owner::test_repo:test_key"
+    mock_redis_instance.delete.assert_called_once_with(expected_prefixed_key)

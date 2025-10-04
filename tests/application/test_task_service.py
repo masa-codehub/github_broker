@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from github import GithubException
 
-from github_broker.application.task_service import OPEN_ISSUES_CACHE_KEY, TaskService
+from github_broker.application.task_service import TaskService
 from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
 
 
@@ -98,7 +98,7 @@ def test_start_polling_fetches_and_caches_issues(
     # Assert
     mock_github_client.get_open_issues.assert_called_once()
     mock_redis_client.set_value.assert_called_once_with(
-        OPEN_ISSUES_CACHE_KEY, json.dumps(mock_issues)
+        "open_issues", json.dumps(mock_issues)
     )
 
 
@@ -127,9 +127,7 @@ def test_start_polling_caches_empty_list_when_no_issues(
 
     # Assert
     mock_github_client.get_open_issues.assert_called_once()
-    mock_redis_client.set_value.assert_called_once_with(
-        OPEN_ISSUES_CACHE_KEY, json.dumps([])
-    )
+    mock_redis_client.set_value.assert_called_once_with("open_issues", json.dumps([]))
 
 
 @pytest.mark.unit
@@ -165,7 +163,7 @@ async def test_request_task_selects_by_role_from_cache(
     # Assert
     assert result is not None
     assert result.issue_id == 2
-    mock_redis_client.get_value.assert_called_once_with(OPEN_ISSUES_CACHE_KEY)
+    mock_redis_client.get_value.assert_called_once_with("open_issues")
     mock_redis_client.acquire_lock.assert_called_once_with(
         "issue_lock_2", agent_id, timeout=600
     )
@@ -205,7 +203,7 @@ async def test_request_task_no_matching_issue(
 
     # Assert
     assert result is None
-    mock_redis_client.get_value.assert_called_once_with(OPEN_ISSUES_CACHE_KEY)
+    mock_redis_client.get_value.assert_called_once_with("open_issues")
 
 
 @pytest.mark.unit
@@ -376,7 +374,6 @@ def test_find_first_assignable_task_rollback_labels_on_branch_creation_failure(
         with pytest.raises(GithubException, match="Branch already exists"):
             task_service._find_first_assignable_task(candidate_issues, agent_id)
 
-        # Assert
         mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
         mock_github_client.update_issue.assert_called_once_with(
             issue_id=issue["number"], remove_labels=["in-progress", agent_id]
