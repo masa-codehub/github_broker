@@ -1,114 +1,168 @@
 # Getting Started Guide for New Contributors
 
-## 1. Introduction
+このガイドは、新規貢献者が `github_broker` プロジェクトの開発環境をセットアップし、基本的なタスク処理フローを理解するための手順を提供します。
 
-Welcome to the project! This guide will help you set up your development environment and understand the basic workflow of the `github_broker` project. By following these steps, you'll be able to run the core components locally and start contributing.
+## 1. はじめに
 
-## 2. Prerequisites
+`github_broker` は、GitHub Issue を通じてタスクを管理し、AI エージェントが自動的にタスクを処理するシステムです。このガイドでは、ローカル環境でこのシステムを動かすための準備と、主要なコンポーネントの実行方法を説明します。
 
-Before you begin, ensure you have the following tools installed on your system:
+## 2. 必要なツール
 
-*   **Python 3.9+**: We recommend using `pyenv` or `conda` for managing Python versions.
-    *   [Python Official Website](https://www.python.org/downloads/)
-*   **Docker & Docker Compose**: Essential for running Redis and other services.
-    *   [Docker Desktop](https://www.docker.com/products/docker-desktop)
-*   **Git**: For version control.
-    *   [Git Official Website](https://git-scm.com/downloads)
+開発を始める前に、以下のツールがインストールされ、最小バージョン要件を満たしていることを確認してください。
 
-## 3. Environment Setup
+### Python
 
-### 3.1. Clone the Repository
+- **用途**: プロジェクトの主要な開発言語です。
+- **最小バージョン**: 3.13 以上
+- **インストール方法**: 公式サイト ([https://www.python.org/downloads/](https://www.python.org/downloads/)) からダウンロードしてインストールするか、`pyenv` などのバージョン管理ツールを使用してください。
+- **バージョン確認**:
+  ```bash
+  python --version
+  ```
 
-First, clone the project repository to your local machine:
+### Docker & Docker Compose
+
+- **用途**: Redis などのコンテナ化されたサービスを実行するために必要です。
+- **最小バージョン**: Docker Engine 20.10.0 以上, Docker Compose v2.0.0 以上
+- **インストール方法**:
+    - **Windows/macOS**: [Docker Desktop](https://www.docker.com/products/docker-desktop) をインストールしてください。
+    - **Linux**: 公式ドキュメント ([https://docs.docker.com/engine/install/](https://docs.docker.com/engine/install/)) を参照してください。
+- **バージョン確認**:
+  ```bash
+  docker --version
+  docker compose version
+  ```
+
+### Git
+
+- **用途**: ソースコードのバージョン管理に使用します。
+- **インストール方法**: 各OSのパッケージマネージャーを使用するか、公式ドキュメントを参照してください。
+- **バージョン確認**:
+  ```bash
+  git --version
+  ```
+
+## 3. リポジトリのクローン
+
+まず、プロジェクトのリポジトリをローカルにクローンします。
 
 ```bash
 git clone https://github.com/masa-codehub/github_broker.git
 cd github_broker
 ```
 
-### 3.2. Set up `.env` File
+## 4. Python 依存関係のインストール
 
-The project uses environment variables for configuration. You'll need to create a `.env` file in the root directory.
-
-**Note:** This `.env` file is intended for local, direct execution of the Python scripts. For Docker-based development, please refer to the secrets management section in `CONTRIBUTING.md`.
-
-1.  Create a `.env` file in the root directory of the project:
-    ```bash
-    touch .env
-    ```
-2.  Open `.env` and add the necessary environment variables. At a minimum, you'll need:
-    *   `GITHUB_TOKEN`: Your GitHub Personal Access Token with appropriate permissions (repo, workflow).
-    *   `GEMINI_API_KEY`: Your Google Gemini API Key.
-
-    Refer to `.build/context/secrets/github_token.sample` and `.build/context/secrets/gemini_api_key.sample` for the expected format.
-
-    **Example `.env` content:**
-    ```
-    GITHUB_TOKEN=your_github_token_here
-    GEMINI_API_KEY=your_gemini_api_key_here
-    ```
-    
-    > **Warning**
-    > Do not commit the `.env` file. Ensure that `.env` is listed in your `.gitignore` file to prevent accidental exposure of your credentials.
-
-### 3.3. Install Dependencies
-
-Install the Python dependencies in editable mode using `pip`:
+プロジェクトの Python 依存関係と開発ツールをインストールし、コミット前のチェックを有効化します。
 
 ```bash
-pip install -e .
-```
-
-### 3.4. Install pre-commit hooks
-
-To automatically check code quality before commits, install the pre-commit hooks:
-
-```bash
+pip install -e .[dev]
 pre-commit install
 ```
 
-## 4. Running Core Components Locally
+## 5. シークレット管理 (`.env` ファイルのセットアップ)
 
-The `github_broker` project consists of two main components: `broker_main.py` (the broker) and `agents_main.py` (the agent runner).
+`github_broker` は GitHub API と Gemini API を利用するため、API キーのセットアップが必要です。これらのシークレットは、`.env` ファイルまたは Docker Secrets を使用して管理します。
 
-### 4.1. Start Dependent Services (Redis)
+### 5.1. `GITHUB_TOKEN` の設定 (必須)
 
-The project uses Redis for task queuing. Start Redis using Docker Compose:
+GitHub API との連携に必須のトークンです。
+
+1.  **GitHub Personal Access Token (PAT) の取得**:
+    -   GitHub の設定ページで、`repo` スコープを持つ PAT を生成してください。
+    -   詳細な手順は [GitHub Docs](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) を参照してください。
+2.  **`.env` ファイルの作成**:
+    プロジェクトのルートディレクトリに `.env` ファイルを作成し、以下の内容を記述します。
+
+    ```ini
+    # .env
+    GITHUB_TOKEN=YOUR_GITHUB_PERSONAL_ACCESS_TOKEN
+    ```
+    `YOUR_GITHUB_PERSONAL_ACCESS_TOKEN` の部分を、取得した PAT に置き換えてください。
+
+### 5.2. `GEMINI_API_KEY` の設定 (オプション)
+
+Gemini API を利用する場合にのみ必要です。
+
+1.  **Gemini API キーの取得**:
+    -   Google AI Studio ([https://aistudio.google.com/](https://aistudio.google.com/)) で API キーを生成してください。
+2.  **`.env` ファイルへの追加**:
+    `.env` ファイルに以下の行を追加します。
+
+    ```ini
+    # .env
+    GEMINI_API_KEY=YOUR_GEMINI_API_KEY
+    ```
+    `YOUR_GEMINI_API_KEY` の部分を、取得した Gemini API キーに置き換えてください。
+
+**重要**: `.env` ファイルは `.gitignore` に追加されており、Git リポジトリにコミットされないように設定されています。機密情報が誤って公開されないよう、この設定を変更しないでください。
+
+## 6. 開発環境の起動とタスク処理の確認
+
+### 6.1. Docker コンテナの起動
+
+Redis などの依存サービスを Docker で起動します。
 
 ```bash
-docker compose -f .build/context/docker-compose.yml up -d redis
+docker compose -f .build/context/docker-compose.yml up -d
 ```
 
-### 4.2. Run the Broker
+### 6.2. `broker_main.py` の実行
 
-The broker is responsible for fetching tasks from GitHub and pushing them to Redis.
+`broker_main.py` は、GitHub Issue を監視し、エージェントにタスクを割り当てる役割を担います。
 
 ```bash
 python broker_main.py
 ```
 
-### 4.3. Run the Agent Runner
+このコマンドを実行すると、ブローカーが起動し、GitHub リポジトリの Issue をポーリングし始めます。
 
-The agent runner pulls tasks from Redis, executes the agents, and updates GitHub.
+### 6.3. `agents_main.py` の実行
+
+`agents_main.py` は、ブローカーから割り当てられたタスクを処理する AI エージェントを起動します。
 
 ```bash
 python agents_main.py
 ```
 
-## 5. Verifying Basic Task Processing Flow
+このコマンドを実行すると、エージェントが起動し、ブローカーにタスクを要求し、割り当てられたタスクを処理しようとします。
 
-To verify that the broker and agent runner are working correctly:
+### 6.4. タスク処理フローの確認
 
-1.  Ensure both `broker_main.py` and `agents_main.py` are running in separate terminals.
-2.  Create a new issue in a GitHub repository that the `GITHUB_TOKEN` has access to.
-3.  Observe the logs of `broker_main.py` and `agents_main.py`. You should see the broker fetching the issue and the agent runner processing it.
-4.  The agent runner should eventually add a comment to the GitHub issue, indicating that it has processed the task.
+1.  GitHub リポジトリで新しい Issue を作成します。例えば、`test` というラベルを付けた Issue を作成します。
+2.  `broker_main.py` がその Issue を検出し、`agents_main.py` にタスクとして割り当てます。
+3.  `agents_main.py` がタスクを受け取り、処理を開始します。処理が完了すると、Issue の状態が更新されるはずです。
+4.  `docker compose logs -f` コマンドで、すべてのサービスのログをリアルタイムで確認できます。
 
-## 6. Troubleshooting
+    ```bash
+    docker compose -f .build/context/docker-compose.yml logs -f
+    ```
 
-*   **`GITHUB_TOKEN` or `GEMINI_API_KEY` not found**: Ensure your `.env` file is correctly set up in the root directory and contains the required keys.
-*   **Redis connection issues**: Make sure Docker is running and the Redis container is up (`docker ps`).
-*   **Dependency errors**: Double-check that all Python dependencies are installed (`pip install -e .`).
-*   **Agent not processing tasks**: Verify that both the broker and agent runner are running, and that new issues are being created in the monitored GitHub repository. Check the logs for any error messages.
+## 7. トラブルシューティング
 
-If you encounter persistent issues, please refer to the existing documentation in `docs/guides/` or open a new issue on GitHub.
+### Q. `GITHUB_TOKEN` または `GEMINI_API_KEY` が認識されない。
+
+-   `.env` ファイルがプロジェクトのルートディレクトリに正しく配置されているか確認してください。
+-   環境変数の名前 (`GITHUB_TOKEN`, `GEMINI_API_KEY`) が正しいか確認してください。
+-   `broker_main.py` や `agents_main.py` を実行する前に、ターミナルを再起動して環境変数がロードされていることを確認してください。
+
+### Q. Docker コンテナが起動しない、またはエラーが発生する。
+
+-   Docker Desktop が起動しているか確認してください。
+-   `docker compose -f .build/context/docker-compose.yml logs` でエラーログを確認し、原因を特定してください。
+-   ポートの競合がないか確認してください（例: Redis のデフォルトポート 6379 が他のアプリケーションで使用されていないか）。
+
+### Q. `pip install -e .` でエラーが発生する。
+
+-   Python のバージョンが 3.13 以上であることを確認してください。
+-   `pip` が最新バージョンであることを確認してください (`python -m pip install --upgrade pip`)。
+-   エラーメッセージをよく読み、不足しているシステム依存関係がないか確認してください。
+
+## 8. 次のステップ
+
+基本的な開発環境のセットアップとタスク処理フローの確認が完了しました。
+次に、以下のドキュメントを参照して、プロジェクトへの貢献を深めてください。
+
+-   [開発ワークフロー](./development-workflow.md): プロジェクトの全体的な開発プロセスと、各フェーズでのエージェントの役割について。
+-   [階層的要件管理ワークフロー](./requirement-management-workflow.md): Issue の階層構造と管理方法について。
+-   [コーディングガイドライン](./coding-guidelines.md): コードの品質と一貫性を保つための規約。
