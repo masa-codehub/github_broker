@@ -26,10 +26,16 @@ sequenceDiagram
         GitHubClient-->>-TaskService: OK
     end
 
-    TaskService->>TaskService: 1. 役割に合うタスクを候補化 (フィルタリング: in-progress, needs-reviewラベルがないもの)
+    TaskService->>TaskService: 1. 役割に合うタスクを候補化 (フィルタリング)
+    Note over TaskService: フィルタリング条件:
+- エージェントの役割に合致
+- `in-progress`ラベルがない
+- `needs-review`ラベルがある場合、一定時間経過していること
     
     alt 割り当て可能なタスク候補あり
-        Note over TaskService: 優先順位に基づき最初の候補を選択 (selected_issue_id) (優先度、レビューコメント待機時間も考慮)
+        Note over TaskService: 優先順位に基づき最適なタスクを選択 (selected_issue_id)
+- 優先度 (`priority-high` > `priority-medium` > `priority-low`)
+- 同一優先度内では作成日時が最も古いもの
         TaskService->>+RedisClient: acquire_lock(issue_lock_{selected_issue_id}, "locked", timeout=600)
         RedisClient-->>-TaskService: Lock Acquired / Failed
 
@@ -74,7 +80,7 @@ sequenceDiagram
     *   **候補のフィルタリング:** Redisから取得したIssueリストから、以下の条件を満たすタスクをフィルタリングします。
         *   エージェントの`agent_role`に合致する。
         *   `in-progress`ラベルが付いていない。
-        *   `needs-review`ラベルが付いている場合、そのIssueが`needs-review`ラベルを付与されてから一定時間（例: 24時間）が経過していることを確認します。これは、ポーリング時にIssueの`updated_at`タイムスタンプと現在の時刻を比較することで実現されます。
+        *   `needs-review`ラベルが付いている場合、そのIssueが`needs-review`ラベルを付与されてから一定時間（例: 24時間）が経過していることを確認します。これは、Issueの`updated_at`タイムスタンプと現在の時刻を比較することで実現されます。
     *   **最適Issue選択:** フィルタリングされた候補Issueが存在する場合、`TaskService`は以下の優先順位に基づき、最適なIssueを選択します (`selected_issue_id`)。
         *   **優先度ラベル:** `priority-high` > `priority-medium` > `priority-low` の順に優先します。
         *   **作成日時:** 同一優先度内では、作成日時が最も古いIssueを優先します。
