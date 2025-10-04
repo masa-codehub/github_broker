@@ -13,7 +13,7 @@
 ### Python
 
 - **用途**: プロジェクトの主要な開発言語です。
-- **最小バージョン**: 3.9 以上
+- **最小バージョン**: 3.13 以上
 - **インストール方法**: 公式サイト ([https://www.python.org/downloads/](https://www.python.org/downloads/)) からダウンロードしてインストールするか、`pyenv` などのバージョン管理ツールを使用してください。
 - **バージョン確認**:
   ```bash
@@ -53,10 +53,11 @@ cd github_broker
 
 ## 4. Python 依存関係のインストール
 
-プロジェクトの Python 依存関係をインストールし、開発モードでパッケージをセットアップします。
+プロジェクトの Python 依存関係と開発ツールをインストールし、コミット前のチェックを有効化します。
 
 ```bash
-pip install -e .
+pip install -e .[dev]
+pre-commit install
 ```
 
 ## 5. シークレット管理 (`.env` ファイルのセットアップ)
@@ -153,7 +154,7 @@ python agents_main.py
 
 ### Q. `pip install -e .` でエラーが発生する。
 
--   Python のバージョンが 3.9 以上であることを確認してください。
+-   Python のバージョンが 3.13 以上であることを確認してください。
 -   `pip` が最新バージョンであることを確認してください (`python -m pip install --upgrade pip`)。
 -   エラーメッセージをよく読み、不足しているシステム依存関係がないか確認してください。
 
@@ -164,4 +165,4 @@ python agents_main.py
 
 -   [開発ワークフロー](./development-workflow.md): プロジェクトの全体的な開発プロセスと、各フェーズでのエージェントの役割について。
 -   [階層的要件管理ワークフロー](./requirement-management-workflow.md): Issue の階層構造と管理方法について。
--   [コーディングガイドライン](../guides/coding-guidelines.md): コードの品質と一貫性を保つための規約。
+-   [コーディングガイドライン](./coding-guidelines.md): コードの品質と一貫性を保つための規約。
