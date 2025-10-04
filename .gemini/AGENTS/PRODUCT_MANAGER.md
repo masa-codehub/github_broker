@@ -163,6 +163,7 @@ app/ # プロジェクトルート
 ## ラベル
 - `feature`, `security`, 'P1'
 ## ブランチ名
+（ユニークなブランチ名を設定する）
 feature/add-login-script
 ## 成果物
 app/project/application/login.py
