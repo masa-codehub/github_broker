@@ -28,7 +28,9 @@ cd github_broker
 
 ### 3.2. Set up `.env` File
 
-The project uses environment variables for configuration. You'll need to create a `.env` file in the root directory. You can use the sample files in the `.build/context/secrets/` directory as a reference.
+The project uses environment variables for configuration. You'll need to create a `.env` file in the root directory.
+
+**Note:** This `.env` file is intended for local, direct execution of the Python scripts. For Docker-based development, please refer to the secrets management section in `CONTRIBUTING.md`.
 
 1.  Create a `.env` file in the root directory of the project:
     ```bash
@@ -45,13 +47,24 @@ The project uses environment variables for configuration. You'll need to create 
     GITHUB_TOKEN=your_github_token_here
     GEMINI_API_KEY=your_gemini_api_key_here
     ```
+    
+    > **Warning**
+    > Do not commit the `.env` file. Ensure that `.env` is listed in your `.gitignore` file to prevent accidental exposure of your credentials.
 
 ### 3.3. Install Dependencies
 
-Install the Python dependencies using `pip`:
+Install the Python dependencies in editable mode using `pip`:
 
 ```bash
-pip install -r requirements.txt
+pip install -e .
+```
+
+### 3.4. Install pre-commit hooks
+
+To automatically check code quality before commits, install the pre-commit hooks:
+
+```bash
+pre-commit install
 ```
 
 ## 4. Running Core Components Locally
@@ -63,7 +76,7 @@ The `github_broker` project consists of two main components: `broker_main.py` (t
 The project uses Redis for task queuing. Start Redis using Docker Compose:
 
 ```bash
-docker-compose -f .build/context/docker-compose.yml up -d redis
+docker compose -f .build/context/docker-compose.yml up -d redis
 ```
 
 ### 4.2. Run the Broker
@@ -95,7 +108,7 @@ To verify that the broker and agent runner are working correctly:
 
 *   **`GITHUB_TOKEN` or `GEMINI_API_KEY` not found**: Ensure your `.env` file is correctly set up in the root directory and contains the required keys.
 *   **Redis connection issues**: Make sure Docker is running and the Redis container is up (`docker ps`).
-*   **Dependency errors**: Double-check that all Python dependencies are installed (`pip install -r requirements.txt`).
+*   **Dependency errors**: Double-check that all Python dependencies are installed (`pip install -e .`).
 *   **Agent not processing tasks**: Verify that both the broker and agent runner are running, and that new issues are being created in the monitored GitHub repository. Check the logs for any error messages.
 
 If you encounter persistent issues, please refer to the existing documentation in `docs/guides/` or open a new issue on GitHub.
