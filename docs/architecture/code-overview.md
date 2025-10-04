@@ -84,7 +84,7 @@ github_broker/
     -   **概要**: APIのリクエストボディとレスポンスボディのデータ構造をPydanticモデルとして定義します。
     -   **主要なクラス/関数**:
         -   `AgentTaskRequest` (BaseModel): エージェントからのタスクリクエストのデータ構造（agent_id, capabilities）。
-        -   `TaskResponse` (BaseModel): 割り当てられたタスク情報のレスポンスデータ構造（issue_id, issue_url, title, body, labels, branch_name）。
+        -   `TaskResponse` (BaseModel): 割り当てられたタスク情報のレスポンスデータ構造（issue_id, issue_url, title, body, labels, branch_name, task_type）。
 
 ### 4. Infrastructure Layer (インフラストラクチャ層)
 

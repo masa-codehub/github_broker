@@ -43,7 +43,7 @@ sequenceDiagram
             TaskService->>+RedisClient: set_value(agent_current_task:{agent_id}, selected_issue_id)
             RedisClient-->>-TaskService: OK
 
-            TaskService-->>-ApiServer: TaskResponse (issue_id, url, title, body, labels, branch_name, prompt)
+            TaskService-->>-ApiServer: TaskResponse (issue_id, url, title, body, labels, branch_name, prompt, task_type)
             ApiServer-->>-Worker: 200 OK (TaskResponse)
         else ロック取得失敗 または 前提条件満たさない
             TaskService->>TaskService: 次の候補Issueをチェック / リトライ
