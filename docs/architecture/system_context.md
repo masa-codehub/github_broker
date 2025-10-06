@@ -90,7 +90,7 @@ graph TD
           "body": "The login button should be blue, not red...",
           "labels": ["bug", "ui"],
           "branch_name": "bugfix/issue-123",
-          "task_type": "Literal['development', 'review']", // タスクの種類 (開発 or レビュー)
+          "task_type": "development", // タスクの種類 (開発 or レビュー)
           "prompt": "string" // クライアントがLLMに渡す自然言語プロンプト。クライアントはこのプロンプトを解釈し、自身の環境で適切なコマンド（例: `gemini cli run ...`）を組み立てて実行する。
         }
         ```
