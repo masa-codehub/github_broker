@@ -74,9 +74,7 @@ class TaskService:
                 # ... (ブランチ作成やラベル付与などの処理)
 
                 prompt = self.gemini_executor.build_prompt(
-                    issue_id=assignable_task.issue_id,
-                    title=assignable_task.title,
-                    body=assignable_task.body,
+                    html_url=assignable_task.html_url,
                     branch_name=branch_name
                 )
 

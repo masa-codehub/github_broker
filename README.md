@@ -52,46 +52,11 @@ graph TD
 
 ## Getting Started
 
-プロジェクトをローカルで実行するための推奨手順です。
+プロジェクトをローカル環境でセットアップし、実行するための詳細な手順については、以下の公式ガイドを参照してください。
 
-1.  **リポジトリをクローン:**
-    ```bash
-    git clone https://github.com/masa-codehub/github_broker.git
-    cd github_broker
-    ```
+-   [**Getting Started Guide**](./docs/guides/getting-started.md)
 
-2.  **Docker Composeファイルと.envファイルの準備:**
-    プロジェクトを実行するための設定ファイルを、ルートディレクトリにコピーします。
-    ```bash
-    cp .build/context/docker-compose.yml .
-    cp .build/context/.env.sample .env
-    ```
-    `.env`ファイルは、必要に応じてご自身の環境に合わせて編集してください。
-
-3.  **機密情報の設定 (Docker Secrets):**
-    APIキーなどの機密情報は、Docker Secretsを通じて安全にコンテナに渡されます。
-    
-    まず、プロジェクトのルートに`secrets`ディレクトリを作成します。
-    ```bash
-    mkdir secrets
-    ```
-    次に、サンプルを参考に`secrets`ディレクトリ内にAPIキーを記述したファイルを作成します。
-    ```bash
-    cp .build/context/secrets/github_token.sample secrets/github_token
-    cp .build/context/secrets/gemini_api_key.sample secrets/gemini_api_key
-    ```
-    作成した`secrets/github_token`と`secrets/gemini_api_key`に、ご自身の有効なキーを記述してください。
-    
-    **Note:** `secrets`ディレクトリは`.gitignore`によってバージョン管理の対象外となっています。
-
-4.  **Dockerコンテナのビルドと起動:**
-    全ての設定が完了したら、以下のコマンドでコンテナをビルドし、バックグラウンドで起動します。
-    ```bash
-    docker-compose up --build -d
-    ```
-    APIサーバーは `http://localhost:8000` で、各エージェントは`http://localhost:8080`で利用可能になります。
-
-詳細な手順やトラブルシューティングについては、[Development Setup Guide](./docs/guides/development-setup.md)を参照してください。
+このガイドには、必要なツールのインストール、依存関係のセットアップ、およびシステムの基本的な実行方法が含まれています。
 
 ## Contributing
 
