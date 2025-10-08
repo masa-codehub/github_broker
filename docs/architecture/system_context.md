@@ -36,6 +36,7 @@ graph TD
         subgraph "Task Broker Server"
             direction LR
             ApiServer["APIサーバー (FastAPI)"]
+            PollingService["ポーリングサービス (Background)"]
         end
         Redis["Redis (キャッシュ / 分散ロック)"]
     end
@@ -49,20 +50,26 @@ graph TD
 
     %% システム間の連携
     Human -- "Issue作成 / PRマージ" --> GitHub
+    
+    %% ポーリングサービスの連携
+    PollingService -- "Issueを定期的に取得" --> GitHub
+    PollingService -- "取得したIssueをキャッシュ" --> Redis
+
+    %% APIサーバーの連携
     ApiServer -- "Issueラベル更新 / ブランチ作成" --> GitHub
     ApiServer -- "キャッシュからIssueを取得" --> Redis
     ApiServer -- "Lock / Unlock" --> Redis
+    ApiServer -- "プロンプト生成" --> Gemini
 
+    %% ワーカーとの連携
     Workers -- "タスク要求 (APIリクエスト)" --> ApiServer
     ApiServer -- "プロンプト生成 & タスク割り当て (APIレスポンス)" --> Workers
-    ApiServer -- "プロンプト生成" --> Gemini
 
     %% ▼▼▼ ここから追加 ▼▼▼
     %% 上下のレイアウトを固定するための、見えないリンク
     Redis --> Human
-    linkStyle 7 stroke-width:0px, stroke:transparent
+    linkStyle 9 stroke-width:0px, stroke:transparent
     %% ▲▲▲ ここまで追加 ▲▲▲
-
 ```
 
 ----
@@ -72,7 +79,7 @@ graph TD
 ワーカー・エージェントがタスクを要求するための唯一のAPIエンドポイントを定義する。
 
   * **エンドポイント:** `POST /api/v1/request-task`
-  * **説明:** 新しいタスクの割り当てをサーバーに要求する。
+  * **説明:** 新しいタスクの割り当てをサーバーに要求する。ロングポーリングに対応しており、利用可能なタスクがない場合はタイムアウトまで待機する。
   * **リクエストボディ (JSON):**
     ```json
     {
@@ -90,8 +97,7 @@ graph TD
           "body": "The login button should be blue, not red...",
           "labels": ["bug", "ui"],
           "branch_name": "bugfix/issue-123",
-          "task_type": "development", // タスクの種類 (開発 or レビュー)
-          "prompt": "string" // クライアントがLLMに渡す自然言語プロンプト。クライアントはこのプロンプトを解釈し、自身の環境で適切なコマンド（例: `gemini cli run ...`）を組み立てて実行する。
+          "prompt": "string" // クライアントがLLMに直接渡すべき、実行可能な自然言語プロンプト。
         }
         ```
       * **成功 (204 No Content):** 割り当てるべき適切なタスクが見つからなかった場合。ボディは空。
@@ -120,7 +126,9 @@ graph TD
 
 #### 5.1. タスク選択ロジック
 
-現在のシステムでは、`TaskService`がエージェントの役割に基づいたフィルタリングと優先順位付けを行い、最適なIssueを選択します。将来的には`GEMINI CLI`エージェントのような高度なLLMを活用したタスク選択ロジックを導入する可能性も考慮しています。`GeminiClient`はそのための基盤として存在し、より複雑な意思決定をサポートする潜在能力を持っています。
+`TaskService`は、エージェントの役割 (`agent_role`) に基づいてRedisキャッシュからタスク候補をフィルタリングします。その後、候補となったIssueを**Issue番号の昇順（作成順）でソート**し、最初に割り当て可能と判断されたタスクを選択します。
+
+将来的には、Issueの優先度ラベル（P0, P1など）やその他の要素を考慮した、より高度な優先順位付けロジックを導入する可能性があります。現在の`GeminiClient`はそのための拡張基盤として存在しています。
 
 ----
 
