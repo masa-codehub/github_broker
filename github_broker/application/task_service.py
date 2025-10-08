@@ -127,9 +127,16 @@ class TaskService:
                 exc_info=True,
             )
 
+    def _has_priority_label(self, issue: dict) -> bool:
+        """Issueに優先度ラベル（P0, P1, P2など）が付与されているかチェックします。"""
+        for label in issue.get("labels", []):
+            label_name = label.get("name", "")
+            if label_name.startswith("P") and label_name[1:].isdigit():
+                return True
+        return False
+
     def _find_candidates_by_role(self, issues: list, agent_role: str) -> list:
-        # This method is fine.
-        """指定された役割（role）ラベルを持つIssueをフィルタリングします。"""
+        """指定された役割（role）ラベルを持ち、かつ優先度ラベルが付与されているIssueをフィルタリングします。"""
         candidate_issues = []
         for issue in issues:
             labels = {label.get("name") for label in issue.get("labels", [])}
@@ -137,12 +144,13 @@ class TaskService:
                 agent_role in labels
                 and "needs-review" not in labels
                 and "in-progress" not in labels
+                and self._has_priority_label(issue)  # 優先度ラベルのチェックを追加
             ):
                 candidate_issues.append(issue)
 
         if not candidate_issues:
             logger.info(
-                f"[agent_role={agent_role}] No issues found with role label that do not also have 'needs-review'."
+                f"[agent_role={agent_role}] No issues found with role label that do not also have 'needs-review' or are missing a priority label."
             )
         return candidate_issues
 
