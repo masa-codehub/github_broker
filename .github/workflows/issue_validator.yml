@@ -1,4 +1,4 @@
-name: Issue Branch Validator
+name: Issue Validator
 
 on:
   issues:
@@ -76,3 +76,90 @@ jobs:
             "/repos/$OWNER/$REPO/issues/$ISSUE_NUMBER/labels" \
             -F labels[]="branch-conflict"
         shell: bash
+
+  validate-issue-body:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate Issue Body
+        id: validate
+        run: |
+          ISSUE_BODY="${{ github.event.issue.body }}"
+          ISSUE_AUTHOR="${{ github.event.issue.user.login }}"
+
+          BACKGROUND_SECTION=$(echo "$ISSUE_BODY" | awk \
+            '\
+            BEGIN {found=0}
+            /^### 背景 (Background)/ {found=1; next}
+            found && /^### / {exit}
+            found {print}
+          ' | sed '/^$/d')
+          GOAL_SECTION=$(echo "$ISSUE_BODY" | awk \
+            '\
+            BEGIN {found=0}
+            /^### 目的 (Goal)/ {found=1; next}
+            found && /^### / {exit}
+            found {print}
+          ' | sed '/^$/d')
+          ACCEPTANCE_CRITERIA_SECTION=$(echo "$ISSUE_BODY" | awk \
+            '\
+            BEGIN {found=0}
+            /^### 完了条件 (Acceptance Criteria)/ {found=1; next}
+            found && /^### / {exit}
+            found {print}
+          ' | sed '/^$/d')
+
+          MISSING_FIELDS=""
+
+          if [ -z "$BACKGROUND_SECTION" ]; then
+            MISSING_FIELDS+="背景、"
+          fi
+          if [ -z "$GOAL_SECTION" ]; then
+            MISSING_FIELDS+="目的、"
+          fi
+          if [ -z "$ACCEPTANCE_CRITERIA_SECTION" ]; then
+            MISSING_FIELDS+="完了条件、"
+          fi
+
+          if [ -n "$MISSING_FIELDS" ]; then
+            MISSING_FIELDS=$(echo "$MISSING_FIELDS" | sed 's/、$//') # Remove trailing comma
+            COMMENT_BODY="@$ISSUE_AUTHOR 必須項目（${MISSING_FIELDS}のいずれか）が入力されていません。追記してください。"
+            
+            echo "::error::Missing required fields: ${MISSING_FIELDS}"
+            echo "COMMENT_BODY=$COMMENT_BODY" >> $GITHUB_OUTPUT
+            echo "NEEDS_MORE_INFO=true" >> $GITHUB_OUTPUT
+          else
+            echo "All required fields are present."
+            echo "NEEDS_MORE_INFO=false" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+
+      - name: Add Comment and Label
+        if: steps.validate.outputs.NEEDS_MORE_INFO == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commentBody = process.env.COMMENT_BODY;
+            const issueNumber = context.issue.number;
+            const repoOwner = context.repo.owner;
+            const repoName = context.repo.repo;
+
+            await github.rest.issues.createComment({
+              owner: repoOwner,
+              repo: repoName,
+              issue_number: issueNumber,
+              body: commentBody
+            });
+
+            await github.rest.issues.addLabels({
+              owner: repoOwner,
+              repo: repoName,
+              issue_number: issueNumber,
+              labels: ['needs-more-info']
+            });
+        env:
+          COMMENT_BODY: ${{ steps.validate.outputs.COMMENT_BODY }}

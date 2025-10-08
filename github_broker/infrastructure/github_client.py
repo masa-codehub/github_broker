@@ -145,6 +145,32 @@ class GitHubClient:
             )
             raise
 
+    def get_pull_request_info_from_issue(self, issue_number: int) -> dict | None:
+        """
+        Issue番号から、そのIssueに紐づくPull Requestの情報を取得します。
+        PRが存在しない場合はNoneを返します。
+        """
+        try:
+            # Issue番号が本文に含まれるオープンなPRを検索
+            query = f"repo:{self._repo_name} is:pr is:open in:body {issue_number}"
+            logging.info(f"クエリ: {query} でPRを検索中")
+            pull_requests = self._client.search_issues(query=query)
+
+            if pull_requests.totalCount > 0:
+                # 最初のPRを返す（通常、Issueに紐づくPRは1つと想定）
+                pr = pull_requests[0]
+                logging.info(
+                    f"Issue #{issue_number} に紐づくPR #{pr.number} が見つかりました。"
+                )
+                return pr.raw_data
+            logging.info(f"Issue #{issue_number} に紐づくPRは見つかりませんでした。")
+            return None
+        except GithubException as e:
+            logging.error(
+                f"リポジトリ {self._repo_name} のIssue #{issue_number} に紐づくPRの検索中にエラーが発生しました: {e}"
+            )
+            raise
+
     def get_issue_by_number(self, issue_number: int):
         """
         特定のIssue番号に対応するIssueの生データを取得します。
@@ -156,5 +182,33 @@ class GitHubClient:
         except GithubException as e:
             logging.error(
                 f"リポジトリ {self._repo_name} からIssue #{issue_number} の取得中にエラーが発生しました: {e}"
+            )
+            raise
+
+    def get_pull_request_review_comments(self, pull_number: int) -> list[dict]:
+        """
+        特定のPull Requestに関するすべてのレビューコメントを取得します。
+
+        Args:
+            pull_number: レビューコメントを取得するPull Requestの番号。
+
+        Returns:
+            Pull Requestに関連付けられたレビューコメントのリスト。
+            各コメントは辞書形式で表現されます。
+
+        Raises:
+            GithubException: API呼び出し中にエラーが発生した場合。
+        """
+        try:
+            repo = self._client.get_repo(self._repo_name)
+            pull = repo.get_pull(number=pull_number)
+            comments = pull.get_review_comments()
+            logging.info(
+                f"Pull Request #{pull_number} から {len(list(comments))} 件のレビューコメントを取得しました。"
+            )
+            return [comment.raw_data for comment in comments]
+        except GithubException as e:
+            logging.error(
+                f"リポジトリ {self._repo_name} のPull Request #{pull_number} のレビューコメント取得中にエラーが発生しました: {e}"
             )
             raise
