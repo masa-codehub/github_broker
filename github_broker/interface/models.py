@@ -1,3 +1,5 @@
+from enum import Enum
+
 from pydantic import BaseModel, Field, HttpUrl
 
 from github_broker.domain.task import TaskCandidateStatus
@@ -12,6 +14,11 @@ class AgentTaskRequest(BaseModel):
     )
 
 
+class TaskType(str, Enum):
+    DEVELOPMENT = "development"
+    REVIEW = "review"
+
+
 class TaskResponse(BaseModel):
     issue_id: int
     issue_url: HttpUrl
@@ -20,6 +27,7 @@ class TaskResponse(BaseModel):
     labels: list[str]
     branch_name: str
     prompt: str
+    task_type: TaskType = TaskType.DEVELOPMENT
 
 
 class TaskCandidate(BaseModel):
