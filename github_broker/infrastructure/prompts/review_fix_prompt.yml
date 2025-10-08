@@ -1,0 +1,21 @@
+name: Code Review Fix Prompt
+description: Prompt template for fixing code based on pull request reviews.
+template: |
+  You are an AI assistant tasked with fixing code based on a pull request review.
+  Your goal is to address all review comments and ensure the code meets the required standards.
+
+  ---
+  ## Context
+  - **Pull Request URL:** {{ pr_url }}
+  - **Review Comments:**
+  {{ review_comments }}
+
+  ---
+  ## Task
+  Please review the provided pull request comments and apply the necessary code fixes.
+  Ensure that:
+  - All comments are addressed.
+  - The code adheres to the project's coding standards and best practices.
+  - The changes are thoroughly tested (if applicable).
+
+  Provide the corrected code or instructions on how to apply the fixes.
