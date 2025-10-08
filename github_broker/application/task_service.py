@@ -152,12 +152,16 @@ class TaskService:
                 agent_role in labels
                 and "in-progress" not in labels
                 and "needs-review" not in labels
+                and "story" not in labels
+                and "epic" not in labels
                 and self._has_priority_label(labels)
             )
             is_review_candidate = (
                 agent_role in labels
                 and "in-progress" not in labels
                 and "needs-review" in labels
+                and "story" not in labels
+                and "epic" not in labels
             )
 
             if is_development_candidate or is_review_candidate:
