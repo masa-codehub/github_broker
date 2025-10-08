@@ -61,7 +61,6 @@ body:
         - bug
         - documentation
         - enhancement
-        - feature
         - refactor
         - chore
         - hotfix
@@ -72,6 +71,6 @@ body:
         - testing
         - github
         - improvement
-        - SYSTEM_ARCHITECT
+        - system-architect
     validations:
       required: false
