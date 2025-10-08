@@ -43,7 +43,7 @@ sequenceDiagram
         TaskService->>+GeminiExecutor: build_prompt(issue_url, branch_name)
         GeminiExecutor-->>-TaskService: prompt_string
 
-        TaskService->>+RedisClient: set_value(agent_current_task:{agent_id})
+        TaskService->>+RedisClient: set_value(agent_current_task:{agent_id}, {issue_id})
         RedisClient-->>-TaskService: OK
 
         TaskService-->>-ApiServer: TaskResponse
