@@ -22,7 +22,7 @@ pip install git+https://github.com/masa-codehub/github_broker.git
 
 ### 3.1. 初期化
 
-クライアントの初期化時に、エージェントの`agent_id`と`agent_role`、そして接続先のサーバー情報を渡します。
+クライアントの初期化時に、エージェントの`agent_id`と、そして接続先のサーバー情報を渡します。
 
 - `agent_id` (str): エージェントを一意に識別するID。
 - `host` (str): サーバーのホスト名。デフォルトは`localhost`。
