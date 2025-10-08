@@ -9,10 +9,10 @@ from github import GithubException
 from pydantic import HttpUrl
 from redis.exceptions import RedisError
 
-from github_broker.domain.task import Task
+from github_broker.domain.task import Task, TaskCandidateStatus
 from github_broker.infrastructure.github_client import GitHubClient
 from github_broker.infrastructure.redis_client import RedisClient
-from github_broker.interface.models import TaskResponse
+from github_broker.interface.models import TaskResponse, TaskCandidate
 
 if TYPE_CHECKING:
     from github_broker.infrastructure.config import Settings
@@ -39,6 +39,17 @@ class TaskService:
         self.polling_interval_seconds = settings.POLLING_INTERVAL_SECONDS
         self.long_polling_check_interval = settings.LONG_POLLING_CHECK_INTERVAL
         self.gemini_executor = gemini_executor
+
+    def create_task_candidate(self, issue_id: int, branch_name: str) -> TaskCandidate:
+        task_candidate = TaskCandidate(
+            issue_id=issue_id,
+            branch_name=branch_name,
+            status=TaskCandidateStatus.NEEDS_REVIEW,
+        )
+        self.redis_client.set_value(
+            f"task_candidate:{issue_id}", task_candidate.model_dump_json()
+        )
+        return task_candidate
 
     def start_polling(self, stop_event: "threading.Event | None" = None):
         # This method seems fine and doesn't have major conflicts.
@@ -135,7 +146,6 @@ class TaskService:
             labels = {label.get("name") for label in issue.get("labels", [])}
             if (
                 agent_role in labels
-                and "needs-review" not in labels
                 and "in-progress" not in labels
             ):
                 candidate_issues.append(issue)
@@ -204,6 +214,7 @@ class TaskService:
                     f"[issue_id={task.issue_id}, agent_id={agent_id}] Stored current task in Redis."
                 )
 
+                task_type = "review" if "needs-review" in task.labels else "development"
                 return TaskResponse(
                     issue_id=task.issue_id,
                     issue_url=HttpUrl(task.html_url),
@@ -212,6 +223,7 @@ class TaskService:
                     labels=task.labels,
                     branch_name=branch_name,
                     prompt=prompt,
+                    task_type=task_type,
                 )
             except Exception as e:
                 logger.error(

@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field, HttpUrl
 
+from github_broker.domain.task import TaskCandidateStatus
+
 
 class AgentTaskRequest(BaseModel):
     agent_id: str
@@ -18,3 +20,11 @@ class TaskResponse(BaseModel):
     labels: list[str]
     branch_name: str
     prompt: str
+    task_type: str = "development"
+
+
+class TaskCandidate(BaseModel):
+    issue_id: int
+    status: TaskCandidateStatus = Field(default=TaskCandidateStatus.NEEDS_REVIEW)
+    branch_name: str | None = None
+    pr_url: HttpUrl | None = None

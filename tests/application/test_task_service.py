@@ -208,42 +208,6 @@ async def test_request_task_no_matching_issue(
 
 @pytest.mark.unit
 @pytest.mark.anyio
-async def test_request_task_excludes_needs_review_label(
-    task_service, mock_redis_client, mock_github_client
-):
-    """'needs-review'ラベルを持つIssueがタスク割り当てから除外されることをテストします。"""
-    # Arrange
-    issue1 = create_mock_issue(
-        number=1,
-        title="Task Needs Review",
-        body="""## 成果物
-- review.py""",
-        labels=["BACKENDCODER", "needs-review"],
-    )
-    issue2 = create_mock_issue(
-        number=2,
-        title="Assignable Task",
-        body="""## 成果物
-- assign.py""",
-        labels=["BACKENDCODER"],
-    )
-    cached_issues = [issue1, issue2]
-    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
-    mock_github_client.find_issues_by_labels.return_value = []
-    mock_redis_client.acquire_lock.return_value = True
-
-    # Act
-    result = await task_service.request_task(
-        agent_id="test-agent", agent_role="BACKENDCODER", timeout=0
-    )
-
-    # Assert
-    assert result is not None
-    assert result.issue_id == 2
-
-
-@pytest.mark.unit
-@pytest.mark.anyio
 async def test_request_task_completes_previous_task(
     task_service, mock_redis_client, mock_github_client
 ):
@@ -628,6 +592,50 @@ async def test_request_task_stores_current_task_in_redis(
     await task_service.request_task(agent_id=agent_id, agent_role=agent_role, timeout=0)
 
     # Assert
+    mock_redis_client.set_value.assert_called_once_with(
+        f"agent_current_task:{agent_id}", str(issue["number"]), timeout=3600
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
+async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
+    task_service, mock_redis_client, mock_github_client
+):
+    """'needs-review'ラベルを持つIssueが割り当てられた際に、task_typeが'review'に設定されることをテストします。"""
+    # Arrange
+    issue = create_mock_issue(
+        number=1,
+        title="Review Task",
+        body="""## 成果物
+- review.py""",
+        labels=["BACKENDCODER", "needs-review"],
+    )
+    cached_issues = [issue]
+    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
+    mock_github_client.find_issues_by_labels.return_value = []
+    mock_redis_client.acquire_lock.return_value = True
+
+    agent_id = "test-agent"
+    agent_role = "BACKENDCODER"
+
+    # Act
+    result = await task_service.request_task(
+        agent_id=agent_id, agent_role=agent_role, timeout=0
+    )
+
+    # Assert
+    assert result is not None
+    assert result.issue_id == 1
+    assert result.task_type == "review"
+    mock_redis_client.get_value.assert_called_once_with("open_issues")
+    mock_redis_client.acquire_lock.assert_called_once_with(
+        "issue_lock_1", agent_id, timeout=600
+    )
+    task_service.gemini_executor.build_prompt.assert_called_once_with(
+        html_url=issue["html_url"],
+        branch_name="feature/issue-1",
+    )
     mock_redis_client.set_value.assert_called_once_with(
         f"agent_current_task:{agent_id}", str(issue["number"]), timeout=3600
     )
