@@ -873,10 +873,26 @@ def test_complete_previous_task_handles_multiple_issues(
     )
 
 
+@pytest.mark.parametrize(
+    "exception_to_raise, expected_log_message",
+    [
+        (
+            GithubException(status=500, data="Server Error"),
+            "Failed to update issue",
+        ),
+        (Exception("Unexpected error"), "An unexpected error occurred"),
+    ],
+)
 @pytest.mark.unit
 @patch("time.sleep", return_value=None)
 def test_complete_previous_task_handles_github_exception(
-    mock_sleep, task_service, mock_redis_client, mock_github_client, caplog
+    mock_sleep,
+    task_service,
+    mock_redis_client,
+    mock_github_client,
+    caplog,
+    exception_to_raise,
+    expected_log_message,
 ):
     """
     complete_previous_task内でGitHub APIの例外が発生した場合の処理をテストします。
