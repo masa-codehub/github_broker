@@ -3,7 +3,7 @@ import json
 import logging
 import threading
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from github import GithubException
 from pydantic import HttpUrl
@@ -33,7 +33,7 @@ class TaskService:
     ):
         self.redis_client = redis_client
         self.github_client = github_client
-        self.settings = settings  # Keep settings object
+        self.settings = settings
         self.repo_name = settings.GITHUB_REPOSITORY
         self.github_indexing_wait_seconds = settings.GITHUB_INDEXING_WAIT_SECONDS
         self.polling_interval_seconds = settings.POLLING_INTERVAL_SECONDS
@@ -41,8 +41,6 @@ class TaskService:
         self.gemini_executor = gemini_executor
 
     def start_polling(self, stop_event: "threading.Event | None" = None):
-        # This method seems fine and doesn't have major conflicts.
-        # I will keep the version from HEAD which is the same as main.
         logger.info("Starting issue polling...")
         while not (stop_event and stop_event.is_set()):
             try:
@@ -69,12 +67,7 @@ class TaskService:
 
         logger.info("Polling stopped.")
 
-    # Use the cleaner implementation from `main`
     def complete_previous_task(self, agent_id: str):
-        """
-        前タスクの完了処理を行います。
-        in-progressとagent_idラベルを持つIssueをGitHub API経由で直接検索し、それらのラベルを削除し、needs-reviewラベルを付与します。
-        """
         logger.info("[agent_id=%s] Completing previous task.", agent_id)
         try:
             previous_issues_to_complete = self.github_client.find_issues_by_labels(
@@ -127,24 +120,30 @@ class TaskService:
                 exc_info=True,
             )
 
-    def _has_priority_label(self, issue: dict) -> bool:
-        """Issueに優先度ラベル（P0, P1, P2など）が付与されているかチェックします。"""
-        for label in issue.get("labels", []):
-            label_name = label.get("name", "")
-            if label_name.startswith("P") and label_name[1:].isdigit():
-                return True
-        return False
+    @staticmethod
+    def _get_priority_from_label(label_name: str) -> int | None:
+        if label_name.startswith("P") and label_name[1:].isdigit():
+            return int(label_name[1:])
+        return None
 
-    def _find_candidates_by_role(self, issues: list, agent_role: str) -> list:
-        """指定された役割（role）ラベルを持ち、かつ優先度ラベルが付与されているIssueをフィルタリングします。"""
+    def _has_priority_label(self, labels: set[str]) -> bool:
+        return any(self._get_priority_from_label(name) is not None for name in labels)
+
+    def _find_candidates_by_role(
+        self, issues: list[dict[str, Any]], agent_role: str
+    ) -> list[dict[str, Any]]:
         candidate_issues = []
         for issue in issues:
-            labels = {label.get("name") for label in issue.get("labels", [])}
+            labels = {
+                label.get("name")
+                for label in issue.get("labels", [])
+                if label.get("name")
+            }
             if (
                 agent_role in labels
                 and "needs-review" not in labels
                 and "in-progress" not in labels
-                and self._has_priority_label(issue)  # 優先度ラベルのチェックを追加
+                and self._has_priority_label(labels)
             ):
                 candidate_issues.append(issue)
 
@@ -154,33 +153,25 @@ class TaskService:
             )
         return candidate_issues
 
-    def _sort_issues_by_priority(self, issues: list) -> list:
-        """
-        Issueのリストを優先度ラベルに基づいてソートします。
-        P0 > P1 > P2 の順に優先度が高く、優先度ラベルがないIssueは末尾に配置されます。
-
-        Args:
-            issues (list): ソート対象のIssueのリスト。
-
-        Returns:
-            list: 優先度に基づいてソートされたIssueのリスト。
-        """
-
-        def get_priority_key(issue):
-            priority = float('inf')  # 優先度ラベルがない場合は末尾に配置
-            for label in issue.get("labels", []):
-                label_name = label.get("name", "")
-                if label_name.startswith("P") and label_name[1:].isdigit():
-                    priority = min(priority, int(label_name[1:]))
-            return priority
+    def _sort_issues_by_priority(
+        self, issues: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        def get_priority_key(issue: dict[str, Any]) -> int:
+            priorities = [
+                p
+                for label in issue.get("labels", [])
+                if (p := self._get_priority_from_label(label.get("name", "")))
+                is not None
+            ]
+            if not priorities:
+                raise ValueError(f"Issue does not have a priority label: {issue}")
+            return min(priorities)
 
         return sorted(issues, key=get_priority_key)
 
     def _find_first_assignable_task(
-        self, candidate_issues: list, agent_id: str
+        self, candidate_issues: list[dict[str, Any]], agent_id: str
     ) -> TaskResponse | None:
-        # This method is mostly from HEAD, but I'll ensure the redis logic is correct.
-        # The HEAD version seems correct here.
         assert self.repo_name is not None
         for issue_obj in self._sort_issues_by_priority(candidate_issues):
             task = Task(
@@ -228,7 +219,9 @@ class TaskService:
                 )
 
                 self.redis_client.set_value(
-                    f"agent_current_task:{agent_id}", str(task.issue_id), timeout=3600
+                    f"agent_current_task:{agent_id}",
+                    str(task.issue_id),
+                    timeout=3600,
                 )
                 logger.info(
                     f"[issue_id={task.issue_id}, agent_id={agent_id}] Stored current task in Redis."
@@ -271,14 +264,9 @@ class TaskService:
         logger.info(f"[agent_id={agent_id}] No assignable and unlocked issues found.")
         return None
 
-    # This is the core of the PR, keep the HEAD version.
     async def request_task(
         self, agent_id: str, agent_role: str, timeout: int | None = 120
     ) -> TaskResponse | None:
-        """
-        エージェントの役割（role）に基づいて最適なIssueを探し、タスク情報を返します。
-        利用可能なタスクがない場合、指定されたタイムアウト時間までタスクの出現を待ち続けます（ロングポーリング）。
-        """
         start_time = time.monotonic()
         check_interval = self.long_polling_check_interval
 
@@ -320,21 +308,9 @@ class TaskService:
                 logger.info(f"Task found during long polling after {elapsed_time:.1f}s")
                 return task
 
-    # This is also core to the PR, keep the HEAD version, but fix the call to complete_previous_task
     async def _check_for_available_task(
         self, agent_id: str, agent_role: str, is_first_check: bool = True
     ) -> TaskResponse | None:
-        """
-        利用可能なタスクをチェックして返します。ロングポーリング用のヘルパーメソッド。
-
-        Args:
-            agent_id (str): タスクを要求するエージェントのID。
-            agent_role (str): エージェントの役割。
-            is_first_check (bool): 最初のチェックかどうか。最初のチェック時のみ前回タスクの完了処理を行います。
-
-        Returns:
-            TaskResponse | None: 見つかったタスクの情報。見つからなかった場合はNoneを返します。
-        """
         cached_issues_json = self.redis_client.get_value("open_issues")
 
         if not cached_issues_json:
@@ -351,7 +327,7 @@ class TaskService:
             return None
 
         if is_first_check:
-            self.complete_previous_task(agent_id)  # Corrected call
+            self.complete_previous_task(agent_id)
 
         candidate_issues = self._find_candidates_by_role(all_issues, agent_role)
         if candidate_issues:
