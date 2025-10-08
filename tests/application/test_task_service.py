@@ -72,9 +72,11 @@ def test_start_polling_fetches_and_caches_issues(
 ):
     """start_pollingがIssueを取得し、単一キーでRedisにキャッシュすることをテストします。"""
     # Arrange
-    issue1 = create_mock_issue(number=1, title="Poll Task 1", body="", labels=["bug"])
+    issue1 = create_mock_issue(
+        number=1, title="Poll Task 1", body="", labels=["bug", "P1"]
+    )
     issue2 = create_mock_issue(
-        number=2, title="Poll Task 2", body="", labels=["feature"]
+        number=2, title="Poll Task 2", body="", labels=["feature", "P1"]
     )
     mock_issues = [issue1, issue2]
     mock_github_client.get_open_issues.return_value = mock_issues
@@ -138,14 +140,14 @@ async def test_request_task_selects_by_role_from_cache(
     """Redisキャッシュから役割に合うIssueを正しく選択できることをテストします。"""
     # Arrange
     issue1 = create_mock_issue(
-        number=1, title="Docs", body="", labels=["documentation"]
+        number=1, title="Docs", body="", labels=["documentation", "P1"]
     )
     issue2 = create_mock_issue(
         number=2,
         title="Backend Task",
         body="""## 成果物
 - test.py""",
-        labels=["feature", "BACKENDCODER"],
+        labels=["feature", "BACKENDCODER", "P1"],
     )
     cached_issues = [issue1, issue2]
     mock_redis_client.get_value.return_value = json.dumps(cached_issues)
@@ -188,7 +190,7 @@ async def test_request_task_no_matching_issue(
         title="Docs",
         body="""## 成果物
 - docs""",
-        labels=["documentation"],
+        labels=["documentation", "P1"],
     )
     cached_issues = [issue1]
     mock_redis_client.get_value.return_value = json.dumps(cached_issues)
@@ -218,14 +220,14 @@ async def test_request_task_excludes_needs_review_label(
         title="Task Needs Review",
         body="""## 成果物
 - review.py""",
-        labels=["BACKENDCODER", "needs-review"],
+        labels=["BACKENDCODER", "needs-review", "P1"],
     )
     issue2 = create_mock_issue(
         number=2,
         title="Assignable Task",
         body="""## 成果物
 - assign.py""",
-        labels=["BACKENDCODER"],
+        labels=["BACKENDCODER", "P1"],
     )
     cached_issues = [issue1, issue2]
     mock_redis_client.get_value.return_value = json.dumps(cached_issues)
@@ -255,14 +257,14 @@ async def test_request_task_completes_previous_task(
         number=1,
         title="Previous Task",
         body="",
-        labels=["in-progress", agent_id],
+        labels=["in-progress", agent_id, "P1"],
     )
     new_issue = create_mock_issue(
         number=2,
         title="New Task",
         body="""## 成果物
 - new.py""",
-        labels=["BACKENDCODER"],
+        labels=["BACKENDCODER", "P1"],
     )
     cached_issues = [new_issue]
     mock_redis_client.get_value.return_value = json.dumps(cached_issues)
@@ -302,7 +304,7 @@ def test_find_first_assignable_task_exception_releases_lock(
         title="Test Task",
         body="""## 成果物
 - test.py""",
-        labels=["BACKENDCODER"],
+        labels=["BACKENDCODER", "P1"],
     )
     mock_redis_client.acquire_lock.return_value = True
     mock_github_client.add_label.side_effect = Exception("GitHub API Error")
@@ -330,7 +332,7 @@ def test_find_first_assignable_task_create_branch_exception_releases_lock(
         title="Test Task",
         body="""## 成果物
 - test.py""",
-        labels=["BACKENDCODER"],
+        labels=["BACKENDCODER", "P1"],
     )
     mock_redis_client.acquire_lock.return_value = True
     mock_github_client.create_branch.side_effect = Exception("Branch Creation Error")
@@ -359,7 +361,7 @@ def test_find_first_assignable_task_rollback_labels_on_branch_creation_failure(
         title="Test Task",
         body="""## 成果物
 - test.py""",
-        labels=["BACKENDCODER"],
+        labels=["BACKENDCODER", "P1"],
     )
     mock_redis_client.acquire_lock.return_value = True
     mock_github_client.create_branch.side_effect = GithubException(
@@ -395,7 +397,7 @@ def test_find_first_assignable_task_rollback_failure_logs_error(
         title="Test Task",
         body="""## 成果物
 - test.py""",
-        labels=["BACKENDCODER"],
+        labels=["BACKENDCODER", "P1"],
     )
     mock_redis_client.acquire_lock.return_value = True
     mock_github_client.create_branch.side_effect = GithubException(
@@ -425,7 +427,7 @@ def test_find_first_assignable_task_skips_non_assignable(
         number=1,
         title="Not Assignable",
         body="No deliverables section",
-        labels=["BACKENDCODER"],
+        labels=["BACKENDCODER", "P1"],
         has_branch_name=True,
     )
     issue_assignable = create_mock_issue(
@@ -433,7 +435,7 @@ def test_find_first_assignable_task_skips_non_assignable(
         title="Assignable",
         body="""## 成果物
 - work""",
-        labels=["BACKENDCODER"],
+        labels=["BACKENDCODER", "P1"],
     )
     candidate_issues = [issue_not_assignable, issue_assignable]
     mock_redis_client.acquire_lock.return_value = True
@@ -460,7 +462,7 @@ def test_find_first_assignable_task_skips_no_branch_name(
         title="No Branch",
         body="""## 成果物
 - work""",
-        labels=["BACKENDCODER"],
+        labels=["BACKENDCODER", "P1"],
         has_branch_name=False,
     )
     issue_with_branch = create_mock_issue(
@@ -468,7 +470,7 @@ def test_find_first_assignable_task_skips_no_branch_name(
         title="With Branch",
         body="""## 成果物
 - work""",
-        labels=["BACKENDCODER"],
+        labels=["BACKENDCODER", "P1"],
         has_branch_name=True,
     )
     candidate_issues = [issue_no_branch, issue_with_branch]
@@ -495,14 +497,14 @@ def test_find_first_assignable_task_skips_locked_issue(task_service, mock_redis_
         title="Locked Issue",
         body="""## 成果物
 - work""",
-        labels=["BACKENDCODER"],
+        labels=["BACKENDCODER", "P1"],
     )
     issue_unlocked = create_mock_issue(
         number=2,
         title="Unlocked Issue",
         body="""## 成果物
 - work""",
-        labels=["BACKENDCODER"],
+        labels=["BACKENDCODER", "P1"],
     )
     candidate_issues = [issue_locked, issue_unlocked]
     mock_redis_client.acquire_lock.side_effect = [False, True]
@@ -534,7 +536,7 @@ async def test_no_matching_role_candidates(
         title="Other Role Task",
         body="""## 成果物
 - work""",
-        labels=["FRONTENDCODER"],
+        labels=["FRONTENDCODER", "P1"],
     )
     cached_issues = [issue_other_role]
     mock_redis_client.get_value.return_value = json.dumps(cached_issues)
@@ -574,13 +576,13 @@ def test_complete_previous_task_handles_exceptions(
         number=101,
         title="Previous Task 1",
         body="",
-        labels=["in-progress", "test-agent"],
+        labels=["in-progress", "test-agent", "P1"],
     )
     prev_issue_2 = create_mock_issue(
         number=102,
         title="Previous Task 2",
         body="",
-        labels=["in-progress", "test-agent"],
+        labels=["in-progress", "test-agent", "P1"],
     )
     mock_github_client.find_issues_by_labels.return_value = [prev_issue_1, prev_issue_2]
     agent_id = "test-agent"
@@ -618,7 +620,7 @@ async def test_request_task_stores_current_task_in_redis(
         title="Test Task",
         body="""## 成果物
 - test.py""",
-        labels=[agent_role],
+        labels=[agent_role, "P1"],
     )
     mock_redis_client.get_value.return_value = json.dumps([issue])
     mock_github_client.find_issues_by_labels.return_value = []
@@ -674,7 +676,7 @@ async def test_request_task_long_polling_finds_task_during_wait(
         title="Found Task",
         body="""## 成果物
 - found.py""",
-        labels=["BACKENDCODER"],
+        labels=["BACKENDCODER", "P1"],
     )
 
     mock_redis_client.get_value.side_effect = [
@@ -739,7 +741,7 @@ async def test_request_task_finds_task_immediately_no_polling(
         title="Immediate Task",
         body="""## 成果物
 - immediate.py""",
-        labels=["BACKENDCODER"],
+        labels=["BACKENDCODER", "P1"],
     )
     cached_issues = [issue]
     mock_redis_client.get_value.return_value = json.dumps(cached_issues)
@@ -773,7 +775,7 @@ def test_complete_previous_task_finds_and_completes_issues_via_github_api(
         number=101,
         title="Previous Task",
         body="",
-        labels=["in-progress", agent_id],
+        labels=["in-progress", agent_id, "P1"],
     )
     mock_github_client.find_issues_by_labels.return_value = [previous_issue]
 
@@ -828,13 +830,13 @@ def test_complete_previous_task_handles_multiple_issues(
         number=101,
         title="Previous Task 1",
         body="",
-        labels=["in-progress", agent_id],
+        labels=["in-progress", agent_id, "P1"],
     )
     previous_issue_2 = create_mock_issue(
         number=102,
         title="Previous Task 2",
         body="",
-        labels=["in-progress", agent_id],
+        labels=["in-progress", agent_id, "P1"],
     )
     mock_github_client.find_issues_by_labels.return_value = [
         previous_issue_1,
@@ -876,7 +878,7 @@ def test_complete_previous_task_handles_github_exception(
         number=101,
         title="Previous Task",
         body="",
-        labels=["in-progress", agent_id],
+        labels=["in-progress", agent_id, "P1"],
     )
     mock_github_client.find_issues_by_labels.return_value = [previous_issue]
     mock_github_client.update_issue.side_effect = GithubException(
@@ -937,3 +939,24 @@ def test_sort_issues_by_priority(task_service):
     ]
     actual_order = [issue["number"] for issue in sorted_issues]
     assert actual_order == expected_order
+
+
+@pytest.mark.unit
+def test_find_candidates_by_role_filters_no_priority(task_service):
+    """_find_candidates_by_roleが優先度ラベルのないIssueを除外することをテストします。"""
+    # Arrange
+    issue_with_priority = create_mock_issue(
+        number=1, title="With Priority", body="", labels=["BACKENDCODER", "P1"]
+    )
+    issue_without_priority = create_mock_issue(
+        number=2, title="No Priority", body="", labels=["BACKENDCODER"]
+    )
+    issues = [issue_with_priority, issue_without_priority]
+    agent_role = "BACKENDCODER"
+
+    # Act
+    candidates = task_service._find_candidates_by_role(issues, agent_role)
+
+    # Assert
+    assert len(candidates) == 1
+    assert candidates[0]["number"] == issue_with_priority["number"]
