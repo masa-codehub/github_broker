@@ -331,9 +331,14 @@ class TaskService:
             task = self._find_first_assignable_task(candidate_issues, agent_id)
             if task:
                 return task
-        else:
-            logger.debug(
-                f"No candidate issues found for role '{agent_role}' in cached issues."
-            )
 
-        return None
+
+    def create_task_candidate(self, issue_id: int, agent_id: str):
+        """TaskCandidateを作成し、Redisに保存します。"""
+        task_candidate = TaskCandidate(issue_id=issue_id, agent_id=agent_id)
+        self.redis_client.set_value(
+            f"task_candidate:{issue_id}:{agent_id}", task_candidate.model_dump_json()
+        )
+        logger.info(
+            f"[issue_id={issue_id}, agent_id={agent_id}] Created task candidate with status {task_candidate.status}."
+        )

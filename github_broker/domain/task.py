@@ -35,3 +35,13 @@ class Task:
                 branch_name = match.group(1).strip()
                 return branch_name.replace("issue-xx", f"issue-{self.issue_id}")
         return None
+
+
+from enum import Enum
+
+
+class TaskCandidateStatus(Enum):
+    PENDING = "pending"
+    ASSIGNED = "assigned"
+    COMPLETED = "completed"
+    NEEDS_REVIEW = "needs_review"

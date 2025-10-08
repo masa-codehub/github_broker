@@ -901,3 +901,23 @@ def test_complete_previous_task_handles_github_exception(
             f"[issue_id={previous_issue['number']}, agent_id={agent_id}] Failed to update issue"
             in caplog.text
         )
+
+
+@pytest.mark.unit
+def test_create_task_candidate_stores_in_redis(task_service, mock_redis_client):
+    """create_task_candidateがTaskCandidateをRedisに正しく保存することをテストします。"""
+    # Arrange
+    issue_id = 123
+    agent_id = "test-agent"
+
+    # Act
+    task_service.create_task_candidate(issue_id, agent_id)
+
+    # Assert
+    mock_redis_client.set_value.assert_called_once()
+    call_args, call_kwargs = mock_redis_client.set_value.call_args
+    assert call_args[0] == f"task_candidate:{issue_id}:{agent_id}"
+    stored_value = json.loads(call_args[1])
+    assert stored_value["issue_id"] == issue_id
+    assert stored_value["agent_id"] == agent_id
+    assert stored_value["status"] == "needs_review"
