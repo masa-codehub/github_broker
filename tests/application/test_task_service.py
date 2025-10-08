@@ -146,8 +146,7 @@ async def test_request_task_selects_by_role_from_cache(
     issue2 = create_mock_issue(
         number=2,
         title="Backend Task",
-        body="""## 成果物
-- test.py""",
+        body="""## 成果物\n- test.py""",
         labels=["feature", "BACKENDCODER", "P1"],
     )
     cached_issues = [issue1, issue2]
@@ -189,8 +188,7 @@ async def test_request_task_no_matching_issue(
     issue1 = create_mock_issue(
         number=1,
         title="Docs",
-        body="""## 成果物
-- docs""",
+        body="""## 成果物\n- docs""",
         labels=["documentation", "P1"],
     )
     cached_issues = [issue1]
@@ -227,8 +225,7 @@ async def test_request_task_completes_previous_task(
     new_issue = create_mock_issue(
         number=2,
         title="New Task",
-        body="""## 成果物
-- new.py""",
+        body="""## 成果物\n- new.py""",
         labels=["BACKENDCODER", "P1"],
     )
     cached_issues = [new_issue]
@@ -267,8 +264,7 @@ def test_find_first_assignable_task_exception_releases_lock(
     issue = create_mock_issue(
         number=1,
         title="Test Task",
-        body="""## 成果物
-- test.py""",
+        body="""## 成果物\n- test.py""",
         labels=["BACKENDCODER", "P1"],
     )
     mock_redis_client.acquire_lock.return_value = True
@@ -295,8 +291,7 @@ def test_find_first_assignable_task_create_branch_exception_releases_lock(
     issue = create_mock_issue(
         number=1,
         title="Test Task",
-        body="""## 成果物
-- test.py""",
+        body="""## 成果物\n- test.py""",
         labels=["BACKENDCODER", "P1"],
     )
     mock_redis_client.acquire_lock.return_value = True
@@ -324,8 +319,7 @@ def test_find_first_assignable_task_rollback_labels_on_branch_creation_failure(
     issue = create_mock_issue(
         number=1,
         title="Test Task",
-        body="""## 成果物
-- test.py""",
+        body="""## 成果物\n- test.py""",
         labels=["BACKENDCODER", "P1"],
     )
     mock_redis_client.acquire_lock.return_value = True
@@ -360,8 +354,7 @@ def test_find_first_assignable_task_rollback_failure_logs_error(
     issue = create_mock_issue(
         number=1,
         title="Test Task",
-        body="""## 成果物
-- test.py""",
+        body="""## 成果物\n- test.py""",
         labels=["BACKENDCODER", "P1"],
     )
     mock_redis_client.acquire_lock.return_value = True
@@ -398,8 +391,7 @@ def test_find_first_assignable_task_skips_non_assignable(
     issue_assignable = create_mock_issue(
         number=2,
         title="Assignable",
-        body="""## 成果物
-- work""",
+        body="""## 成果物\n- work""",
         labels=["BACKENDCODER", "P1"],
     )
     candidate_issues = [issue_not_assignable, issue_assignable]
@@ -425,16 +417,14 @@ def test_find_first_assignable_task_skips_no_branch_name(
     issue_no_branch = create_mock_issue(
         number=1,
         title="No Branch",
-        body="""## 成果物
-- work""",
+        body="""## 成果物\n- work""",
         labels=["BACKENDCODER", "P1"],
         has_branch_name=False,
     )
     issue_with_branch = create_mock_issue(
         number=2,
         title="With Branch",
-        body="""## 成果物
-- work""",
+        body="""## 成果物\n- work""",
         labels=["BACKENDCODER", "P1"],
         has_branch_name=True,
     )
@@ -460,15 +450,13 @@ def test_find_first_assignable_task_skips_locked_issue(task_service, mock_redis_
     issue_locked = create_mock_issue(
         number=1,
         title="Locked Issue",
-        body="""## 成果物
-- work""",
+        body="""## 成果物\n- work""",
         labels=["BACKENDCODER", "P1"],
     )
     issue_unlocked = create_mock_issue(
         number=2,
         title="Unlocked Issue",
-        body="""## 成果物
-- work""",
+        body="""## 成果物\n- work""",
         labels=["BACKENDCODER", "P1"],
     )
     candidate_issues = [issue_locked, issue_unlocked]
@@ -499,8 +487,7 @@ async def test_no_matching_role_candidates(
     issue_other_role = create_mock_issue(
         number=1,
         title="Other Role Task",
-        body="""## 成果物
-- work""",
+        body="""## 成果物\n- work""",
         labels=["FRONTENDCODER", "P1"],
     )
     cached_issues = [issue_other_role]
@@ -583,8 +570,7 @@ async def test_request_task_stores_current_task_in_redis(
     issue = create_mock_issue(
         number=1,
         title="Test Task",
-        body="""## 成果物
-- test.py""",
+        body="""## 成果物\n- test.py""",
         labels=[agent_role, "P1"],
     )
     mock_redis_client.get_value.return_value = json.dumps([issue])
@@ -610,8 +596,7 @@ async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
     issue = create_mock_issue(
         number=1,
         title="Review Task",
-        body="""## 成果物
-- review.py""",
+        body="""## 成果物\n- review.py""",
         labels=["BACKENDCODER", "needs-review"],
     )
     cached_issues = [issue]
@@ -683,8 +668,7 @@ async def test_request_task_long_polling_finds_task_during_wait(
     issue = create_mock_issue(
         number=123,
         title="Found Task",
-        body="""## 成果物
-- found.py""",
+        body="""## 成果物\n- found.py""",
         labels=["BACKENDCODER", "P1"],
     )
 
@@ -748,8 +732,7 @@ async def test_request_task_finds_task_immediately_no_polling(
     issue = create_mock_issue(
         number=456,
         title="Immediate Task",
-        body="""## 成果物
-- immediate.py""",
+        body="""## 成果物\n- immediate.py""",
         labels=["BACKENDCODER", "P1"],
     )
     cached_issues = [issue]
@@ -985,3 +968,23 @@ def test_find_candidates_by_role_filters_no_priority(task_service):
     # Assert
     assert len(candidates) == 1
     assert candidates[0]["number"] == issue_with_priority["number"]
+
+
+@pytest.mark.unit
+def test_create_task_candidate_stores_in_redis(task_service, mock_redis_client):
+    """create_task_candidateがTaskCandidateをRedisに正しく保存することをテストします。"""
+    # Arrange
+    issue_id = 123
+    agent_id = "test-agent"
+
+    # Act
+    task_service.create_task_candidate(issue_id, agent_id)
+
+    # Assert
+    mock_redis_client.set_value.assert_called_once()
+    call_args, call_kwargs = mock_redis_client.set_value.call_args
+    assert call_args[0] == f"task_candidate:{issue_id}:{agent_id}"
+    stored_value = json.loads(call_args[1])
+    assert stored_value["issue_id"] == issue_id
+    assert stored_value["agent_id"] == agent_id
+    assert stored_value["status"] == "needs_review"
