@@ -194,8 +194,8 @@ class TaskService:
 
         return sorted(issues, key=get_priority_key)
 
-    def _find_first_assignable_task(
-        self, candidate_issues: list[dict[str, Any]], agent_id: str
+    async def _find_first_assignable_task(
+        self, candidate_issues: list, agent_id: str
     ) -> TaskResponse | None:
         assert self.repo_name is not None
         for issue_obj in self._sort_issues_by_priority(candidate_issues):
@@ -243,6 +243,13 @@ class TaskService:
                     html_url=task.html_url, branch_name=branch_name
                 )
 
+                gemini_response = await self.gemini_executor.execute(
+                    issue_id=task.issue_id,
+                    html_url=task.html_url,
+                    branch_name=branch_name,
+                    prompt=prompt,
+                )
+
                 self.redis_client.set_value(
                     f"agent_current_task:{agent_id}",
                     str(task.issue_id),
@@ -266,6 +273,7 @@ class TaskService:
                     branch_name=branch_name,
                     prompt=prompt,
                     task_type=task_type,
+                    gemini_response=gemini_response,
                 )
             except Exception as e:
                 logger.error(
@@ -365,7 +373,7 @@ class TaskService:
             logger.debug(
                 f"Found {len(candidate_issues)} candidate issues for role '{agent_role}'."
             )
-            task = self._find_first_assignable_task(candidate_issues, agent_id)
+            task = await self._find_first_assignable_task(candidate_issues, agent_id)
             if task:
                 return task
         return None
