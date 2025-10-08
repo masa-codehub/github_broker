@@ -8,6 +8,7 @@ from github import GithubException
 
 from github_broker.application.task_service import TaskService
 from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
+from github_broker.interface.models import TaskType
 
 
 @pytest.fixture
@@ -627,7 +628,7 @@ async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
     # Assert
     assert result is not None
     assert result.issue_id == 1
-    assert result.task_type == "review"
+    assert result.task_type == TaskType.REVIEW
     mock_redis_client.get_value.assert_called_once_with("open_issues")
     mock_redis_client.acquire_lock.assert_called_once_with(
         "issue_lock_1", agent_id, timeout=600
