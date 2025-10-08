@@ -33,10 +33,10 @@ def task_service(mock_redis_client, mock_github_client):
     mock_settings.LONG_POLLING_CHECK_INTERVAL = 5
 
     mock_gemini_executor_instance = MagicMock(spec=GeminiExecutor)
-    mock_gemini_executor_instance.build_prompt.return_value = (
-        "Generated Prompt for Issue 2"
+    mock_gemini_executor_instance.build_prompt.return_value = "Generated Prompt"
+    mock_gemini_executor_instance.execute = AsyncMock(
+        return_value="Gemini Executor Output"
     )
-    mock_gemini_executor_instance.execute = AsyncMock(return_value="Gemini Executor Output")
 
     return TaskService(
         redis_client=mock_redis_client,
@@ -404,7 +404,9 @@ async def test_find_first_assignable_task_skips_non_assignable(
     mock_redis_client.acquire_lock.return_value = True
 
     # Act
-    result = await task_service._find_first_assignable_task(candidate_issues, "test-agent")
+    result = await task_service._find_first_assignable_task(
+        candidate_issues, "test-agent"
+    )
 
     # Assert
     assert result is not None
@@ -439,7 +441,9 @@ async def test_find_first_assignable_task_skips_no_branch_name(
     mock_redis_client.acquire_lock.return_value = True
 
     # Act
-    result = await task_service._find_first_assignable_task(candidate_issues, "test-agent")
+    result = await task_service._find_first_assignable_task(
+        candidate_issues, "test-agent"
+    )
 
     # Assert
     assert result is not None
@@ -451,7 +455,9 @@ async def test_find_first_assignable_task_skips_no_branch_name(
 
 @pytest.mark.unit
 @pytest.mark.anyio
-async def test_find_first_assignable_task_skips_locked_issue(task_service, mock_redis_client):
+async def test_find_first_assignable_task_skips_locked_issue(
+    task_service, mock_redis_client
+):
     """RedisでロックされているIssueをスキップすることをテストします。"""
     # Arrange
     agent_id = "test-agent"
@@ -777,7 +783,7 @@ async def test_request_task_calls_gemini_executor_execute(
         title="Test Task",
         body="""## 成果物
 - test.py""",
-        labels=[agent_role],
+        labels=[agent_role, "P1"],
     )
     mock_redis_client.get_value.return_value = json.dumps([issue])
     mock_github_client.find_issues_by_labels.return_value = []
@@ -787,7 +793,9 @@ async def test_request_task_calls_gemini_executor_execute(
     task_service.gemini_executor.execute.return_value = "Gemini Executor Output"
 
     # Act
-    result = await task_service.request_task(agent_id=agent_id, agent_role=agent_role, timeout=0)
+    result = await task_service.request_task(
+        agent_id=agent_id, agent_role=agent_role, timeout=0
+    )
 
     # Assert
     assert result is not None
@@ -795,10 +803,9 @@ async def test_request_task_calls_gemini_executor_execute(
         issue_id=issue["number"],
         html_url=issue["html_url"],
         branch_name="feature/issue-1",
-        prompt="Generated Prompt for Issue 2",  # mock_gemini_executor_instance.build_prompt.return_value
+        prompt="Generated Prompt",
     )
     assert result.gemini_response == "Gemini Executor Output"
-
 
 
 @pytest.mark.unit
