@@ -531,3 +531,31 @@ def test_update_issue_remove_label_raises_exception(mock_github):
     # Act & Assert
     with pytest.raises(GithubException):
         client.update_issue(issue_id, remove_labels=remove_labels)
+
+
+@pytest.mark.unit
+@patch("github_broker.infrastructure.github_client.Github")
+def test_get_pull_request_review_comments_success(mock_github):
+    """get_pull_request_review_commentsが正常にレビューコメントを返すことをテストします。"""
+    # Arrange
+    mock_review_comment = MagicMock()
+    mock_review_comment.raw_data = {"id": 1, "body": "Test comment"}
+    mock_pull = MagicMock()
+    mock_pull.get_review_comments.return_value = [mock_review_comment]
+    mock_repo = MagicMock()
+    mock_repo.get_pull.return_value = mock_pull
+    mock_github_instance = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_github.return_value = mock_github_instance
+
+    repo_name = "test/repo"
+    client = GitHubClient(repo_name, "fake_token")
+    pull_number = 123
+
+    # Act
+    comments = client.get_pull_request_review_comments(pull_number)
+
+    # Assert
+    assert comments == [mock_review_comment.raw_data]
+    mock_repo.get_pull.assert_called_once_with(number=pull_number)
+    mock_pull.get_review_comments.assert_called_once_with()

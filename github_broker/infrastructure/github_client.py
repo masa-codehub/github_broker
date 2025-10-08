@@ -155,6 +155,21 @@ class GitHubClient:
             return issue.raw_data
         except GithubException as e:
             logging.error(
-                f"リポジトリ {self._repo_name} からIssue #{issue_number} の取得中にエラーが発生しました: {e}"
+                f"リポジリポジトリ {self._repo_name} からIssue #{issue_number} の取得中にエラーが発生しました: {e}"
+            )
+            raise
+
+    def get_pull_request_review_comments(self, pull_number: int):
+        """
+        特定のPull Requestのレビューコメントを取得します。
+        """
+        try:
+            repo = self._client.get_repo(self._repo_name)
+            pull = repo.get_pull(number=pull_number)
+            comments = pull.get_review_comments()
+            return [comment.raw_data for comment in comments]
+        except GithubException as e:
+            logging.error(
+                f"リポジトリ {self._repo_name} のPull Request #{pull_number} のレビューコメント取得中にエラーが発生しました: {e}"
             )
             raise
