@@ -71,6 +71,6 @@ body:
         - testing
         - github
         - improvement
-        - system-architect
+        - SYSTEM_ARCHITECT
     validations:
       required: false
