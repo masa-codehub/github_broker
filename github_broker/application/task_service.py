@@ -12,7 +12,7 @@ from redis.exceptions import RedisError
 from github_broker.domain.task import Task
 from github_broker.infrastructure.github_client import GitHubClient
 from github_broker.infrastructure.redis_client import RedisClient
-from github_broker.interface.models import TaskResponse
+from github_broker.interface.models import TaskCandidate, TaskResponse
 
 if TYPE_CHECKING:
     from github_broker.infrastructure.config import Settings
@@ -331,7 +331,7 @@ class TaskService:
             task = self._find_first_assignable_task(candidate_issues, agent_id)
             if task:
                 return task
-
+        return None
 
     def create_task_candidate(self, issue_id: int, agent_id: str):
         """TaskCandidateを作成し、Redisに保存します。"""
@@ -340,5 +340,5 @@ class TaskService:
             f"task_candidate:{issue_id}:{agent_id}", task_candidate.model_dump_json()
         )
         logger.info(
-            f"[issue_id={issue_id}, agent_id={agent_id}] Created task candidate with status {task_candidate.status}."
+            f"[issue_id={issue_id}, agent_id={agent_id}] Created task candidate with status {task_candidate.status.value}."
         )
