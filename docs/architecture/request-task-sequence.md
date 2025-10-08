@@ -15,8 +15,8 @@ sequenceDiagram
     participant GitHubClient as GitHubClient
     participant GeminiExecutor as GeminiExecutor
 
-    Worker->>+ApiServer: POST /request-task (agent_id, agent_role)
-    ApiServer->>+TaskService: request_task(agent_id, agent_role)
+    Worker->>+ApiServer: POST /request-task (agent_id)
+    ApiServer->>+TaskService: request_task(agent_id)
 
     Note over TaskService: 最初のタスクチェック (is_first_check=True)
     TaskService->>TaskService: _check_for_available_task()
@@ -81,7 +81,7 @@ sequenceDiagram
 
 ### 3.2. 処理フロー
 
-1.  **タスク要求とロングポーリング:** ワーカーエージェントは、自身の`agent_id`と`agent_role`を添えてAPIサーバーの`/request-task`エンドポイントにPOSTリクエストを送信します。サーバーはリクエストを受け取ると`TaskService`の`request_task`メソッドを呼び出します。このメソッドはロングポーリングで動作し、割り当て可能なタスクが見つからない場合は、指定されたタイムアウト時間までタスクの出現を待ち続けます。
+1.  **タスク要求とロングポーリング:** ワーカーエージェントは、自身の`agent_id`を添えてAPIサーバーの`/request-task`エンドポイントにPOSTリクエストを送信します。サーバーはリクエストを受け取ると`TaskService`の`request_task`メソッドを呼び出します。このメソッドはロングポーリングで動作し、割り当て可能なタスクが見つからない場合は、指定されたタイムアウト時間までタスクの出現を待ち続けます。
 
 2.  **初回タスクチェック:** `request_task`は、まず内部的に`_check_for_available_task(is_first_check=True)`を呼び出します。これが最初のチェックであることを示します。
 
@@ -97,7 +97,6 @@ sequenceDiagram
     *   **ロック取得:** 割り当て試行中の競合を防ぐため、`RedisClient`を介してIssueごとの分散ロック (`issue_lock_{issue_id}`) の取得を試みます。
     *   **前提条件チェック:** ロック取得後、Issue本文に「成果物」セクションが定義されているかなどの前提条件をチェックします。
     *   ロック取得と前提条件チェックに成功した最初のIssueが、割り当てタスクとして決定されます。
-
 6.  **タスク割り当てとレスポンス:**
     *   **GitHub操作:** `GitHubClient`を介して、タスク用のブランチを作成し、Issueに`in-progress`と`[agent_id]`ラベルを付与します。
     *   **プロンプト生成:** `GeminiExecutor`を呼び出し、IssueのURLやブランチ名などの情報から、エージェントが実行すべきプロンプトを生成します。
