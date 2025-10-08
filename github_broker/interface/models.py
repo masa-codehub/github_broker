@@ -28,6 +28,7 @@ class TaskResponse(BaseModel):
     branch_name: str
     prompt: str
     task_type: TaskType = TaskType.DEVELOPMENT
+    gemini_response: str | None = None
 
 
 class TaskCandidate(BaseModel):

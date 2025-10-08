@@ -33,8 +33,9 @@ def task_service(mock_redis_client, mock_github_client):
     mock_settings.LONG_POLLING_CHECK_INTERVAL = 5
 
     mock_gemini_executor_instance = MagicMock(spec=GeminiExecutor)
-    mock_gemini_executor_instance.build_prompt.return_value = (
-        "Generated Prompt for Issue 2"
+    mock_gemini_executor_instance.build_prompt.return_value = "Generated Prompt"
+    mock_gemini_executor_instance.execute = AsyncMock(
+        return_value="Gemini Executor Output"
     )
 
     return TaskService(
@@ -254,7 +255,8 @@ async def test_request_task_completes_previous_task(
 
 
 @pytest.mark.unit
-def test_find_first_assignable_task_exception_releases_lock(
+@pytest.mark.anyio
+async def test_find_first_assignable_task_exception_releases_lock(
     task_service, mock_github_client, mock_redis_client
 ):
     """
@@ -275,13 +277,14 @@ def test_find_first_assignable_task_exception_releases_lock(
 
     # Act & Assert
     with pytest.raises(Exception, match="GitHub API Error"):
-        task_service._find_first_assignable_task(candidate_issues, agent_id)
+        await task_service._find_first_assignable_task(candidate_issues, agent_id)
 
     mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
 
 
 @pytest.mark.unit
-def test_find_first_assignable_task_create_branch_exception_releases_lock(
+@pytest.mark.anyio
+async def test_find_first_assignable_task_create_branch_exception_releases_lock(
     task_service, mock_github_client, mock_redis_client
 ):
     """
@@ -302,13 +305,14 @@ def test_find_first_assignable_task_create_branch_exception_releases_lock(
 
     # Act & Assert
     with pytest.raises(Exception, match="Branch Creation Error"):
-        task_service._find_first_assignable_task(candidate_issues, agent_id)
+        await task_service._find_first_assignable_task(candidate_issues, agent_id)
 
     mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
 
 
 @pytest.mark.unit
-def test_find_first_assignable_task_rollback_labels_on_branch_creation_failure(
+@pytest.mark.anyio
+async def test_find_first_assignable_task_rollback_labels_on_branch_creation_failure(
     task_service, mock_github_client, mock_redis_client, caplog
 ):
     """
@@ -333,7 +337,7 @@ def test_find_first_assignable_task_rollback_labels_on_branch_creation_failure(
     with caplog.at_level(logging.ERROR):
         # Act & Assert
         with pytest.raises(GithubException, match="Branch already exists"):
-            task_service._find_first_assignable_task(candidate_issues, agent_id)
+            await task_service._find_first_assignable_task(candidate_issues, agent_id)
 
         mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
         mock_github_client.update_issue.assert_called_once_with(
@@ -343,7 +347,8 @@ def test_find_first_assignable_task_rollback_labels_on_branch_creation_failure(
 
 
 @pytest.mark.unit
-def test_find_first_assignable_task_rollback_failure_logs_error(
+@pytest.mark.anyio
+async def test_find_first_assignable_task_rollback_failure_logs_error(
     task_service, mock_github_client, mock_redis_client, caplog
 ):
     """
@@ -368,7 +373,7 @@ def test_find_first_assignable_task_rollback_failure_logs_error(
 
     with caplog.at_level(logging.ERROR):
         with pytest.raises(GithubException, match="Branch already exists"):
-            task_service._find_first_assignable_task(candidate_issues, agent_id)
+            await task_service._find_first_assignable_task(candidate_issues, agent_id)
 
         assert "Failed to rollback labels" in caplog.text
         mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
@@ -376,7 +381,8 @@ def test_find_first_assignable_task_rollback_failure_logs_error(
 
 
 @pytest.mark.unit
-def test_find_first_assignable_task_skips_non_assignable(
+@pytest.mark.anyio
+async def test_find_first_assignable_task_skips_non_assignable(
     task_service, mock_redis_client
 ):
     """is_assignable()がFalseを返すIssueをスキップすることをテストします。"""
@@ -398,7 +404,9 @@ def test_find_first_assignable_task_skips_non_assignable(
     mock_redis_client.acquire_lock.return_value = True
 
     # Act
-    result = task_service._find_first_assignable_task(candidate_issues, "test-agent")
+    result = await task_service._find_first_assignable_task(
+        candidate_issues, "test-agent"
+    )
 
     # Assert
     assert result is not None
@@ -409,7 +417,8 @@ def test_find_first_assignable_task_skips_non_assignable(
 
 
 @pytest.mark.unit
-def test_find_first_assignable_task_skips_no_branch_name(
+@pytest.mark.anyio
+async def test_find_first_assignable_task_skips_no_branch_name(
     task_service, mock_redis_client
 ):
     """ブランチ名が本文にないIssueをスキップすることをテストします。"""
@@ -432,7 +441,9 @@ def test_find_first_assignable_task_skips_no_branch_name(
     mock_redis_client.acquire_lock.return_value = True
 
     # Act
-    result = task_service._find_first_assignable_task(candidate_issues, "test-agent")
+    result = await task_service._find_first_assignable_task(
+        candidate_issues, "test-agent"
+    )
 
     # Assert
     assert result is not None
@@ -443,7 +454,10 @@ def test_find_first_assignable_task_skips_no_branch_name(
 
 
 @pytest.mark.unit
-def test_find_first_assignable_task_skips_locked_issue(task_service, mock_redis_client):
+@pytest.mark.anyio
+async def test_find_first_assignable_task_skips_locked_issue(
+    task_service, mock_redis_client
+):
     """RedisでロックされているIssueをスキップすることをテストします。"""
     # Arrange
     agent_id = "test-agent"
@@ -463,7 +477,7 @@ def test_find_first_assignable_task_skips_locked_issue(task_service, mock_redis_
     mock_redis_client.acquire_lock.side_effect = [False, True]
 
     # Act
-    result = task_service._find_first_assignable_task(candidate_issues, agent_id)
+    result = await task_service._find_first_assignable_task(candidate_issues, agent_id)
 
     # Assert
     assert result is not None
@@ -753,6 +767,45 @@ async def test_request_task_finds_task_immediately_no_polling(
     assert result is not None
     assert result.issue_id == 456
     mock_sleep.assert_not_called()
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
+async def test_request_task_calls_gemini_executor_execute(
+    task_service, mock_redis_client, mock_github_client
+):
+    """request_taskがGeminiExecutorのexecuteメソッドを呼び出すことをテストします。"""
+    # Arrange
+    agent_id = "test-agent"
+    agent_role = "BACKENDCODER"
+    issue = create_mock_issue(
+        number=1,
+        title="Test Task",
+        body="""## 成果物
+- test.py""",
+        labels=[agent_role, "P1"],
+    )
+    mock_redis_client.get_value.return_value = json.dumps([issue])
+    mock_github_client.find_issues_by_labels.return_value = []
+    mock_redis_client.acquire_lock.return_value = True
+
+    # GeminiExecutorのexecuteメソッドのモックを設定
+    task_service.gemini_executor.execute.return_value = "Gemini Executor Output"
+
+    # Act
+    result = await task_service.request_task(
+        agent_id=agent_id, agent_role=agent_role, timeout=0
+    )
+
+    # Assert
+    assert result is not None
+    task_service.gemini_executor.execute.assert_called_once_with(
+        issue_id=issue["number"],
+        html_url=issue["html_url"],
+        branch_name="feature/issue-1",
+        prompt="Generated Prompt",
+    )
+    assert result.gemini_response == "Gemini Executor Output"
 
 
 @pytest.mark.unit
