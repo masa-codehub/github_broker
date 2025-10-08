@@ -901,3 +901,27 @@ def test_complete_previous_task_handles_github_exception(
             f"[issue_id={previous_issue['number']}, agent_id={agent_id}] Failed to update issue"
             in caplog.text
         )
+
+
+@pytest.mark.unit
+def test_sort_issues_by_priority(task_service):
+    """Issueが優先度ラベルに基づいて正しくソートされることをテストします。"""
+    # Arrange
+    issue_p1 = create_mock_issue(number=1, title="P1 Task", body="", labels=["P1", "feature"])
+    issue_p0 = create_mock_issue(number=2, title="P0 Task", body="", labels=["P0", "bug"])
+    issue_no_priority = create_mock_issue(number=3, title="No Priority Task", body="", labels=["documentation"])
+    issue_p2 = create_mock_issue(number=4, title="P2 Task", body="", labels=["P2"])
+    issue_p0_another = create_mock_issue(number=5, title="Another P0 Task", body="", labels=["P0"])
+
+    issues = [issue_p1, issue_p0, issue_no_priority, issue_p2, issue_p0_another]
+
+    # Act
+    sorted_issues = task_service._sort_issues_by_priority(issues)
+
+    # Assert
+    # 期待されるソート順: P0, P0, P1, P2, No Priority
+    assert sorted_issues[0]["number"] == issue_p0["number"]
+    assert sorted_issues[1]["number"] == issue_p0_another["number"]
+    assert sorted_issues[2]["number"] == issue_p1["number"]
+    assert sorted_issues[3]["number"] == issue_p2["number"]
+    assert sorted_issues[4]["number"] == issue_no_priority["number"]

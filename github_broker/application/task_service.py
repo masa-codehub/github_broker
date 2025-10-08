@@ -146,13 +146,35 @@ class TaskService:
             )
         return candidate_issues
 
+    def _sort_issues_by_priority(self, issues: list) -> list:
+        """
+        Issueのリストを優先度ラベルに基づいてソートします。
+        P0 > P1 > P2 の順に優先度が高く、優先度ラベルがないIssueは末尾に配置されます。
+
+        Args:
+            issues (list): ソート対象のIssueのリスト。
+
+        Returns:
+            list: 優先度に基づいてソートされたIssueのリスト。
+        """
+
+        def get_priority_key(issue):
+            priority = float('inf')  # 優先度ラベルがない場合は末尾に配置
+            for label in issue.get("labels", []):
+                label_name = label.get("name", "")
+                if label_name.startswith("P") and label_name[1:].isdigit():
+                    priority = min(priority, int(label_name[1:]))
+            return priority
+
+        return sorted(issues, key=get_priority_key)
+
     def _find_first_assignable_task(
         self, candidate_issues: list, agent_id: str
     ) -> TaskResponse | None:
         # This method is mostly from HEAD, but I'll ensure the redis logic is correct.
         # The HEAD version seems correct here.
         assert self.repo_name is not None
-        for issue_obj in sorted(candidate_issues, key=lambda i: i.get("number", 0)):
+        for issue_obj in self._sort_issues_by_priority(candidate_issues):
             task = Task(
                 issue_id=issue_obj["number"],
                 title=issue_obj["title"],
