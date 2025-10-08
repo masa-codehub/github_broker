@@ -12,7 +12,7 @@ from redis.exceptions import RedisError
 from github_broker.domain.task import Task
 from github_broker.infrastructure.github_client import GitHubClient
 from github_broker.infrastructure.redis_client import RedisClient
-from github_broker.interface.models import TaskResponse
+from github_broker.interface.models import TaskResponse, TaskType
 
 if TYPE_CHECKING:
     from github_broker.infrastructure.config import Settings
@@ -139,12 +139,19 @@ class TaskService:
                 for label in issue.get("labels", [])
                 if label.get("name")
             }
-            if (
+            is_development_candidate = (
                 agent_role in labels
-                and "needs-review" not in labels
                 and "in-progress" not in labels
+                and "needs-review" not in labels
                 and self._has_priority_label(labels)
-            ):
+            )
+            is_review_candidate = (
+                agent_role in labels
+                and "in-progress" not in labels
+                and "needs-review" in labels
+            )
+
+            if is_development_candidate or is_review_candidate:
                 candidate_issues.append(issue)
 
         if not candidate_issues:
@@ -236,6 +243,11 @@ class TaskService:
                     f"[issue_id={task.issue_id}, agent_id={agent_id}] Stored current task in Redis."
                 )
 
+                task_type = (
+                    TaskType.REVIEW
+                    if "needs-review" in task.labels
+                    else TaskType.DEVELOPMENT
+                )
                 return TaskResponse(
                     issue_id=task.issue_id,
                     issue_url=HttpUrl(task.html_url),
@@ -244,6 +256,7 @@ class TaskService:
                     labels=task.labels,
                     branch_name=branch_name,
                     prompt=prompt,
+                    task_type=task_type,
                 )
             except Exception as e:
                 logger.error(
