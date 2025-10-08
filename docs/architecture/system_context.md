@@ -98,8 +98,6 @@ graph TD
           "branch_name": "bugfix/issue-123",
           "required_role": "string", // このタスクを実行するために必要なエージェントの役割 (例: "CODER")
           "task_type": "Literal['development', 'review']", // タスクの種類 (開発 or レビュー)
-          "required_role": "string", // このタスクを実行するために必要なエージェントの役割 (例: "CODER")
-          "task_type": "Literal['development', 'review']", // タスクの種類 (開発 or レビュー)
           "prompt": "string" // クライアントがLLMに渡す自然言語プロンプト。クライアントはこのプロンプトを解釈し、自身の環境で適切なコマンド（例: `gemini cli run ...`）を組み立てて実行する。
         }
         ```
@@ -129,7 +127,7 @@ graph TD
 
 #### 5.1. タスク選択ロジック
 
-`TaskService`は、Redisキャッシュからタスク候補をフィルタリングします。その後、候補となったIssueを**Issue番号の昇順（作成順）でソート**し、最初に割り当て可能と判断されたタスクを選択します。
+`TaskService`は、Redisキャッシュからタスク候補をフィルタリングします。その際、各Issueに付与されている役割ラベル（例: `BACKENDCODER`）を`required_role`として解釈し、タスクを絞り込みます。その後、候補となったIssueを**Issue番号の昇順（作成順）でソート**し、最初に割り当て可能と判断されたタスクを選択します。
 
 将来的には、Issueの優先度ラベル（P0, P1など）やその他の要素を考慮した、より高度な優先順位付けロジックを導入する可能性があります。現在の`GeminiClient`はそのための拡張基盤として存在しています。
 
