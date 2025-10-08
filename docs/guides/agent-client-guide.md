@@ -25,7 +25,6 @@ pip install git+https://github.com/masa-codehub/github_broker.git
 クライアントの初期化時に、エージェントの`agent_id`と`agent_role`、そして接続先のサーバー情報を渡します。
 
 - `agent_id` (str): エージェントを一意に識別するID。
-- `agent_role` (str): エージェントの役割を示す文字列 (例: `CODER`)。
 - `host` (str): サーバーのホスト名。デフォルトは`localhost`。
 - `port` (int): サーバーのポート番号。デフォルトは環境変数`APP_PORT`または`8080`。
 
@@ -34,7 +33,6 @@ from github_broker import AgentClient
 
 # エージェントの情報を定義
 AGENT_ID = "my-python-agent-001"
-AGENT_ROLE = "CODER"
 
 # サーバーの接続情報を定義
 SERVER_HOST = "localhost"
@@ -43,7 +41,6 @@ SERVER_PORT = 8000
 # クライアントの初期化
 client = AgentClient(
     agent_id=AGENT_ID,
-    agent_role=AGENT_ROLE,
     host=SERVER_HOST,
     port=SERVER_PORT
 )
@@ -110,9 +107,10 @@ except Exception as e:
 -   `AGENT_NAME`: エージェントの識別名 (デフォルト: `sample-agent-001`)
 -   `BROKER_HOST`: タスク割り当てサーバーのホスト名 (デフォルト: `localhost`)
 -   `BROKER_PORT`: タスク割り当てサーバーのポート番号 (デフォルト: `8080`)
--   `AGENT_ROLE`: エージェントの役割 (デフォルト: `BACKENDCODER`)
 
-これらの環境変数を設定することで、エージェントの接続先や役割を簡単に変更できます。
+これらの環境変数を設定することで、エージェントの接続先を簡単に変更できます。
+
+**注:** エージェントの役割は、サーバーからタスクを受け取る際に動的に決定されます。
 
 #### 3.3.3. 待機処理
 
