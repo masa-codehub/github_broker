@@ -1,0 +1,165 @@
+name: Issue Validator
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  validate-branch-name:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Extract Branch Name
+        id: extract_branch
+        run: |
+          ISSUE_BODY="${{ github.event.issue.body }}"
+          # Try to extract branch name from "ブランチ名\n`branch-name`" format
+          BRANCH_NAME=$(echo "$ISSUE_BODY" | grep -oP '(?<=^ブランチ名\n`)[^`]+(?=`$)' || echo "$ISSUE_BODY" | grep -oP '(?<=^ブランチ名: )[^\n]+')
+          echo "Extracted Branch Name: $BRANCH_NAME"
+          echo "branch_name=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Check for Duplicate Branch Name
+        id: check_duplicate
+        if: steps.extract_branch.outputs.branch_name != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH_NAME="${{ steps.extract_branch.outputs.branch_name }}"
+          OWNER="${{ github.repository_owner }}"
+          REPO="${{ github.event.repository.name }}"
+          CURRENT_ISSUE_NUMBER="${{ github.event.issue.number }}"
+
+          # Search for open issues with the same branch name in their body
+          # Exclude the current issue from the search
+          DUPLICATE_ISSUES=$(gh api \
+            --method GET \
+            -H "Accept: application/vnd.github.v3+json" \
+            "/repos/$OWNER/$REPO/issues" \
+            -F state=open \
+            -F per_page=100 \
+            --jq ".[] | select(.number != $CURRENT_ISSUE_NUMBER and (.body | contains(\"ブランチ名: $BRANCH_NAME\") or .body | contains(\"ブランチ名\n`$BRANCH_NAME`\"))) | .number")
+
+          if [ -n "$DUPLICATE_ISSUES" ]; then
+            echo "Duplicate branch name found in issue(s): $DUPLICATE_ISSUES"
+            echo "is_duplicate=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No duplicate branch name found."
+            echo "is_duplicate=false" >> "$GITHUB_OUTPUT"
+          fi
+        shell: bash
+
+      - name: Add Comment and Label if Duplicate
+        if: steps.check_duplicate.outputs.is_duplicate == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_AUTHOR="${{ github.event.issue.user.login }}"
+          ISSUE_NUMBER="${{ github.event.issue.number }}"
+          OWNER="${{ github.repository_owner }}"
+          REPO="${{ github.event.repository.name }}"
+
+          COMMENT_BODY="@$ISSUE_AUTHOR このブランチ名は他のIssueで既に使用されています。変更してください。"
+          
+          # Add comment
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            "/repos/$OWNER/$REPO/issues/$ISSUE_NUMBER/comments" \
+            -F body="$COMMENT_BODY"
+
+          # Add label
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            "/repos/$OWNER/$REPO/issues/$ISSUE_NUMBER/labels" \
+            -F labels[]="branch-conflict"
+        shell: bash
+
+  validate-issue-body:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate Issue Body
+        id: validate
+        run: |
+          ISSUE_BODY="${{ github.event.issue.body }}"
+          ISSUE_AUTHOR="${{ github.event.issue.user.login }}"
+
+          BACKGROUND_SECTION=$(echo "$ISSUE_BODY" | awk \
+            '\
+            BEGIN {found=0}
+            /^### 背景 (Background)/ {found=1; next}
+            found && /^### / {exit}
+            found {print}
+          ' | sed '/^$/d')
+          GOAL_SECTION=$(echo "$ISSUE_BODY" | awk \
+            '\
+            BEGIN {found=0}
+            /^### 目的 (Goal)/ {found=1; next}
+            found && /^### / {exit}
+            found {print}
+          ' | sed '/^$/d')
+          ACCEPTANCE_CRITERIA_SECTION=$(echo "$ISSUE_BODY" | awk \
+            '\
+            BEGIN {found=0}
+            /^### 完了条件 (Acceptance Criteria)/ {found=1; next}
+            found && /^### / {exit}
+            found {print}
+          ' | sed '/^$/d')
+
+          MISSING_FIELDS=""
+
+          if [ -z "$BACKGROUND_SECTION" ]; then
+            MISSING_FIELDS+="背景、"
+          fi
+          if [ -z "$GOAL_SECTION" ]; then
+            MISSING_FIELDS+="目的、"
+          fi
+          if [ -z "$ACCEPTANCE_CRITERIA_SECTION" ]; then
+            MISSING_FIELDS+="完了条件、"
+          fi
+
+          if [ -n "$MISSING_FIELDS" ]; then
+            MISSING_FIELDS=$(echo "$MISSING_FIELDS" | sed 's/、$//') # Remove trailing comma
+            COMMENT_BODY="@$ISSUE_AUTHOR 必須項目（${MISSING_FIELDS}のいずれか）が入力されていません。追記してください。"
+            
+            echo "::error::Missing required fields: ${MISSING_FIELDS}"
+            echo "COMMENT_BODY=$COMMENT_BODY" >> $GITHUB_OUTPUT
+            echo "NEEDS_MORE_INFO=true" >> $GITHUB_OUTPUT
+          else
+            echo "All required fields are present."
+            echo "NEEDS_MORE_INFO=false" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+
+      - name: Add Comment and Label
+        if: steps.validate.outputs.NEEDS_MORE_INFO == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commentBody = process.env.COMMENT_BODY;
+            const issueNumber = context.issue.number;
+            const repoOwner = context.repo.owner;
+            const repoName = context.repo.repo;
+
+            await github.rest.issues.createComment({
+              owner: repoOwner,
+              repo: repoName,
+              issue_number: issueNumber,
+              body: commentBody
+            });
+
+            await github.rest.issues.addLabels({
+              owner: repoOwner,
+              repo: repoName,
+              issue_number: issueNumber,
+              labels: ['needs-more-info']
+            });
+        env:
+          COMMENT_BODY: ${{ steps.validate.outputs.COMMENT_BODY }}

@@ -153,19 +153,28 @@ class TaskService:
             )
         return candidate_issues
 
-    def _sort_issues_by_priority(
-        self, issues: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
-        def get_priority_key(issue: dict[str, Any]) -> int:
-            priorities = [
-                p
-                for label in issue.get("labels", [])
-                if (p := self._get_priority_from_label(label.get("name", "")))
-                is not None
-            ]
-            if not priorities:
-                raise ValueError(f"Issue does not have a priority label: {issue}")
-            return min(priorities)
+    @staticmethod
+    def _sort_issues_by_priority(issues: list[dict]) -> list[dict]:
+        """
+        Issueのリストを優先度ラベルに基づいてソートします。
+        P0 > P1 > P2 の順に優先度が高く、優先度ラベルがないIssueは末尾に配置されます。
+
+        Args:
+            issues (list[dict]): ソート対象のIssueのリスト。
+
+        Returns:
+            list[dict]: 優先度に基づいてソートされたIssueのリスト。
+        """
+
+        def get_priority_key(issue: dict) -> int | float:
+            """Extracts the lowest priority number from an issue's labels."""
+            label_names = (label.get("name", "") for label in issue.get("labels", []))
+            priority_numbers = (
+                int(name[1:])
+                for name in label_names
+                if name.startswith("P") and name[1:].isdigit()
+            )
+            return min(priority_numbers, default=float("inf"))
 
         return sorted(issues, key=get_priority_key)
 
