@@ -47,10 +47,12 @@ class GeminiExecutor:
             with open(prompt_file, encoding="utf-8") as f:
                 prompts = yaml.safe_load(f)
             self.build_prompt_template = prompts["prompt_template"].strip()
+            self.review_fix_prompt_template = prompts["review_fix_prompt_template"].strip()
         except (FileNotFoundError, KeyError) as e:
             logging.error(f"プロンプトファイルの読み込みまたは解析に失敗しました: {e}")
             # フォールバックとして空のテンプレートを設定
             self.build_prompt_template = ""
+            self.review_fix_prompt_template = ""
 
     def build_prompt(self, html_url: str, branch_name: str) -> str:
         """
@@ -66,4 +68,20 @@ class GeminiExecutor:
         return self.build_prompt_template.format(
             html_url=html_url,
             branch_name=branch_name,
+        )
+
+    def build_code_review_prompt(self, pr_url: str, review_comment: str) -> str:
+        """
+        PR情報とレビューコメントに基づいて、コード修正のためのプロンプトを構築します。
+
+        Args:
+            pr_url (str): GitHub Pull RequestのURL。
+            review_comment (str): レビューコメントの内容。
+
+        Returns:
+            str: コード修正のためのプロンプト文字列。
+        """
+        return self.review_fix_prompt_template.format(
+            pr_url=pr_url,
+            review_comment=review_comment,
         )
