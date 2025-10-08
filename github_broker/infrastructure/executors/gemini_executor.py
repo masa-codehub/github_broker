@@ -73,20 +73,27 @@ class GeminiExecutor:
             self.build_prompt_template = ""
             self.review_fix_prompt_template = ""
 
-    def build_prompt(self, html_url: str, branch_name: str) -> str:
+    def build_prompt(
+        self, html_url: str, branch_name: str, pr_url: str | None = None, review_comments: list[str] | None = None
+    ) -> str:
         """
         タスク情報に基づいて、エージェントが実行するためのプロンプトを構築します。
 
         Args:
             html_url (str): GitHub IssueのURL。
             branch_name (str): 作業用のブランチ名。
+            pr_url (Optional[str]): GitHub Pull RequestのURL。
+            review_comments (Optional[list[str]]): レビューコメントのリスト。
 
         Returns:
             str: 実行可能なコマンドを含むプロンプト文字列。
         """
+        formatted_comments = "\n".join(review_comments) if review_comments else "N/A"
         return self.build_prompt_template.format(
             html_url=html_url,
             branch_name=branch_name,
+            pr_url=pr_url if pr_url else "N/A",
+            review_comments=formatted_comments,
         )
 
     def build_code_review_prompt(self, pr_url: str, review_comment: str) -> str:
