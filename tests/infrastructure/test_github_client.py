@@ -531,3 +531,86 @@ def test_update_issue_remove_label_raises_exception(mock_github):
     # Act & Assert
     with pytest.raises(GithubException):
         client.update_issue(issue_id, remove_labels=remove_labels)
+
+
+@pytest.mark.unit
+@patch("github_broker.infrastructure.github_client.Github")
+def test_get_pull_request_info_from_issue_found(mock_github):
+    """get_pull_request_info_from_issueがPRにマッチしたときに正しいPR情報を返すことをテストします。"""
+    # Arrange
+    mock_pr = MagicMock()
+    mock_pr.raw_data = {
+        "number": 1,
+        "html_url": "https://github.com/test/repo/pull/1",
+        "state": "open",
+    }
+
+    mock_search_results = MagicMock()
+    mock_search_results.totalCount = 1
+    mock_search_results.__getitem__.return_value = mock_pr
+
+    mock_github_instance = MagicMock()
+    mock_github_instance.search_issues.return_value = mock_search_results
+    mock_github.return_value = mock_github_instance
+
+    repo_name = "test/repo"
+    client = GitHubClient(repo_name, "fake_token")
+    issue_number = 123
+
+    # Act
+    pr_info = client.get_pull_request_info_from_issue(issue_number)
+
+    # Assert
+    assert pr_info is not None
+    assert pr_info["number"] == 1
+    assert pr_info["html_url"] == "https://github.com/test/repo/pull/1"
+    assert pr_info["state"] == "open"
+    mock_github_instance.search_issues.assert_called_once_with(
+        query=f"repo:{repo_name} is:pr is:open in:body {issue_number}"
+    )
+
+
+@pytest.mark.unit
+@patch("github_broker.infrastructure.github_client.Github")
+def test_get_pull_request_info_from_issue_not_found(mock_github):
+    """get_pull_request_info_from_issueがPRにマッチしない場合にNoneを返すことをテストします。"""
+    # Arrange
+    mock_search_results = MagicMock()
+    mock_search_results.totalCount = 0
+
+    mock_github_instance = MagicMock()
+    mock_github_instance.search_issues.return_value = mock_search_results
+    mock_github.return_value = mock_github_instance
+
+    repo_name = "test/repo"
+    client = GitHubClient(repo_name, "fake_token")
+    issue_number = 123
+
+    # Act
+    pr_info = client.get_pull_request_info_from_issue(issue_number)
+
+    # Assert
+    assert pr_info is None
+    mock_github_instance.search_issues.assert_called_once_with(
+        query=f"repo:{repo_name} is:pr is:open in:body {issue_number}"
+    )
+
+
+@pytest.mark.unit
+@patch("github_broker.infrastructure.github_client.Github")
+def test_get_pull_request_info_from_issue_raises_exception(mock_github):
+    """get_pull_request_info_from_issueがAPI呼び出し失敗時に例外を送出することをテストします。"""
+    # Arrange
+    mock_github_instance = MagicMock()
+    mock_github_instance.search_issues.side_effect = GithubException(
+        status=500, data={}, headers=None
+    )
+    mock_github.return_value = mock_github_instance
+
+    repo_name = "test/repo"
+    client = GitHubClient(repo_name, "fake_token")
+    issue_number = 123
+
+    # Act & Assert
+    with pytest.raises(GithubException):
+        client.get_pull_request_info_from_issue(issue_number)
