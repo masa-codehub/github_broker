@@ -382,7 +382,9 @@ class TaskService:
         """TaskCandidateを作成し、Redisに保存します。"""
         task_candidate = TaskCandidate(issue_id=issue_id, agent_id=agent_id)
         self.redis_client.set_value(
-            f"task_candidate:{issue_id}:{agent_id}", task_candidate.model_dump_json()
+            f"task_candidate:{issue_id}:{agent_id}",
+            task_candidate.model_dump_json(),
+            timeout=86400,
         )
         logger.info(
             f"[issue_id={issue_id}, agent_id={agent_id}] Created task candidate with status {task_candidate.status.value}."
