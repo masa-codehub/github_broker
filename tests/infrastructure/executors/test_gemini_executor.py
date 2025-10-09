@@ -103,3 +103,59 @@ def test_build_natural_language_prompt(executor, mock_prompts):
         )
     )
     assert prompt == expected_prompt
+
+
+@pytest.mark.unit
+def test_init_handles_empty_yaml_file():
+    """__init__が空のYAMLファイルを処理することをテストします。"""
+    # Arrange
+    with (
+        patch("builtins.open", mock_open(read_data="")),
+        patch("yaml.safe_load", return_value=None),
+    ):
+        # Act
+        executor_instance = GeminiExecutor(prompt_file="empty.yml")
+
+        # Assert
+        assert executor_instance.build_prompt_template == ""
+        assert executor_instance.review_fix_prompt_template == ""
+
+
+@pytest.mark.unit
+def test_init_handles_missing_prompt_template_key(mock_prompts):
+    """__init__が'prompt_template'キーの欠損を処理することをテストします。"""
+    # Arrange
+    del mock_prompts["prompt_template"]
+    with (
+        patch("builtins.open", mock_open(read_data=PROMPT_FILE_CONTENT)),
+        patch("yaml.safe_load", return_value=mock_prompts),
+    ):
+        # Act
+        executor_instance = GeminiExecutor(prompt_file="prompts.yml")
+
+        # Assert
+        assert executor_instance.build_prompt_template == ""
+        assert (
+            executor_instance.review_fix_prompt_template
+            == mock_prompts["review_fix_prompt_template"].strip()
+        )
+
+
+@pytest.mark.unit
+def test_init_handles_missing_review_fix_prompt_template_key(mock_prompts):
+    """__init__が'review_fix_prompt_template'キーの欠損を処理することをテストします。"""
+    # Arrange
+    del mock_prompts["review_fix_prompt_template"]
+    with (
+        patch("builtins.open", mock_open(read_data=PROMPT_FILE_CONTENT)),
+        patch("yaml.safe_load", return_value=mock_prompts),
+    ):
+        # Act
+        executor_instance = GeminiExecutor(prompt_file="prompts.yml")
+
+        # Assert
+        assert (
+            executor_instance.build_prompt_template
+            == mock_prompts["prompt_template"].strip()
+        )
+        assert executor_instance.review_fix_prompt_template == ""
