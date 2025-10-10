@@ -85,12 +85,20 @@ def test_init_handles_prompt_file_error():
 
 
 @pytest.mark.unit
-def test_build_natural_language_prompt(executor, mock_prompts):
-    """build_promptが自然言語プロンプトを正しく生成することをテストします"""
+def test_build_prompt_with_pr_and_comments(executor, mock_prompts):
+    """build_promptがPRのURLとレビューコメントを正しく生成することをテストします"""
+    # Arrange
+    pr_url = "https://github.com/example/repo/pull/456"
+    review_comments = ["Comment 1", "Comment 2", "Comment 3"]
+    html_url = "https://github.com/example/repo/issues/123"
+    branch_name = "feature/test"
+
     # Act
     prompt = executor.build_prompt(
-        html_url="https://github.com/example/repo/issues/123",
-        branch_name="feature/test",
+        html_url=html_url,
+        branch_name=branch_name,
+        pr_url=pr_url,
+        review_comments=review_comments,
     )
 
     # Assert
@@ -98,8 +106,37 @@ def test_build_natural_language_prompt(executor, mock_prompts):
         mock_prompts["prompt_template"]
         .strip()
         .format(
-            html_url="https://github.com/example/repo/issues/123",
-            branch_name="feature/test",
+            html_url=html_url,
+            branch_name=branch_name,
+            pr_url=pr_url,
+            review_comments="\n".join(review_comments),
+        )
+    )
+    assert prompt == expected_prompt
+
+
+@pytest.mark.unit
+def test_build_prompt_with_no_pr_or_comments(executor, mock_prompts):
+    """build_promptがPRのURLとレビューコメントがない場合に正しく生成することをテストします"""
+    # Arrange
+    html_url = "https://github.com/example/repo/issues/123"
+    branch_name = "feature/test"
+
+    # Act
+    prompt = executor.build_prompt(
+        html_url=html_url,
+        branch_name=branch_name,
+    )
+
+    # Assert
+    expected_prompt = (
+        mock_prompts["prompt_template"]
+        .strip()
+        .format(
+            html_url=html_url,
+            branch_name=branch_name,
+            pr_url="N/A",
+            review_comments="N/A",
         )
     )
     assert prompt == expected_prompt

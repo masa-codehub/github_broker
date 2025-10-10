@@ -34,4 +34,4 @@ class TaskResponse(BaseModel):
 class TaskCandidate(BaseModel):
     issue_id: int
     agent_id: str
-    status: TaskCandidateStatus = Field(default=TaskCandidateStatus.NEEDS_REVIEW)
+    status: TaskCandidateStatus = Field(default=TaskCandidateStatus.PENDING)
