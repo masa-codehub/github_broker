@@ -1,6 +1,7 @@
 import logging
 
 from github import Github, GithubException
+from github.PullRequest import PullRequest
 
 
 class GitHubClient:
@@ -168,6 +169,41 @@ class GitHubClient:
         except GithubException as e:
             logging.error(
                 f"リポジトリ {self._repo_name} のIssue #{issue_number} に紐づくPRの検索中にエラーが発生しました: {e}"
+            )
+            raise
+
+    def get_pr_for_issue(self, issue_number: int) -> PullRequest | None:
+        """
+        Issue番号に紐づくPull Requestオブジェクトを取得します。
+        """
+        try:
+            query = f"repo:{self._repo_name} is:pr is:open in:body #{issue_number}"
+            prs = self._client.search_issues(query=query)
+            if prs.totalCount == 0:
+                return None
+
+            pr_issue = prs[0]
+            repo = self._client.get_repo(self._repo_name)
+            return repo.get_pull(pr_issue.number)
+        except GithubException as e:
+            logging.error(
+                f"Error getting PR for issue {issue_number} in repo {self._repo_name}: {e}"
+            )
+            raise
+
+    def add_label_to_pr(self, pr_number: int, label: str) -> None:
+        """
+        特定のPull Requestにラベルを追加します。
+        """
+        try:
+            repo = self._client.get_repo(self._repo_name)
+            pr = repo.get_pull(pr_number)
+            issue = repo.get_issue(pr.number)
+            issue.add_to_labels(label)
+            logging.info(f"Added label '{label}' to PR #{pr_number}")
+        except GithubException as e:
+            logging.error(
+                f"Error adding label to PR #{pr_number} in repo {self._repo_name}: {e}"
             )
             raise
 
