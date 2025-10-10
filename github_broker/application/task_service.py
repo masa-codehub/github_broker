@@ -152,12 +152,14 @@ class TaskService:
                 agent_role in labels
                 and "in-progress" not in labels
                 and "needs-review" not in labels
+                and not {"story", "epic"}.intersection(labels)
                 and self._has_priority_label(labels)
             )
             is_review_candidate = (
                 agent_role in labels
                 and "in-progress" not in labels
                 and "needs-review" in labels
+                and not {"story", "epic"}.intersection(labels)
             )
 
             if is_development_candidate or is_review_candidate:
