@@ -3,6 +3,7 @@ import json
 import logging
 import threading
 import time
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from github import GithubException
@@ -32,6 +33,11 @@ class TaskService:
     PRIORITY_MEDIUM_VALUE = 2
     PRIORITY_LOW_VALUE = 1
     PRIORITY_DEFAULT_VALUE = 0
+
+    # Label constants
+    LABEL_NEEDS_REVIEW = "needs-review"
+    LABEL_REVIEW_DONE = "review-done"
+    LABEL_IN_PROGRESS = "in-progress"
 
     def __init__(
         self,
@@ -76,11 +82,72 @@ class TaskService:
 
         logger.info("Polling stopped.")
 
+    def poll_and_process_reviews(self):
+        """
+        'needs-review'ラベルが付いたIssueをポーリングし、関連するPRがタイムアウトした場合に
+        'review-done'ラベルを付与します。
+        """
+        logger.info("Polling for issues needing review...")
+        try:
+            issues_in_review = self.github_client.find_issues_by_labels(
+                labels=[self.LABEL_NEEDS_REVIEW]
+            )
+            logger.info(f"Found {len(issues_in_review)} issues in review.")
+
+            for issue in issues_in_review:
+                issue_id = issue["number"]
+                logger.debug(f"[issue_id={issue_id}] Processing issue in review.")
+                pr = self.github_client.get_pr_for_issue(issue_id)
+
+                if not pr:
+                    logger.warning(
+                        f"[issue_id={issue_id}] No pull request found for issue in review. Skipping."
+                    )
+                    continue
+
+                timeout_minutes = self.settings.REVIEW_TIMEOUT_MINUTES
+                timeout_delta = timedelta(minutes=timeout_minutes)
+                pr_created_at = pr.created_at
+                if pr_created_at.tzinfo is None:
+                    pr_created_at = pr_created_at.replace(tzinfo=UTC)
+                else:
+                    pr_created_at = pr_created_at.astimezone(UTC)
+                time_since_creation = datetime.now(UTC) - pr_created_at
+
+                if time_since_creation > timeout_delta:
+                    logger.info(
+                        f"[issue_id={issue_id}, pr_number={pr.number}] PR has exceeded the review timeout of {timeout_minutes} minutes. Adding 'review-done' label."
+                    )
+                    try:
+                        self.github_client.add_label_to_pr(
+                            pr_number=pr.number, label=self.LABEL_REVIEW_DONE
+                        )
+                        logger.info(
+                            f"[issue_id={issue_id}, pr_number={pr.number}] Successfully added 'review-done' label."
+                        )
+                    except GithubException as e:
+                        logger.error(
+                            f"[issue_id={issue_id}, pr_number={pr.number}] Failed to add 'review-done' label: {e}",
+                            exc_info=True,
+                        )
+                else:
+                    logger.debug(
+                        f"[issue_id={issue_id}, pr_number={pr.number}] PR is within the review timeout. Skipping."
+                    )
+
+        except GithubException as e:
+            logger.error(f"An error occurred during review polling: {e}", exc_info=True)
+        except Exception as e:
+            logger.error(
+                f"An unexpected error occurred during review polling: {e}",
+                exc_info=True,
+            )
+
     def complete_previous_task(self, agent_id: str):
         logger.info("[agent_id=%s] Completing previous task.", agent_id)
         try:
             previous_issues_to_complete = self.github_client.find_issues_by_labels(
-                labels=["in-progress", agent_id]
+                labels=[self.LABEL_IN_PROGRESS, agent_id]
             )
             if not previous_issues_to_complete:
                 logger.info(
@@ -90,8 +157,8 @@ class TaskService:
                 return
 
             for issue in previous_issues_to_complete:
-                remove_labels = ["in-progress", agent_id]
-                add_labels = ["needs-review"]
+                remove_labels = [self.LABEL_IN_PROGRESS, agent_id]
+                add_labels = [self.LABEL_NEEDS_REVIEW]
                 try:
                     self.github_client.update_issue(
                         issue_id=issue["number"],
@@ -150,15 +217,15 @@ class TaskService:
             }
             is_development_candidate = (
                 agent_role in labels
-                and "in-progress" not in labels
-                and "needs-review" not in labels
+                and self.LABEL_IN_PROGRESS not in labels
+                and self.LABEL_NEEDS_REVIEW not in labels
                 and not {"story", "epic"}.intersection(labels)
                 and self._has_priority_label(labels)
             )
             is_review_candidate = (
                 agent_role in labels
-                and "in-progress" not in labels
-                and "needs-review" in labels
+                and self.LABEL_IN_PROGRESS not in labels
+                and self.LABEL_NEEDS_REVIEW in labels
                 and not {"story", "epic"}.intersection(labels)
             )
 
@@ -233,7 +300,7 @@ class TaskService:
                 logger.info(
                     f"[issue_id={task.issue_id}, agent_id={agent_id}] Lock acquired for issue. Assigning task."
                 )
-                self.github_client.add_label(task.issue_id, "in-progress")
+                self.github_client.add_label(task.issue_id, self.LABEL_IN_PROGRESS)
                 self.github_client.add_label(task.issue_id, agent_id)
                 logger.info(
                     f"[issue_id={task.issue_id}, agent_id={agent_id}] Assigned agent to issue."
@@ -263,7 +330,7 @@ class TaskService:
 
                 task_type = (
                     TaskType.REVIEW
-                    if "needs-review" in task.labels
+                    if self.LABEL_NEEDS_REVIEW in task.labels
                     else TaskType.DEVELOPMENT
                 )
                 return TaskResponse(
@@ -285,7 +352,7 @@ class TaskService:
                 try:
                     self.github_client.update_issue(
                         issue_id=task.issue_id,
-                        remove_labels=["in-progress", agent_id],
+                        remove_labels=[self.LABEL_IN_PROGRESS, agent_id],
                     )
                     logger.info(
                         f"[issue_id={task.issue_id}, agent_id={agent_id}] Rolled back labels."

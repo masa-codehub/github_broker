@@ -1,6 +1,7 @@
 import json
 import logging
 import threading
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -31,6 +32,7 @@ def task_service(mock_redis_client, mock_github_client):
     mock_settings.GITHUB_INDEXING_WAIT_SECONDS = 0
     mock_settings.POLLING_INTERVAL_SECONDS = 60
     mock_settings.LONG_POLLING_CHECK_INTERVAL = 5
+    mock_settings.REVIEW_TIMEOUT_MINUTES = 10
 
     mock_gemini_executor_instance = MagicMock(spec=GeminiExecutor)
     mock_gemini_executor_instance.build_prompt.return_value = "Generated Prompt"
@@ -66,6 +68,14 @@ def create_mock_issue(
         "html_url": f"{html_url_base}/{number}",
         "labels": [{"name": label} for label in labels],
     }
+
+
+def create_mock_pr(number, created_at):
+    """テスト用のPull Requestオブジェクトのモックを生成するヘルパー関数。"""
+    mock_pr = MagicMock()
+    mock_pr.number = number
+    mock_pr.created_at = created_at
+    return mock_pr
 
 
 @pytest.mark.unit
@@ -1072,3 +1082,38 @@ def test_create_task_candidate_stores_in_redis(task_service, mock_redis_client):
     assert stored_value["issue_id"] == issue_id
     assert stored_value["agent_id"] == agent_id
     assert stored_value["status"] == "pending"
+
+
+@pytest.mark.unit
+def test_poll_and_process_reviews_adds_label_after_timeout(
+    task_service, mock_github_client
+):
+    """
+    ポーリングサービスが、タイムアウトしたレビュー待ちPRに 'review-done' ラベルを付与することをテストします。
+    """
+    # Arrange
+    issue_in_review = create_mock_issue(
+        number=1, title="In Review", body="", labels=[task_service.LABEL_NEEDS_REVIEW]
+    )
+    mock_github_client.find_issues_by_labels.return_value = [issue_in_review]
+
+    now = datetime.now(UTC)
+    pr_created_time = now - timedelta(
+        minutes=task_service.settings.REVIEW_TIMEOUT_MINUTES + 1
+    )
+    mock_pr = create_mock_pr(number=123, created_at=pr_created_time)
+    mock_github_client.get_pr_for_issue.return_value = mock_pr
+
+    # Act
+    task_service.poll_and_process_reviews()
+
+    # Assert
+    mock_github_client.find_issues_by_labels.assert_called_once_with(
+        labels=[task_service.LABEL_NEEDS_REVIEW]
+    )
+    mock_github_client.get_pr_for_issue.assert_called_once_with(
+        issue_in_review["number"]
+    )
+    mock_github_client.add_label_to_pr.assert_called_once_with(
+        pr_number=mock_pr.number, label=task_service.LABEL_REVIEW_DONE
+    )
