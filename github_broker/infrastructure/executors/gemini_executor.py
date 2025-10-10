@@ -24,17 +24,20 @@ class GeminiExecutor:
         prompt_file: str = "github_broker/infrastructure/prompts/gemini_executor.yml",
     ):
         """
-        Executorを初期化します。
+        Initializes the Executor.
 
         Args:
-            log_dir (Optional[str]): 実行ログを保存するディレクトリ。
-            model (str): 使用するGeminiモデルの名前。
-            prompt_file (str): プロンプトテンプレートが記述されたYAMLファイルのパス。
+            log_dir (Optional[str]): Directory to save execution logs.
+            model (str): Name of the Gemini model to use.
+            prompt_file (str): Path to the YAML file containing prompt templates.
         """
         self.log_dir = log_dir
         self.model = model
         if self.log_dir:
             os.makedirs(self.log_dir, exist_ok=True)
+
+        self.build_prompt_template = ""
+        self.review_fix_prompt_template = ""
 
         try:
             if not os.path.isabs(prompt_file):
@@ -47,30 +50,24 @@ class GeminiExecutor:
                 prompts = yaml.safe_load(f)
 
             if prompts and isinstance(prompts, dict):
-                self.build_prompt_template = prompts.get("prompt_template", "").strip()
-                if not self.build_prompt_template:
-                    logging.warning(
-                        "YAMLファイルに 'prompt_template' キーが見つからないか、値が空です。空のテンプレートを使用します。"
-                    )
-
-                self.review_fix_prompt_template = prompts.get(
-                    "review_fix_prompt_template", ""
-                ).strip()
-                if not self.review_fix_prompt_template:
-                    logging.warning(
-                        "YAMLファイルに 'review_fix_prompt_template' キーが見つからないか、値が空です。空のテンプレートを使用します。"
-                    )
+                prompt_definitions = {
+                    "prompt_template": "build_prompt_template",
+                    "review_fix_prompt_template": "review_fix_prompt_template",
+                }
+                for key, attr_name in prompt_definitions.items():
+                    template = prompts.get(key, "").strip()
+                    setattr(self, attr_name, template)
+                    if not template:
+                        logging.warning(
+                            f"'{key}' not found or empty in the YAML file. Using an empty template."
+                        )
             else:
                 logging.error(
-                    "YAMLファイルが空であるか、または期待される形式ではありません。空のテンプレートを使用します。"
+                    "YAML file is empty or not in the expected format. Using empty templates."
                 )
-                self.build_prompt_template = ""
-                self.review_fix_prompt_template = ""
 
         except FileNotFoundError as e:
-            logging.error(f"プロンプトファイルが見つかりません: {e}")
-            self.build_prompt_template = ""
-            self.review_fix_prompt_template = ""
+            logging.error(f"Prompt file not found: {e}")
 
     def build_prompt(
         self,
