@@ -107,7 +107,12 @@ class TaskService:
 
                 timeout_minutes = self.settings.REVIEW_TIMEOUT_MINUTES
                 timeout_delta = timedelta(minutes=timeout_minutes)
-                time_since_creation = datetime.now(UTC) - pr.created_at
+                pr_created_at = pr.created_at
+                if pr_created_at.tzinfo is None:
+                    pr_created_at = pr_created_at.replace(tzinfo=UTC)
+                else:
+                    pr_created_at = pr_created_at.astimezone(UTC)
+                time_since_creation = datetime.now(UTC) - pr_created_at
 
                 if time_since_creation > timeout_delta:
                     logger.info(

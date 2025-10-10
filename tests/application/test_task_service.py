@@ -791,7 +791,8 @@ async def test_request_task_calls_gemini_executor_execute(
     issue = create_mock_issue(
         number=1,
         title="Test Task",
-        body="""## 成果物\n- test.py""",
+        body="""## 成果物
+- test.py""",
         labels=[agent_role, "P1"],
     )
     mock_redis_client.get_value.return_value = json.dumps([issue])
@@ -1092,7 +1093,7 @@ def test_poll_and_process_reviews_adds_label_after_timeout(
     """
     # Arrange
     issue_in_review = create_mock_issue(
-        number=1, title="In Review", body="", labels=["needs-review"]
+        number=1, title="In Review", body="", labels=[task_service.LABEL_NEEDS_REVIEW]
     )
     mock_github_client.find_issues_by_labels.return_value = [issue_in_review]
 
@@ -1108,11 +1109,11 @@ def test_poll_and_process_reviews_adds_label_after_timeout(
 
     # Assert
     mock_github_client.find_issues_by_labels.assert_called_once_with(
-        labels=["needs-review"]
+        labels=[task_service.LABEL_NEEDS_REVIEW]
     )
     mock_github_client.get_pr_for_issue.assert_called_once_with(
         issue_in_review["number"]
     )
     mock_github_client.add_label_to_pr.assert_called_once_with(
-        pr_number=mock_pr.number, label="review-done"
+        pr_number=mock_pr.number, label=task_service.LABEL_REVIEW_DONE
     )
