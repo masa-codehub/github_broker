@@ -1024,18 +1024,25 @@ def test_find_candidates_by_role_filters_no_priority(task_service):
 
 
 @pytest.mark.unit
-def test_find_candidates_by_role_filters_story_and_epic_labels(task_service):
+@pytest.mark.parametrize(
+    "case, labels",
+    [
+        ("development", ["BACKENDCODER", "P1"]),
+        ("review", ["BACKENDCODER", "needs-review"]),
+    ],
+)
+def test_find_candidates_by_role_filters_story_and_epic_labels(
+    task_service, case, labels
+):
     """_find_candidates_by_roleが'story'または'epic'ラベルを持つIssueを除外することをテストします。"""
     # Arrange
     issue_story = create_mock_issue(
-        number=1, title="Story Issue", body="", labels=["BACKENDCODER", "P1", "story"]
+        number=1, title="Story Issue", body="", labels=labels + ["story"]
     )
     issue_epic = create_mock_issue(
-        number=2, title="Epic Issue", body="", labels=["BACKENDCODER", "P1", "epic"]
+        number=2, title="Epic Issue", body="", labels=labels + ["epic"]
     )
-    issue_task = create_mock_issue(
-        number=3, title="Task Issue", body="", labels=["BACKENDCODER", "P1"]
-    )
+    issue_task = create_mock_issue(number=3, title="Task Issue", body="", labels=labels)
     issues = [issue_story, issue_epic, issue_task]
     agent_role = "BACKENDCODER"
 
