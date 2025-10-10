@@ -74,7 +74,11 @@ class GeminiExecutor:
             self.review_fix_prompt_template = ""
 
     def build_prompt(
-        self, html_url: str, branch_name: str, pr_url: str | None = None, review_comments: list[str] | None = None
+        self,
+        html_url: str,
+        branch_name: str,
+        pr_url: str | None = None,
+        review_comments: list[str] | None = None,
     ) -> str:
         """
         タスク情報に基づいて、エージェントが実行するためのプロンプトを構築します。
