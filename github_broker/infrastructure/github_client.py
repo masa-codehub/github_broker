@@ -246,3 +246,17 @@ class GitHubClient:
                 f"リポジトリ {self._repo_name} のPull Request #{pull_number} のレビューコメント取得中にエラーが発生しました: {e}"
             )
             raise
+
+    def has_pr_label(self, pr_number: int, label: str) -> bool:
+        """
+        特定のPull Requestが指定されたラベルを持っているかを確認します。
+        """
+        try:
+            repo = self._client.get_repo(self._repo_name)
+            pull = repo.get_pull(number=pr_number)
+            return label in [pr_label.name for pr_label in pull.labels]
+        except GithubException as e:
+            logging.error(
+                f"Error checking label '{label}' for PR #{pr_number} in repo {self._repo_name}: {e}"
+            )
+            raise
