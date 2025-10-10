@@ -46,25 +46,24 @@ class GeminiExecutor:
             with open(prompt_file, encoding="utf-8") as f:
                 prompts = yaml.safe_load(f)
 
-            if prompts:
-                try:
-                    self.build_prompt_template = prompts["prompt_template"].strip()
-                except KeyError:
-                    logging.error(
-                        "YAMLファイルに 'prompt_template' キーがありません。空のテンプレートを使用します。"
+            if prompts and isinstance(prompts, dict):
+                self.build_prompt_template = prompts.get("prompt_template", "").strip()
+                if not self.build_prompt_template:
+                    logging.warning(
+                        "YAMLファイルに 'prompt_template' キーが見つからないか、値が空です。空のテンプレートを使用します。"
                     )
-                    self.build_prompt_template = ""
-                try:
-                    self.review_fix_prompt_template = prompts[
-                        "review_fix_prompt_template"
-                    ].strip()
-                except KeyError:
-                    logging.error(
-                        "YAMLファイルに 'review_fix_prompt_template' キーがありません。空のテンプレートを使用します。"
+
+                self.review_fix_prompt_template = prompts.get(
+                    "review_fix_prompt_template", ""
+                ).strip()
+                if not self.review_fix_prompt_template:
+                    logging.warning(
+                        "YAMLファイルに 'review_fix_prompt_template' キーが見つからないか、値が空です。空のテンプレートを使用します。"
                     )
-                    self.review_fix_prompt_template = ""
             else:
-                logging.error("YAMLファイルが空です。空のテンプレートを使用します。")
+                logging.error(
+                    "YAMLファイルが空であるか、または期待される形式ではありません。空のテンプレートを使用します。"
+                )
                 self.build_prompt_template = ""
                 self.review_fix_prompt_template = ""
 
