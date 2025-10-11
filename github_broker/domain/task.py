@@ -10,12 +10,6 @@ class TaskCandidateStatus(Enum):
     NEEDS_REVIEW = "needs_review"
 
 
-class TaskType(Enum):
-    DEVELOPMENT = "development"
-    REVIEW = "review"
-    FIX = "fix"
-
-
 @dataclass
 class Task:
     issue_id: int

@@ -36,6 +36,9 @@ def task_service(mock_redis_client, mock_github_client):
 
     mock_gemini_executor_instance = MagicMock(spec=GeminiExecutor)
     mock_gemini_executor_instance.build_prompt.return_value = "Generated Prompt"
+    mock_gemini_executor_instance.build_code_review_prompt.return_value = (
+        "Generated Code Review Prompt"
+    )
     mock_gemini_executor_instance.execute = AsyncMock(
         return_value="Gemini Executor Output"
     )
@@ -1117,3 +1120,38 @@ def test_poll_and_process_reviews_adds_label_after_timeout(
     mock_github_client.add_label_to_pr.assert_called_once_with(
         pr_number=mock_pr.number, label=task_service.LABEL_REVIEW_DONE
     )
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
+async def test_create_fix_task_creates_task_and_builds_prompt(task_service):
+    """create_fix_taskがプロンプトを生成し、FIXタスクをRedisに保存することをテストします。"""
+    # Arrange
+    pull_request_number = 123
+    review_comments = "Your code needs fixing."
+    pr_url = f"https://github.com/test/repo/pull/{pull_request_number}"
+    generated_prompt = (
+        f"Please fix the code based on the following comments: {review_comments}"
+    )
+    task_service.gemini_executor.build_code_review_prompt.return_value = (
+        generated_prompt
+    )
+
+    # Act
+    await task_service.create_fix_task(pull_request_number, review_comments)
+
+    # Assert
+    task_service.gemini_executor.build_code_review_prompt.assert_called_once_with(
+        pr_url=pr_url, review_comment=review_comments
+    )
+
+    task_service.redis_client.set_value.assert_called_once()
+    call_args, _ = task_service.redis_client.set_value.call_args
+    redis_key = call_args[0]
+    redis_value = json.loads(call_args[1])
+
+    assert redis_key == f"task:fix:{pull_request_number}"
+    assert redis_value["task_type"] == TaskType.FIX.value
+    assert redis_value["title"] == f"Fix task for PR #{pull_request_number}"
+    assert redis_value["body"] == generated_prompt
+    assert redis_value["issue_id"] == pull_request_number

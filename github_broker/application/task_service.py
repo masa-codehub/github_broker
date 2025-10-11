@@ -458,3 +458,34 @@ class TaskService:
         logger.info(
             f"[issue_id={issue_id}, agent_id={agent_id}] Created task candidate with status {task_candidate.status.value}."
         )
+
+    async def create_fix_task(self, pull_request_number: int, review_comments: str):
+        """レビューコメントに基づいて修正タスクを生成し、Redisに保存します。"""
+        logger.info(f"Creating fix task for PR #{pull_request_number}...")
+        try:
+            pr_url = f"https://github.com/{self.repo_name}/pull/{pull_request_number}"
+            prompt = self.gemini_executor.build_code_review_prompt(
+                pr_url=pr_url, review_comment=review_comments
+            )
+
+            task_data = {
+                "issue_id": pull_request_number,
+                "title": f"Fix task for PR #{pull_request_number}",
+                "body": prompt,
+                "html_url": pr_url,
+                "labels": ["fix", "BACKENDCODER"],
+                "task_type": TaskType.FIX.value,
+            }
+
+            redis_key = f"task:fix:{pull_request_number}"
+            self.redis_client.set_value(redis_key, json.dumps(task_data), timeout=86400)
+
+            logger.info(
+                f"Successfully created and stored fix task for PR #{pull_request_number} in Redis key: {redis_key}"
+            )
+
+        except Exception as e:
+            logger.error(
+                f"Failed to create fix task for PR #{pull_request_number}: {e}",
+                exc_info=True,
+            )

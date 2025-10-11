@@ -17,6 +17,7 @@ class AgentTaskRequest(BaseModel):
 class TaskType(str, Enum):
     DEVELOPMENT = "development"
     REVIEW = "review"
+    FIX = "fix"
 
 
 class TaskResponse(BaseModel):

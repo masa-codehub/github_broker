@@ -60,16 +60,3 @@ def test_extract_branch_name(body, expected_branch_name):
     )
     result = task.extract_branch_name()
     assert result == expected_branch_name
-
-
-@pytest.mark.unit
-def test_task_type_enum():
-    """TaskType Enumに必要な値がすべて存在することを確認します。"""
-    # Arrange
-    from github_broker.domain.task import TaskType
-
-    # Assert
-    assert TaskType.DEVELOPMENT.value == "development"
-    assert TaskType.REVIEW.value == "review"
-    assert TaskType.FIX.value == "fix"
-    assert len(TaskType) == 3
