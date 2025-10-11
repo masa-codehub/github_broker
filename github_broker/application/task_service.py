@@ -484,7 +484,9 @@ class TaskService:
             f"[issue_id={issue_id}, agent_id={agent_id}] Created task candidate with status {task_candidate.status.value}."
         )
 
-    async def create_fix_task(self, pull_request_number: int, review_comments: str):
+    async def create_fix_task(
+        self, pull_request_number: int, review_comments: list[str]
+    ):
         """レビューコメントに基づいて修正タスクを生成し、Redisに保存します。"""
         logger.info(f"Creating fix task for PR #{pull_request_number}...")
 
@@ -498,7 +500,7 @@ class TaskService:
 
         pr_url = f"https://github.com/{self.repo_name}/pull/{pull_request_number}"
         prompt = self.gemini_executor.build_code_review_prompt(
-            pr_url=pr_url, review_comment=review_comments
+            pr_url=pr_url, review_comments=review_comments
         )
 
         task_data = {

@@ -34,7 +34,7 @@ class TaskResponse(BaseModel):
 
 class CreateFixTaskRequest(BaseModel):
     pull_request_number: int
-    review_comments: str
+    review_comments: list[str]
 
 
 class TaskCandidate(BaseModel):

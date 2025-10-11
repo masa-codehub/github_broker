@@ -121,7 +121,7 @@ async def test_create_fix_task_endpoint(client, mock_task_service):
     # Arrange
     request_body = {
         "pull_request_number": 123,
-        "review_comments": "This needs a fix.",
+        "review_comments": ["This needs a fix."],
     }
     mock_task_service.create_fix_task.return_value = None
 

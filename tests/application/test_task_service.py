@@ -1128,7 +1128,7 @@ async def test_create_fix_task_creates_task_and_builds_prompt(task_service):
     """create_fix_taskがプロンプトを生成し、FIXタスクをRedisに保存することをテストします。"""
     # Arrange
     pull_request_number = 123
-    review_comments = "Your code needs fixing."
+    review_comments = ["Your code needs fixing."]
     pr_url = f"https://github.com/test/repo/pull/{pull_request_number}"
     generated_prompt = (
         f"Please fix the code based on the following comments: {review_comments}"
@@ -1142,7 +1142,7 @@ async def test_create_fix_task_creates_task_and_builds_prompt(task_service):
 
     # Assert
     task_service.gemini_executor.build_code_review_prompt.assert_called_once_with(
-        pr_url=pr_url, review_comment=review_comments
+        pr_url=pr_url, review_comments=review_comments
     )
 
     task_service.redis_client.set_value.assert_called_once()
