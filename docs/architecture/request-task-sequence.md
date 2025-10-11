@@ -13,6 +13,7 @@ sequenceDiagram
     participant TaskService as TaskService
     participant RedisClient as RedisClient
     participant GitHubClient as GitHubClient
+    participant GeminiExecutor as GeminiExecutor
 
     Worker->>+ApiServer: POST /request-task (agent_id)
     ApiServer->>+TaskService: request_task(agent_id)
@@ -38,6 +39,9 @@ sequenceDiagram
         GitHubClient-->>-TaskService: OK
         TaskService->>+GitHubClient: add_label(issue_id, ["in-progress", "{agent_id}"])
         GitHubClient-->>-TaskService: OK
+
+        TaskService->>+GeminiExecutor: build_prompt(issue_url, branch_name)
+        GeminiExecutor-->>-TaskService: prompt_string
 
         TaskService->>+RedisClient: set_value(agent_current_task:{agent_id}, {issue_id})
         RedisClient-->>-TaskService: OK
@@ -95,8 +99,9 @@ sequenceDiagram
     *   ロック取得と前提条件チェックに成功した最初のIssueが、割り当てタスクとして決定されます。
 6.  **タスク割り当てとレスポンス:**
     *   **GitHub操作:** `GitHubClient`を介して、タスク用のブランチを作成し、Issueに`in-progress`と`[agent_id]`ラベルを付与します。
+    *   **プロンプト生成:** `GeminiExecutor`を呼び出し、IssueのURLやブランチ名などの情報から、エージェントが実行すべきプロンプトを生成します。
     *   **状態保存:** `RedisClient`に、エージェントが現在どのIssueに取り組んでいるか (`agent_current_task:{agent_id}`) を記録します。
-    *   **レスポンス:** 割り当てられたタスク情報（Issue ID, URLなど）を含む`TaskResponse`を生成し、ワーカーエージェントに`200 OK`として返します。
+    *   **レスポンス:** 割り当てられたタスク情報（Issue ID, URL, プロンプトなど）を含む`TaskResponse`を生成し、ワーカーエージェントに`200 OK`として返します。
 
 7.  **タスクなし (ロングポーリング継続):** 初回チェックでタスクが見つからなかった場合、`request_task`は`asyncio.sleep`を挟みながら`_check_for_available_task(is_first_check=False)`の呼び出しを繰り返します。ループ中にタスクが見つかれば、その時点でステップ6に進みます。
 
