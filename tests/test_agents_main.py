@@ -1,6 +1,6 @@
 import os
 import subprocess
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import mock_open, patch
 
 import pytest
 
@@ -84,7 +84,9 @@ def test_main_task_assigned_with_prompt(
         "title": "Test Task",
         "prompt": prompt_content,
     }
-    mock_subprocess_run.return_value = MagicMock(stdout="cli output", stderr="")
+    mock_subprocess_run.return_value = subprocess.CompletedProcess(
+        args=[GEMINI_COMMAND], returncode=0, stdout="cli output", stderr=""
+    )
 
     main(run_once=True)
 
@@ -164,7 +166,9 @@ def test_main_prompt_sanitization_removes_null_bytes(
         "title": "Test Task",
         "prompt": malicious_prompt,
     }
-    mock_subprocess_run.return_value = MagicMock(stdout="cli output", stderr="")
+    mock_subprocess_run.return_value = subprocess.CompletedProcess(
+        args=[GEMINI_COMMAND], returncode=0, stdout="cli output", stderr=""
+    )
 
     main(run_once=True)
 
