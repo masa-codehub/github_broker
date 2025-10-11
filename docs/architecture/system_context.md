@@ -46,7 +46,6 @@ graph TD
         Workers["ワーカー・エージェント群 (クライアント)"]
         GitHub["GitHub (データストア)"]
         GeminiCLI["Gemini CLI"]
-        Gemini["Gemini (LLM)"]
     end
 
     %% システム間の連携
@@ -60,12 +59,12 @@ graph TD
     ApiServer -- "Issueラベル更新 / ブランチ作成" --> GitHub
     ApiServer -- "キャッシュからIssueを取得" --> Redis
     ApiServer -- "Lock / Unlock" --> Redis
+    ApiServer -- "プロンプト生成" --> Gemini
 
     %% ワーカーとの連携
     Workers -- "タスク要求 (APIリクエスト)" --> ApiServer
-    ApiServer -- "タスク割り当て (APIレスポンス)" --> Workers
-    Workers -- "プロンプト生成" --> GeminiCLI
-    GeminiCLI -- "LLM呼び出し" --> Gemini
+    ApiServer -- "プロンプト生成 & タスク割り当て (APIレスポンス)" --> Workers
+    Workers -- "Gemini CLI" --> GeminiCLI
 
     %% ▼▼▼ ここから追加 ▼▼▼
     %% 上下のレイアウトを固定するための、見えないリンク
@@ -104,18 +103,6 @@ graph TD
         }
         ```
       * **成功 (204 No Content):** 割り当てるべき適切なタスクが見つからなかった場合。ボディは空。
-
-#### 4.1. 責務の明確化 (サーバーサイドプロンプト生成)
-
-本アーキテクチャ変更により、プロンプト生成の責務はサーバー側に一元化されます。これにより、クライアントはプロンプト生成ロジックを持つ必要がなくなり、環境依存の問題が解消され、保守性が向上します。
-
-*   **サーバーの責務:**
-    *   Issueの内容、エージェントの役割、過去の対話履歴などに基づき、最適なプロンプト文字列を動的に生成する。
-    *   生成したプロンプトを `/request-task` APIのレスポンスとしてクライアントに提供する。
-
-*   **クライアントの責務:**
-    *   サーバーから受け取ったプロンプト文字列をそのままLLMに渡し、タスクを実行する。
-    *   プロンプト生成ロジックを持たず、サーバーからの指示に従って動作するthin client（シンクライアント）として機能する。
 
 ----
 

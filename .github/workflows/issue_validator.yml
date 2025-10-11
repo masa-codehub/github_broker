@@ -150,7 +150,7 @@ jobs:
             echo "::error::Missing required fields: ${MISSING_FIELDS}"
             echo "COMMENT_BODY=$COMMENT_BODY" >> $GITHUB_OUTPUT
             echo "NEEDS_MORE_INFO=true" >> $GITHUB_OUTPUT
-            exit 1 # Exit with error
+            # exit 1 # Exit with error
           else
             echo "All required fields are present."
             echo "NEEDS_MORE_INFO=false" >> $GITHUB_OUTPUT
@@ -182,3 +182,10 @@ jobs:
             });
         env:
           COMMENT_BODY: ${{ steps.validate.outputs.COMMENT_BODY }}
+
+      - name: Fail Workflow if Needs More Info
+        if: steps.validate.outputs.NEEDS_MORE_INFO == 'true'
+        run: |
+          echo "Validation failed. Required fields are missing."
+          exit 1
+        shell: bash
