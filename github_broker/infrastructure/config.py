@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     TESTING: bool = False
     POLLING_INTERVAL_SECONDS: int = 10 * 60
     LONG_POLLING_CHECK_INTERVAL: int = 5
-    FIX_TASK_REDIS_TIMEOUT: int = 3600
+    FIX_TASK_REDIS_TIMEOUT: int = 86400
     GEMINI_EXECUTOR_PROMPT_FILE: str = (
         "github_broker/infrastructure/prompts/gemini_executor.yml"
     )

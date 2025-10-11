@@ -32,6 +32,11 @@ class TaskResponse(BaseModel):
     gemini_response: str | None = None
 
 
+class CreateFixTaskRequest(BaseModel):
+    pull_request_number: int
+    review_comments: list[str]
+
+
 class TaskCandidate(BaseModel):
     issue_id: int
     agent_id: str
