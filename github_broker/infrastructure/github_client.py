@@ -257,6 +257,6 @@ class GitHubClient:
             return label in [pr_label.name for pr_label in pull.labels]
         except GithubException as e:
             logging.error(
-                f"Error checking label '{label}' for PR #{pr_number} in repo {self._repo_name}: {e}"
+                f"リポジトリ {self._repo_name} のPR #{pr_number} のラベル '{label}' を確認中にエラーが発生しました: {e}"
             )
             raise

@@ -666,3 +666,30 @@ def test_get_pull_request_info_from_issue_raises_exception(mock_github):
     # Act & Assert
     with pytest.raises(GithubException):
         client.get_pull_request_info_from_issue(issue_number)
+
+
+@pytest.mark.unit
+@patch("github_broker.infrastructure.github_client.Github")
+def test_has_pr_label_logs_error_in_japanese(mock_github, caplog):
+    """has_pr_labelが例外発生時に日本語でエラーログを出力することをテストします。"""
+    # Arrange
+    mock_repo = MagicMock()
+    mock_repo.get_pull.side_effect = GithubException(status=500, data={}, headers=None)
+    mock_github_instance = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_github.return_value = mock_github_instance
+
+    repo_name = "test/repo"
+    client = GitHubClient(repo_name, "fake_token")
+    pr_number = 123
+    label = "test-label"
+
+    # Act & Assert
+    with caplog.at_level(logging.ERROR), pytest.raises(GithubException):
+        client.has_pr_label(pr_number, label)
+
+    # Assert
+    assert (
+        "リポジトリ test/repo のPR #123 のラベル 'test-label' を確認中にエラーが発生しました"
+        in caplog.text
+    )

@@ -229,13 +229,6 @@ class TaskService:
                 and not {"story", "epic"}.intersection(labels)
             )
 
-            is_review_candidate = (
-                agent_role in labels
-                and self.LABEL_IN_PROGRESS not in labels
-                and self.LABEL_NEEDS_REVIEW in labels
-                and not {"story", "epic"}.intersection(labels)
-            )
-
             if is_development_candidate:
                 candidate_issues.append(issue)
             elif is_review_candidate:
