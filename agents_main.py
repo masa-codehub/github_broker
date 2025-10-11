@@ -20,6 +20,50 @@ logging.basicConfig(
 # --------------------
 
 
+def _run_update_context_script() -> bool:
+    """
+    コンテキスト更新スクリプトを実行します。
+    成功した場合は True を、失敗した場合は False を返します。
+    """
+    context_script_path = os.path.join(
+        os.path.dirname(__file__), ".build", "update_gemini_context.sh"
+    )
+    try:
+        # ファイルの存在とパーミッションをチェック
+        if not (
+            os.path.isfile(context_script_path)
+            and os.access(context_script_path, os.R_OK)
+        ):
+            logging.error(
+                f"コンテキスト更新スクリプトが存在しないか、読み取り権限がありません: {context_script_path}"
+            )
+            return False
+
+        logging.info(
+            f"コンテキスト更新スクリプト '{context_script_path}' を実行しています..."
+        )
+        result = subprocess.run(
+            ["bash", context_script_path], check=True, capture_output=True, text=True
+        )
+        logging.info("コンテキスト更新スクリプトが正常に実行されました。")
+        if result.stdout:
+            logging.info(f"stdout:\n{result.stdout.strip()}")
+        if result.stderr:
+            logging.warning(f"stderr:\n{result.stderr.strip()}")
+        return True
+    except subprocess.CalledProcessError as e:
+        logging.error(f"コンテキスト更新スクリプトの実行に失敗しました: {e}")
+        logging.error(f"stdout: {e.stdout}")
+        logging.error(f"stderr: {e.stderr}")
+        return False
+    except FileNotFoundError:
+        # FileNotFoundErrorはos.path.isfileで捕捉されるはずだが、念のため残す
+        logging.error(
+            f"コンテキスト更新スクリプトが見つかりません: {context_script_path}"
+        )
+        return False
+
+
 def main(run_once=False):
     # --- エージェントの設定 ---
     agent_id = os.getenv("AGENT_NAME", "sample-agent-001")
@@ -57,24 +101,9 @@ def main(run_once=False):
                 )
 
                 # コンテキスト更新スクリプトの実行
-                context_script_path = os.path.join(
-                    os.path.dirname(__file__),
-                    ".build",
-                    "update_gemini_context.sh",
-                )
-                try:
-                    logging.info(f"コンテキスト更新スクリプト '{context_script_path}' を実行しています...")
-                    subprocess.run(["bash", context_script_path], check=True, capture_output=True, text=True)
-                    logging.info("コンテキスト更新スクリプトが正常に実行されました。")
-                except subprocess.CalledProcessError as e:
-                    logging.error(f"コンテキスト更新スクリプトの実行に失敗しました: {e}")
-                    logging.error(f"stdout: {e.stdout}")
-                    logging.error(f"stderr: {e.stderr}")
-                    # スクリプト実行失敗時はタスク処理を中断し、次のループへ
-                    continue
-                except FileNotFoundError:
-                    logging.error(f"コンテキスト更新スクリプトが見つかりません: {context_script_path}")
-                    # スクリプトが見つからない場合もタスク処理を中断し、次のループへ
+                if not _run_update_context_script():
+                    if run_once:
+                        break
                     continue
 
                 prompt = assigned_task.get("prompt")

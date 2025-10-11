@@ -1,6 +1,6 @@
 import os
 import subprocess
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import ANY, MagicMock, call, mock_open, patch
 
 import pytest
 
@@ -62,7 +62,11 @@ def test_main_no_task_assigned(
 @patch("agents_main.AgentClient")
 @patch("agents_main.shutil.which")
 @patch("agents_main.subprocess.run")
+@patch("agents_main.os.path.isfile", return_value=True)
+@patch("agents_main.os.access", return_value=True)
 def test_main_task_assigned_with_prompt(
+    mock_os_access,
+    mock_os_path_isfile,
     mock_subprocess_run,
     mock_shutil_which,
     mock_agent_client,
@@ -75,7 +79,14 @@ def test_main_task_assigned_with_prompt(
         "title": "Test Task",
         "prompt": prompt_content,
     }
-    mock_subprocess_run.return_value = MagicMock(stdout="cli output", stderr="")
+
+    # 2回の呼び出しをモック
+    mock_subprocess_run.side_effect = [
+        MagicMock(
+            stdout="script output", stderr=""
+        ),  # 1回目: _run_update_context_script
+        MagicMock(stdout="cli output", stderr=""),  # 2回目: gemini command
+    ]
 
     main(run_once=True)
 
@@ -85,20 +96,23 @@ def test_main_task_assigned_with_prompt(
     mock_file_open.assert_called_once_with("context.md", "w", encoding="utf-8")
     mock_file_open().write.assert_called_once_with(prompt_content.strip())
 
-    # Verify subprocess was called correctly
-    mock_subprocess_run.assert_called_once_with(
-        GEMINI_COMMAND,
-        text=True,
-        capture_output=True,
-        check=True,
-        shell=True,
-    )
+    # Verify subprocess was called correctly (2回)
+    expected_calls = [
+        call(["bash", ANY], check=True, capture_output=True, text=True),
+        call(GEMINI_COMMAND, text=True, capture_output=True, check=True, shell=True),
+    ]
+    mock_subprocess_run.assert_has_calls(expected_calls)
+    assert mock_subprocess_run.call_count == 2
 
 
 @patch("agents_main.AgentClient")
 @patch("agents_main.shutil.which")
 @patch("agents_main.subprocess.run")
+@patch("agents_main.os.path.isfile", return_value=True)
+@patch("agents_main.os.access", return_value=True)
 def test_main_task_assigned_without_prompt(
+    mock_os_access,
+    mock_os_path_isfile,
     mock_subprocess_run,
     mock_shutil_which,
     mock_agent_client,
@@ -110,10 +124,17 @@ def test_main_task_assigned_without_prompt(
         "prompt": None,
     }
 
+    # 1回目の呼び出し (_run_update_context_script) のみをモック
+    mock_subprocess_run.return_value = MagicMock(stdout="script output", stderr="")
+
     main(run_once=True)
 
     mock_agent_client.return_value.request_task.assert_called_once()
-    mock_subprocess_run.assert_not_called()
+
+    # _run_update_context_script() の呼び出しのみが行われたことを検証
+    mock_subprocess_run.assert_called_once_with(
+        ["bash", ANY], check=True, capture_output=True, text=True
+    )
 
 
 @patch("agents_main.AgentClient")
@@ -142,7 +163,11 @@ def test_main_exception_handling(
 @patch("agents_main.AgentClient")
 @patch("agents_main.shutil.which")
 @patch("agents_main.subprocess.run")
+@patch("agents_main.os.path.isfile", return_value=True)
+@patch("agents_main.os.access", return_value=True)
 def test_main_prompt_sanitization_removes_null_bytes(
+    mock_os_access,
+    mock_os_path_isfile,
     mock_subprocess_run,
     mock_shutil_which,
     mock_agent_client,
@@ -156,7 +181,14 @@ def test_main_prompt_sanitization_removes_null_bytes(
         "title": "Test Task",
         "prompt": malicious_prompt,
     }
-    mock_subprocess_run.return_value = MagicMock(stdout="cli output", stderr="")
+
+    # 2回の呼び出しをモック
+    mock_subprocess_run.side_effect = [
+        MagicMock(
+            stdout="script output", stderr=""
+        ),  # 1回目: _run_update_context_script
+        MagicMock(stdout="cli output", stderr=""),  # 2回目: gemini command
+    ]
 
     main(run_once=True)
 
@@ -164,20 +196,24 @@ def test_main_prompt_sanitization_removes_null_bytes(
     mock_file_open.assert_called_once_with("context.md", "w", encoding="utf-8")
     mock_file_open().write.assert_called_once_with(expected_safe_prompt.strip())
 
-    mock_subprocess_run.assert_called_once_with(
-        GEMINI_COMMAND,
-        text=True,
-        capture_output=True,
-        check=True,
-        shell=True,
-    )
+    # Verify subprocess was called correctly (2回)
+    expected_calls = [
+        call(["bash", ANY], check=True, capture_output=True, text=True),
+        call(GEMINI_COMMAND, text=True, capture_output=True, check=True, shell=True),
+    ]
+    mock_subprocess_run.assert_has_calls(expected_calls)
+    assert mock_subprocess_run.call_count == 2
 
 
 @patch("agents_main.AgentClient")
 @patch("agents_main.shutil.which")
 @patch("agents_main.subprocess.run")
 @patch("agents_main.logging.error")
+@patch("agents_main.os.path.isfile", return_value=True)
+@patch("agents_main.os.access", return_value=True)
 def test_main_subprocess_called_process_error(
+    mock_os_access,
+    mock_os_path_isfile,
     mock_logging_error,
     mock_subprocess_run,
     mock_shutil_which,
@@ -189,12 +225,19 @@ def test_main_subprocess_called_process_error(
         "title": "Test Task",
         "prompt": "test prompt",
     }
-    mock_subprocess_run.side_effect = subprocess.CalledProcessError(
-        returncode=1, cmd=GEMINI_COMMAND, output="", stderr="cli error"
-    )
+
+    # 1回目: _run_update_context_script は成功
+    # 2回目: gemini command は失敗
+    mock_subprocess_run.side_effect = [
+        MagicMock(stdout="script output", stderr=""),
+        subprocess.CalledProcessError(
+            returncode=1, cmd=GEMINI_COMMAND, output="", stderr="cli error"
+        ),
+    ]
 
     main(run_once=True)
 
+    # gemini cli の実行失敗時のエラーメッセージを検証
     mock_logging_error.assert_any_call(
         f"gemini cli の実行中にエラーが発生しました: Command '{GEMINI_COMMAND}' returned non-zero exit status 1."
     )
@@ -205,7 +248,11 @@ def test_main_subprocess_called_process_error(
 @patch("agents_main.AgentClient")
 @patch("agents_main.shutil.which")
 @patch("agents_main.subprocess.run")
+@patch("agents_main.os.path.isfile", return_value=True)
+@patch("agents_main.os.access", return_value=True)
 def test_main_run_once_true_exits_after_task(
+    mock_os_access,
+    mock_os_path_isfile,
     mock_subprocess_run,
     mock_shutil_which,
     mock_agent_client,
@@ -216,8 +263,18 @@ def test_main_run_once_true_exits_after_task(
         "title": "Test Task",
         "prompt": "test prompt",
     }
+
+    # 2回の呼び出しをモック
+    mock_subprocess_run.side_effect = [
+        MagicMock(
+            stdout="script output", stderr=""
+        ),  # 1回目: _run_update_context_script
+        MagicMock(stdout="cli output", stderr=""),  # 2回目: gemini command
+    ]
+
     main(run_once=True)
     mock_agent_client.return_value.request_task.assert_called_once()
+    assert mock_subprocess_run.call_count == 2
 
 
 @patch("agents_main.AgentClient")
@@ -246,3 +303,43 @@ def test_main_run_once_true_exits_on_exception(
     mock_agent_client.return_value.request_task.side_effect = Exception("Test Error")
     main(run_once=True)
     mock_agent_client.return_value.request_task.assert_called_once()
+
+
+@patch("agents_main.AgentClient")
+@patch("agents_main.shutil.which")
+@patch("agents_main.subprocess.run")
+@patch("agents_main.os.path.isfile")
+@patch("agents_main.os.access")
+def test_main_context_script_fails_breaks_run_once(
+    mock_os_access,
+    mock_os_path_isfile,
+    mock_subprocess_run,
+    mock_shutil_which,
+    mock_agent_client,
+):
+    # Arrange
+    mock_shutil_which.return_value = "/usr/bin/gemini"
+    # request_taskが呼ばれた回数を検証するために、side_effectは使わず、request_taskのモックを直接検証する
+    mock_agent_client.return_value.request_task.return_value = {
+        "issue_id": 1,
+        "title": "Test Task",
+        "prompt": "test prompt",
+    }
+
+    # スクリプトの存在はOKだが、実行に失敗するケースをシミュレート
+    mock_os_path_isfile.return_value = True
+    mock_os_access.return_value = True
+    mock_subprocess_run.side_effect = subprocess.CalledProcessError(
+        returncode=1, cmd="bash script", output="", stderr="script error"
+    )
+
+    # Act
+    main(run_once=True)
+
+    # Assert
+    # 1回目の request_task は呼ばれる
+    mock_agent_client.return_value.request_task.assert_called_once()
+    # subprocess.run は呼ばれる
+    mock_subprocess_run.assert_called_once()
+    # 2回目の request_task は呼ばれない (breakしたため)
+    assert mock_agent_client.return_value.request_task.call_count == 1
