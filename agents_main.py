@@ -13,6 +13,10 @@ NO_TASK_SLEEP_SECONDS = 30 * 60  # 30分
 ERROR_SLEEP_SECONDS = 60 * 60  # 60分
 # --------------------------
 
+# --- コンテキスト更新スクリプトのパス ---
+CONTEXT_UPDATE_SCRIPT_PATH = os.path.join(".build", "update_gemini_context.sh")
+# ----------------------------------------
+
 # --- ロギング設定 ---
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -27,7 +31,7 @@ def _run_update_context_script() -> bool:
     """
     # agents_main.pyはプロジェクトルート直下にあるため、os.path.dirname(__file__)は/appを指す
     context_script_path = os.path.join(
-        os.path.dirname(__file__), ".build", "update_gemini_context.sh"
+        os.path.dirname(__file__), CONTEXT_UPDATE_SCRIPT_PATH
     )
     try:
         logging.info(
