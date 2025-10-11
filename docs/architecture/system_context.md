@@ -46,7 +46,6 @@ graph TD
         Workers["ワーカー・エージェント群 (クライアント)"]
         GitHub["GitHub (データストア)"]
         GeminiCLI["Gemini CLI"]
-        Gemini["Gemini (LLM)"]
     end
 
     %% システム間の連携
@@ -61,12 +60,10 @@ graph TD
     ApiServer -- "キャッシュからIssueを取得" --> Redis
     ApiServer -- "Lock / Unlock" --> Redis
 
-    %% APIサーバーの連携
-    ApiServer -- "プロンプト生成" --> Gemini
-
     %% ワーカーとの連携
     Workers -- "タスク要求 (APIリクエスト)" --> ApiServer
     ApiServer -- "プロンプト生成 & タスク割り当て (APIレスポンス)" --> Workers
+    Workers -- "Gemini CLI" --> GeminiCLI
 
     %% ▼▼▼ ここから追加 ▼▼▼
     %% 上下のレイアウトを固定するための、見えないリンク
