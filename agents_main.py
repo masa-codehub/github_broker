@@ -56,6 +56,27 @@ def main(run_once=False):
                     f"新しいタスクが割り当てられました: #{assigned_task.get('issue_id')} - {assigned_task.get('title')}"
                 )
 
+                # コンテキスト更新スクリプトの実行
+                context_script_path = os.path.join(
+                    os.path.dirname(__file__),
+                    ".build",
+                    "update_gemini_context.sh",
+                )
+                try:
+                    logging.info(f"コンテキスト更新スクリプト '{context_script_path}' を実行しています...")
+                    subprocess.run(["bash", context_script_path], check=True, capture_output=True, text=True)
+                    logging.info("コンテキスト更新スクリプトが正常に実行されました。")
+                except subprocess.CalledProcessError as e:
+                    logging.error(f"コンテキスト更新スクリプトの実行に失敗しました: {e}")
+                    logging.error(f"stdout: {e.stdout}")
+                    logging.error(f"stderr: {e.stderr}")
+                    # スクリプト実行失敗時はタスク処理を中断し、次のループへ
+                    continue
+                except FileNotFoundError:
+                    logging.error(f"コンテキスト更新スクリプトが見つかりません: {context_script_path}")
+                    # スクリプトが見つからない場合もタスク処理を中断し、次のループへ
+                    continue
+
                 prompt = assigned_task.get("prompt")
                 if prompt:
                     logging.info("プロンプトを実行しています...")
