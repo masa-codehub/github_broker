@@ -1155,3 +1155,103 @@ async def test_create_fix_task_creates_task_and_builds_prompt(task_service):
     assert redis_value["title"] == f"Fix task for PR #{pull_request_number}"
     assert redis_value["body"] == generated_prompt
     assert redis_value["issue_id"] == pull_request_number
+
+
+@pytest.mark.unit
+def test_find_candidates_by_role_review_candidate_with_review_done_pr(
+    task_service, mock_github_client
+):
+    """
+    _find_candidates_by_roleが、needs-reviewラベルとreview-doneラベルを持つPRを持つIssueを
+    レビュー候補として正しく選択することをテストします。
+    """
+    # Arrange
+    issue_review = create_mock_issue(
+        number=1,
+        title="Review Task",
+        body="",
+        labels=["BACKENDCODER", task_service.LABEL_NEEDS_REVIEW],
+    )
+    issues = [issue_review]
+    agent_role = "BACKENDCODER"
+
+    mock_pr = MagicMock()
+    mock_pr.number = 101
+    mock_github_client.get_pr_for_issue.return_value = mock_pr
+    mock_github_client.has_pr_label.return_value = True  # PR has review-done label
+
+    # Act
+    candidates = task_service._find_candidates_by_role(issues, agent_role)
+
+    # Assert
+    assert len(candidates) == 1
+    assert candidates[0]["number"] == issue_review["number"]
+    mock_github_client.get_pr_for_issue.assert_called_once_with(issue_review["number"])
+    mock_github_client.has_pr_label.assert_called_once_with(
+        mock_pr.number, task_service.LABEL_REVIEW_DONE
+    )
+
+
+@pytest.mark.unit
+def test_find_candidates_by_role_review_candidate_without_review_done_pr(
+    task_service, mock_github_client
+):
+    """
+    _find_candidates_by_roleが、needs-reviewラベルを持つがreview-doneラベルがないPRを持つIssueを
+    レビュー候補として選択しないことをテストします。
+    """
+    # Arrange
+    issue_review = create_mock_issue(
+        number=1,
+        title="Review Task",
+        body="",
+        labels=["BACKENDCODER", task_service.LABEL_NEEDS_REVIEW],
+    )
+    issues = [issue_review]
+    agent_role = "BACKENDCODER"
+
+    mock_pr = MagicMock()
+    mock_pr.number = 101
+    mock_github_client.get_pr_for_issue.return_value = mock_pr
+    mock_github_client.has_pr_label.return_value = (
+        False  # PR does NOT have review-done label
+    )
+
+    # Act
+    candidates = task_service._find_candidates_by_role(issues, agent_role)
+
+    # Assert
+    assert len(candidates) == 0
+    mock_github_client.get_pr_for_issue.assert_called_once_with(issue_review["number"])
+    mock_github_client.has_pr_label.assert_called_once_with(
+        mock_pr.number, task_service.LABEL_REVIEW_DONE
+    )
+
+
+@pytest.mark.unit
+def test_find_candidates_by_role_review_candidate_no_pr_found(
+    task_service, mock_github_client
+):
+    """
+    _find_candidates_by_roleが、needs-reviewラベルを持つが関連するPRが見つからないIssueを
+    レビュー候補として選択しないことをテストします。
+    """
+    # Arrange
+    issue_review = create_mock_issue(
+        number=1,
+        title="Review Task",
+        body="",
+        labels=["BACKENDCODER", task_service.LABEL_NEEDS_REVIEW],
+    )
+    issues = [issue_review]
+    agent_role = "BACKENDCODER"
+
+    mock_github_client.get_pr_for_issue.return_value = None  # No PR found
+
+    # Act
+    candidates = task_service._find_candidates_by_role(issues, agent_role)
+
+    # Assert
+    assert len(candidates) == 0
+    mock_github_client.get_pr_for_issue.assert_called_once_with(issue_review["number"])
+    mock_github_client.has_pr_label.assert_not_called()  # has_pr_label should not be called if no PR
