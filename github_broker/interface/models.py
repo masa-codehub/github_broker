@@ -17,6 +17,7 @@ class AgentTaskRequest(BaseModel):
 class TaskType(str, Enum):
     DEVELOPMENT = "development"
     REVIEW = "review"
+    FIX = "fix"
 
 
 class TaskResponse(BaseModel):
@@ -29,6 +30,11 @@ class TaskResponse(BaseModel):
     prompt: str
     task_type: TaskType = TaskType.DEVELOPMENT
     gemini_response: str | None = None
+
+
+class CreateFixTaskRequest(BaseModel):
+    pull_request_number: int
+    review_comments: str
 
 
 class TaskCandidate(BaseModel):

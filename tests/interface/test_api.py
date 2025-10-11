@@ -24,6 +24,7 @@ def mock_task_service():
     """TaskServiceの依存関係をモックするためのフィクスチャ。"""
     mock_service = MagicMock(spec=TaskService)
     mock_service.request_task = AsyncMock()
+    mock_service.create_fix_task = AsyncMock()
     app.dependency_overrides[get_task_service] = lambda: mock_service
     yield mock_service
     # ティアダウン：オーバーライドをクリーンアップ
@@ -110,4 +111,27 @@ async def test_request_task_lock_error(client, mock_task_service):
         agent_id=request_body["agent_id"],
         agent_role=request_body["agent_role"],
         timeout=120,
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
+async def test_create_fix_task_endpoint(client, mock_task_service):
+    """/tasks/fixエンドポイントがTaskService.create_fix_taskを呼び出すことをテストします。"""
+    # Arrange
+    request_body = {
+        "pull_request_number": 123,
+        "review_comments": "This needs a fix.",
+    }
+    mock_task_service.create_fix_task.return_value = None
+
+    # Act
+    response = client.post("/tasks/fix", json=request_body)
+
+    # Assert
+    assert response.status_code == 202
+    assert response.json() == {"message": "Fix task creation has been accepted."}
+    mock_task_service.create_fix_task.assert_awaited_once_with(
+        pull_request_number=request_body["pull_request_number"],
+        review_comments=request_body["review_comments"],
     )
