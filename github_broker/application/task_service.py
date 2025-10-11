@@ -229,8 +229,25 @@ class TaskService:
                 and not {"story", "epic"}.intersection(labels)
             )
 
-            if is_development_candidate or is_review_candidate:
+            if is_development_candidate:
                 candidate_issues.append(issue)
+            elif is_review_candidate:
+                issue_id = issue.get("number")
+                if issue_id is None:
+                    logger.warning(
+                        f"Issue with missing number found: {issue}. Skipping."
+                    )
+                    continue
+
+                pr = self.github_client.get_pr_for_issue(issue_id)
+                if pr and self.github_client.has_pr_label(
+                    pr.number, self.LABEL_REVIEW_DONE
+                ):
+                    candidate_issues.append(issue)
+                else:
+                    logger.info(
+                        f"[issue_id={issue_id}] Skipping review candidate because no associated PR with '{self.LABEL_REVIEW_DONE}' label was found."
+                    )
 
         if not candidate_issues:
             logger.info(
