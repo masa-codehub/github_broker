@@ -62,7 +62,7 @@ def test_settings_uses_default_values():
     assert settings.REDIS_PORT == 6379
     assert settings.REDIS_DB == 0
     assert settings.TESTING is False
-    assert settings.POLLING_INTERVAL_SECONDS == 300
+    assert settings.POLLING_INTERVAL_SECONDS == 5 * 60
 
 
 @pytest.mark.unit
