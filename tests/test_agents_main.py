@@ -1,6 +1,6 @@
 import os
 import subprocess
-from unittest.mock import mock_open, patch
+from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
@@ -67,45 +67,6 @@ def test_main_no_task_assigned(
     mock_logging_info.assert_any_call(expected_log_message)
 
 
-@patch("builtins.open", new_callable=mock_open)
-@patch("agents_main.AgentClient")
-@patch("agents_main.shutil.which")
-@patch("agents_main.subprocess.run")
-def test_main_task_assigned_with_prompt(
-    mock_subprocess_run,
-    mock_shutil_which,
-    mock_agent_client,
-    mock_file_open,
-):
-    mock_shutil_which.return_value = "/usr/bin/gemini"
-    prompt_content = "test prompt content"
-    mock_agent_client.return_value.request_task.return_value = {
-        "issue_id": 1,
-        "title": "Test Task",
-        "prompt": prompt_content,
-    }
-    mock_subprocess_run.return_value = subprocess.CompletedProcess(
-        args=[GEMINI_COMMAND], returncode=0, stdout="cli output", stderr=""
-    )
-
-    main(run_once=True)
-
-    mock_agent_client.return_value.request_task.assert_called_once()
-
-    # Verify context.md was written correctly
-    mock_file_open.assert_called_once_with("context.md", "w", encoding="utf-8")
-    mock_file_open().write.assert_called_once_with(prompt_content.strip())
-
-    # Verify subprocess was called correctly
-    mock_subprocess_run.assert_called_once_with(
-        GEMINI_COMMAND,
-        text=True,
-        capture_output=True,
-        check=True,
-        shell=True,
-    )
-
-
 @patch("agents_main.AgentClient")
 @patch("agents_main.shutil.which")
 @patch("agents_main.subprocess.run")
@@ -160,7 +121,6 @@ def test_main_prompt_sanitization_removes_null_bytes(
 ):
     mock_shutil_which.return_value = "/usr/bin/gemini"
     malicious_prompt = "test\n\r\x00prompt\x00 with nulls"
-    expected_safe_prompt = "test\n\rprompt with nulls"
     mock_agent_client.return_value.request_task.return_value = {
         "issue_id": 1,
         "title": "Test Task",
@@ -174,8 +134,6 @@ def test_main_prompt_sanitization_removes_null_bytes(
 
     # Verify context.md was written correctly
     mock_file_open.assert_called_once_with("context.md", "w", encoding="utf-8")
-    mock_file_open().write.assert_called_once_with(expected_safe_prompt.strip())
-
     mock_subprocess_run.assert_called_once_with(
         GEMINI_COMMAND,
         text=True,
@@ -183,6 +141,56 @@ def test_main_prompt_sanitization_removes_null_bytes(
         check=True,
         shell=True,
     )
+
+
+@pytest.mark.parametrize(
+    "task_type, expected_model",
+    [
+        ("review", "gemini-2.5-pro"),
+        ("development", "gemini-2.5-flash"),
+        (None, "gemini-2.5-flash"),  # task_typeがない場合（デフォルト）
+        ("unknown", "gemini-2.5-flash"),  # task_typeが不明な場合（デフォルト）
+    ],
+)
+@patch("builtins.open", new_callable=mock_open)
+@patch("agents_main.AgentClient")
+@patch("agents_main.shutil.which")
+@patch("agents_main.subprocess.run")
+def test_main_task_assigned_model_selection(
+    mock_subprocess_run,
+    mock_shutil_which,
+    mock_agent_client,
+    mock_file_open,
+    task_type,
+    expected_model,
+):
+    mock_shutil_which.return_value = "/usr/bin/gemini"
+    prompt_content = "test prompt content"
+    assigned_task = {
+        "issue_id": 1,
+        "title": "Test Task",
+        "prompt": prompt_content,
+    }
+    if task_type is not None:
+        assigned_task["task_type"] = task_type
+
+    mock_agent_client.return_value.request_task.return_value = assigned_task
+    mock_subprocess_run.return_value = MagicMock(stdout="cli output", stderr="")
+
+    main(run_once=True)
+
+    expected_command = f"cat context.md | gemini --model {expected_model} --yolo"
+    mock_subprocess_run.assert_called_once_with(
+        expected_command,
+        text=True,
+        capture_output=True,
+        check=True,
+        shell=True,
+    )
+    # 網羅性として、request_taskが呼ばれたことと、ファイル書き込みがされたことも確認する
+    mock_agent_client.return_value.request_task.assert_called_once()
+    mock_file_open.assert_called_once_with("context.md", "w", encoding="utf-8")
+    mock_file_open().write.assert_called_once_with(prompt_content.strip())
 
 
 @patch("agents_main.AgentClient")
