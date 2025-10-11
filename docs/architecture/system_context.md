@@ -45,6 +45,7 @@ graph TD
         Human["人間 (管理者/レビュー担当)"]
         Workers["ワーカー・エージェント群 (クライアント)"]
         GitHub["GitHub (データストア)"]
+        GeminiCLI["Gemini CLI"]
         Gemini["Gemini (LLM)"]
     end
 
@@ -59,11 +60,12 @@ graph TD
     ApiServer -- "Issueラベル更新 / ブランチ作成" --> GitHub
     ApiServer -- "キャッシュからIssueを取得" --> Redis
     ApiServer -- "Lock / Unlock" --> Redis
-    ApiServer -- "プロンプト生成" --> Gemini
 
     %% ワーカーとの連携
     Workers -- "タスク要求 (APIリクエスト)" --> ApiServer
-    ApiServer -- "プロンプト生成 & タスク割り当て (APIレスポンス)" --> Workers
+    ApiServer -- "タスク割り当て (APIレスポンス)" --> Workers
+    Workers -- "プロンプト生成" --> GeminiCLI
+    GeminiCLI -- "LLM呼び出し" --> Gemini
 
     %% ▼▼▼ ここから追加 ▼▼▼
     %% 上下のレイアウトを固定するための、見えないリンク
