@@ -19,6 +19,11 @@ logging.basicConfig(
 )
 # --------------------
 
+# --- デフォルト値 ---
+DEFAULT_TASK_TYPE = "development"
+DEFAULT_REQUIRED_ROLE = "BACKENDCODER"
+# --------------------
+
 
 def main(run_once=False):
     # --- エージェントの設定 ---
@@ -58,25 +63,48 @@ def main(run_once=False):
 
                 prompt = assigned_task.get("prompt")
                 if prompt:
-                    logging.info("プロンプトを実行しています...")
-                    try:
-                        # promptからnull文字のみを削除
-                        safe_prompt = re.sub(r"[\x00]+", "", prompt).strip()
+                    # タスクタイプと必須ロールを取得し、使用するGeminiモデルを決定
+                    task_type = assigned_task.get("task_type", DEFAULT_TASK_TYPE)
+                    required_role = assigned_task.get(
+                        "required_role", DEFAULT_REQUIRED_ROLE
+                    )
 
-                        # context.mdにsafe_promptを書き込む
+                    if task_type == "review":
+                        gemini_model = "gemini-2.5-pro"
+                    else:
+                        # development またはその他のタスクタイプ
+                        gemini_model = "gemini-2.5-flash"
+
+                    logging.info(
+                        f"タスクタイプ: {task_type}, 必須ロール: {required_role}, 使用モデル: {gemini_model}"
+                    )
+
+                    try:
+                        # 1. コンテキスト更新スクリプトの実行
+                        # エージェントの役割に応じて、LLMに渡すコンテキストを更新する
+                        logging.info("コンテキスト更新スクリプトを実行しています...")
+                        env = os.environ.copy()
+                        env["AGENT_ROLE"] = required_role
+                        subprocess.run(
+                            ["/app/.build/update_gemini_context.sh"],
+                            text=True,
+                            check=True,
+                            capture_output=True,
+                            env=env,
+                        )
+                        logging.info("コンテキスト更新完了。")
+
+                        # 2. プロンプトの書き込み
+                        safe_prompt = re.sub(r"[\x00]+", "", prompt).strip()
                         with open("context.md", "w", encoding="utf-8") as f:
                             f.write(safe_prompt)
 
-                        # geminiコマンドを実行
-                        task_type = assigned_task.get("task_type")
-                        model_map = {
-                            "review": "gemini-2.5-pro",
-                            "development": "gemini-2.5-flash",
-                        }
-                        model = model_map.get(task_type, "gemini-2.5-flash")
+                        # 3. geminiコマンドの実行
+                        command = (
+                            f"cat context.md | gemini --model {gemini_model} --yolo"
+                        )
 
-                        command = f"cat context.md | gemini --model {model} --yolo"
-
+                        logging.info(f"プロンプトを実行しています: {command}")
                         result = subprocess.run(
                             command,
                             text=True,
@@ -90,9 +118,15 @@ def main(run_once=False):
                                 f"gemini cli 実行結果 (stderr):\n{result.stderr}"
                             )
                     except subprocess.CalledProcessError as e:
-                        logging.error(f"gemini cli の実行中にエラーが発生しました: {e}")
+                        logging.error(
+                            f"コマンド '{e.cmd}' の実行中にエラーが発生しました: {e}"
+                        )
                         logging.error(f"stdout: {e.stdout}")
                         logging.error(f"stderr: {e.stderr}")
+                    except Exception as e:
+                        logging.error(
+                            f"タスク実行中に予期せぬエラーが発生しました: {e}"
+                        )
                 else:
                     logging.warning(
                         "割り当てられたタスクにプロンプトが含まれていません。"
