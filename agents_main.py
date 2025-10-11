@@ -68,9 +68,14 @@ def main(run_once=False):
                             f.write(safe_prompt)
 
                         # geminiコマンドを実行
-                        command = (
-                            "cat context.md | gemini --model gemini-2.5-flash --yolo"
-                        )
+                        task_type = assigned_task.get("task_type")
+                        model_map = {
+                            "review": "gemini-2.5-pro",
+                            "development": "gemini-2.5-flash",
+                        }
+                        model = model_map.get(task_type, "gemini-2.5-flash")
+
+                        command = f"cat context.md | gemini --model {model} --yolo"
 
                         result = subprocess.run(
                             command,
