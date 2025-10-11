@@ -256,66 +256,43 @@ def test_main_run_once_true_exits_on_exception(
     mock_agent_client.return_value.request_task.assert_called_once()
 
 
+@pytest.mark.parametrize(
+    "task_result, expected_sleep_seconds",
+    [
+        (
+            {"issue_id": 1, "title": "Test Task", "prompt": "test prompt"},
+            SUCCESS_SLEEP_SECONDS,
+        ),
+        (None, NO_TASK_SLEEP_SECONDS),
+        (Exception("Test Error"), ERROR_SLEEP_SECONDS),
+    ],
+    ids=["success", "no_task", "error"],
+)
 @patch("agents_main.time.sleep")
 @patch("agents_main.AgentClient")
 @patch("agents_main.shutil.which")
 @patch("agents_main.subprocess.run")
-def test_main_calls_sleep_on_success(
+def test_main_calls_sleep_in_loop(
     mock_subprocess_run,
     mock_shutil_which,
     mock_agent_client,
     mock_sleep,
+    task_result,
+    expected_sleep_seconds,
 ):
     mock_shutil_which.return_value = "/usr/bin/gemini"
-    mock_agent_client.return_value.request_task.return_value = {
-        "issue_id": 1,
-        "title": "Test Task",
-        "prompt": "test prompt",
-    }
-    mock_subprocess_run.return_value = MagicMock(stdout="cli output", stderr="")
+    if isinstance(task_result, Exception):
+        mock_agent_client.return_value.request_task.side_effect = task_result
+    else:
+        mock_agent_client.return_value.request_task.return_value = task_result
+
+    # モックの改善: MagicMock -> subprocess.CompletedProcess
+    mock_subprocess_run.return_value = subprocess.CompletedProcess(
+        args=["gemini"], returncode=0, stdout="cli output", stderr=""
+    )
     mock_sleep.side_effect = SystemExit  # sleepが呼ばれたら終了
 
     with pytest.raises(SystemExit):
         main(run_once=False)
 
-    mock_sleep.assert_called_once_with(SUCCESS_SLEEP_SECONDS)
-
-
-@patch("agents_main.time.sleep")
-@patch("agents_main.AgentClient")
-@patch("agents_main.shutil.which")
-@patch("agents_main.subprocess.run")
-def test_main_calls_sleep_on_no_task(
-    mock_subprocess_run,
-    mock_shutil_which,
-    mock_agent_client,
-    mock_sleep,
-):
-    mock_shutil_which.return_value = "/usr/bin/gemini"
-    mock_agent_client.return_value.request_task.return_value = None  # タスクなし
-    mock_sleep.side_effect = SystemExit  # sleepが呼ばれたら終了
-
-    with pytest.raises(SystemExit):
-        main(run_once=False)
-
-    mock_sleep.assert_called_once_with(NO_TASK_SLEEP_SECONDS)
-
-
-@patch("agents_main.time.sleep")
-@patch("agents_main.AgentClient")
-@patch("agents_main.shutil.which")
-@patch("agents_main.subprocess.run")
-def test_main_calls_sleep_on_error(
-    mock_subprocess_run,
-    mock_shutil_which,
-    mock_agent_client,
-    mock_sleep,
-):
-    mock_shutil_which.return_value = "/usr/bin/gemini"
-    mock_agent_client.return_value.request_task.side_effect = Exception("Test Error")
-    mock_sleep.side_effect = SystemExit  # sleepが呼ばれたら終了
-
-    with pytest.raises(SystemExit):
-        main(run_once=False)
-
-    mock_sleep.assert_called_once_with(ERROR_SLEEP_SECONDS)
+    mock_sleep.assert_called_once_with(expected_sleep_seconds)
