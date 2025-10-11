@@ -4,7 +4,11 @@ from fastapi import APIRouter, Depends, Response, status
 
 from github_broker.application.task_service import TaskService
 from github_broker.infrastructure.di_container import get_container
-from github_broker.interface.models import AgentTaskRequest, TaskResponse
+from github_broker.interface.models import (
+    AgentTaskRequest,
+    CreateFixTaskRequest,
+    TaskResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,3 +43,18 @@ async def request_task_endpoint(
     if task:
         return task
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/tasks/fix", status_code=status.HTTP_202_ACCEPTED)
+async def create_fix_task_endpoint(
+    request: CreateFixTaskRequest,
+    task_service: TaskService = Depends(get_task_service),
+):
+    """レビューコメントに基づいて修正タスクの作成を受け付けます。"""
+    logger.info(f"Received fix task request for PR #{request.pull_request_number}")
+    # タスク作成はバックグラウンドで実行されることを想定し、すぐにレスポンスを返す
+    await task_service.create_fix_task(
+        pull_request_number=request.pull_request_number,
+        review_comments=request.review_comments,
+    )
+    return {"message": "Fix task creation has been accepted."}
