@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
-from agents_main import main, NO_TASK_SLEEP_SECONDS, ERROR_SLEEP_SECONDS
+from agents_main import ERROR_SLEEP_SECONDS, NO_TASK_SLEEP_SECONDS, main
 
 # テスト全体で利用するコマンドの定数
 GEMINI_COMMAND = "cat context.md | gemini --model gemini-2.5-flash --yolo"
@@ -43,24 +43,22 @@ def test_main_gemini_command_not_found(
     mock_subprocess_run.assert_not_called()
 
 
-@patch("agents_main.AgentClient")
-@patch("agents_main.shutil.which")
-@patch("agents_main.subprocess.run")
 @patch("agents_main.logging.info")
+@patch("agents_main.subprocess.run")
+@patch("agents_main.shutil.which")
+@patch("agents_main.AgentClient")
 def test_main_no_task_assigned(
-    mock_logging_info,
-    mock_subprocess_run,
-    mock_shutil_which,
     mock_agent_client,
+    mock_shutil_which,
+    mock_subprocess_run,
+    mock_logging_info,
 ):
     mock_shutil_which.return_value = "/usr/bin/gemini"
     mock_agent_client.return_value.request_task.return_value = None  # タスクなし
     main(run_once=True)
     mock_agent_client.return_value.request_task.assert_called_once()
     mock_subprocess_run.assert_not_called()
-    expected_log_message = (
-        f"利用可能なタスクがありません。{NO_TASK_SLEEP_SECONDS // 60}分後に再試行します。"
-    )
+    expected_log_message = f"利用可能なタスクがありません。{NO_TASK_SLEEP_SECONDS // 60}分後に再試行します。"
     mock_logging_info.assert_any_call(expected_log_message)
 
 
@@ -122,15 +120,15 @@ def test_main_task_assigned_without_prompt(
     mock_subprocess_run.assert_not_called()
 
 
-@patch("agents_main.AgentClient")
-@patch("agents_main.shutil.which")
-@patch("agents_main.subprocess.run")
 @patch("agents_main.logging.error")
+@patch("agents_main.subprocess.run")
+@patch("agents_main.shutil.which")
+@patch("agents_main.AgentClient")
 def test_main_exception_handling(
-    mock_logging_error,
-    mock_subprocess_run,
-    mock_shutil_which,
     mock_agent_client,
+    mock_shutil_which,
+    mock_subprocess_run,
+    mock_logging_error,
 ):
     mock_shutil_which.return_value = "/usr/bin/gemini"
     mock_agent_client.return_value.request_task.side_effect = Exception("Test Error")
@@ -138,9 +136,7 @@ def test_main_exception_handling(
     main(run_once=True)
 
     mock_agent_client.return_value.request_task.assert_called_once()
-    expected_log_message = (
-        f"エラーが発生しました: Test Error。{ERROR_SLEEP_SECONDS // 60}分後に再試行します..."
-    )
+    expected_log_message = f"エラーが発生しました: Test Error。{ERROR_SLEEP_SECONDS // 60}分後に再試行します..."
     mock_logging_error.assert_called_with(expected_log_message)
     mock_subprocess_run.assert_not_called()
 
