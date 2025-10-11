@@ -39,6 +39,16 @@ class TaskService:
     LABEL_REVIEW_DONE = "review-done"
     LABEL_IN_PROGRESS = "in-progress"
 
+    AGENT_ROLES = {
+        "BACKENDCODER",
+        "CONTENTS_WRITER",
+        "MARKET_RESEARCHER",
+        "PEST_ANALYST",
+        "PRODUCT_MANAGER",
+        "SYSTEM_ARCHITECT",
+        "UIUX_DESIGNER",
+    }
+
     def __init__(
         self,
         redis_client: RedisClient,
@@ -457,4 +467,43 @@ class TaskService:
         )
         logger.info(
             f"[issue_id={issue_id}, agent_id={agent_id}] Created task candidate with status {task_candidate.status.value}."
+        )
+
+    async def create_fix_task(
+        self, pull_request_number: int, review_comments: list[str]
+    ):
+        """レビューコメントに基づいて修正タスクを生成し、Redisに保存します。"""
+        logger.info(f"Creating fix task for PR #{pull_request_number}...")
+
+        # 1. Issue情報を取得し、役割ラベルを抽出
+        issue_data = self.github_client.get_issue_by_number(pull_request_number)
+        issue_labels = {label["name"] for label in issue_data.get("labels", [])}
+        role_labels = list(issue_labels.intersection(self.AGENT_ROLES))
+
+        # 2. 修正タスクのラベルを構築
+        fix_labels = ["fix"] + role_labels
+
+        pr_url = f"https://github.com/{self.repo_name}/pull/{pull_request_number}"
+        prompt = self.gemini_executor.build_code_review_prompt(
+            pr_url=pr_url, review_comments=review_comments
+        )
+
+        task_data = {
+            "issue_id": pull_request_number,
+            "title": f"Fix task for PR #{pull_request_number}",
+            "body": prompt,
+            "html_url": pr_url,
+            "labels": fix_labels,
+            "task_type": TaskType.FIX.value,
+        }
+
+        redis_key = f"task:fix:{pull_request_number}"
+        self.redis_client.set_value(
+            redis_key,
+            json.dumps(task_data),
+            timeout=self.settings.FIX_TASK_REDIS_TIMEOUT,
+        )
+
+        logger.info(
+            f"Successfully created and stored fix task for PR #{pull_request_number} in Redis key: {redis_key}"
         )

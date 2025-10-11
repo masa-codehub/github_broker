@@ -107,9 +107,10 @@ class GeminiExecutor:
         Returns:
             str: コード修正のためのプロンプト文字列。
         """
+        formatted_comments = "\n".join(review_comments) if review_comments else "N/A"
         return self.review_fix_prompt_template.format(
             pr_url=pr_url,
-            review_comments="\n".join(review_comments),
+            review_comments=formatted_comments,
         )
 
     async def execute(
