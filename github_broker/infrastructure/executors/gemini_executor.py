@@ -96,20 +96,20 @@ class GeminiExecutor:
             review_comments=formatted_comments,
         )
 
-    def build_code_review_prompt(self, pr_url: str, review_comment: str) -> str:
+    def build_code_review_prompt(self, pr_url: str, review_comments: list[str]) -> str:
         """
         PR情報とレビューコメントに基づいて、コード修正のためのプロンプトを構築します。
 
         Args:
             pr_url (str): GitHub Pull RequestのURL。
-            review_comment (str): レビューコメントの内容。
+            review_comments (list[str]): レビューコメントのリスト。
 
         Returns:
             str: コード修正のためのプロンプト文字列。
         """
         return self.review_fix_prompt_template.format(
             pr_url=pr_url,
-            review_comment=review_comment,
+            review_comments="\n".join(review_comments),
         )
 
     async def execute(

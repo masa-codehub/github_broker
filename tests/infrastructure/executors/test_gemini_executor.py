@@ -196,3 +196,24 @@ def test_init_handles_missing_review_fix_prompt_template_key(mock_prompts):
             == mock_prompts["prompt_template"].strip()
         )
         assert executor_instance.review_fix_prompt_template == ""
+
+
+@pytest.mark.unit
+def test_build_code_review_prompt(executor, mock_prompts):
+    """build_code_review_promptがレビューコメントのリストを正しくフォーマットすることをテストします"""
+    # Arrange
+    pr_url = "https://github.com/example/repo/pull/123"
+    review_comments = ["- comment 1", "- comment 2"]
+
+    # Act
+    prompt = executor.build_code_review_prompt(
+        pr_url=pr_url, review_comments=review_comments
+    )
+
+    # Assert
+    expected_prompt = (
+        mock_prompts["review_fix_prompt_template"]
+        .strip()
+        .format(pr_url=pr_url, review_comments="\n".join(review_comments))
+    )
+    assert prompt == expected_prompt
