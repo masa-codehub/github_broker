@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
-from agents_main import main
+from agents_main import main, SUCCESS_SLEEP_SECONDS, NO_TASK_SLEEP_SECONDS, ERROR_SLEEP_SECONDS
 
 # テスト全体で利用するコマンドの定数
 GEMINI_COMMAND = "cat context.md | gemini --model gemini-2.5-flash --yolo"
@@ -246,3 +246,68 @@ def test_main_run_once_true_exits_on_exception(
     mock_agent_client.return_value.request_task.side_effect = Exception("Test Error")
     main(run_once=True)
     mock_agent_client.return_value.request_task.assert_called_once()
+
+
+@patch("agents_main.time.sleep")
+@patch("agents_main.AgentClient")
+@patch("agents_main.shutil.which")
+@patch("agents_main.subprocess.run")
+def test_main_calls_sleep_on_success(
+    mock_subprocess_run,
+    mock_shutil_which,
+    mock_agent_client,
+    mock_sleep,
+):
+    mock_shutil_which.return_value = "/usr/bin/gemini"
+    mock_agent_client.return_value.request_task.return_value = {
+        "issue_id": 1,
+        "title": "Test Task",
+        "prompt": "test prompt",
+    }
+    mock_subprocess_run.return_value = MagicMock(stdout="cli output", stderr="")
+    mock_sleep.side_effect = SystemExit  # sleepが呼ばれたら終了
+
+    with pytest.raises(SystemExit):
+        main(run_once=False)
+
+    mock_sleep.assert_called_once_with(SUCCESS_SLEEP_SECONDS)
+
+
+@patch("agents_main.time.sleep")
+@patch("agents_main.AgentClient")
+@patch("agents_main.shutil.which")
+@patch("agents_main.subprocess.run")
+def test_main_calls_sleep_on_no_task(
+    mock_subprocess_run,
+    mock_shutil_which,
+    mock_agent_client,
+    mock_sleep,
+):
+    mock_shutil_which.return_value = "/usr/bin/gemini"
+    mock_agent_client.return_value.request_task.return_value = None  # タスクなし
+    mock_sleep.side_effect = SystemExit  # sleepが呼ばれたら終了
+
+    with pytest.raises(SystemExit):
+        main(run_once=False)
+
+    mock_sleep.assert_called_once_with(NO_TASK_SLEEP_SECONDS)
+
+
+@patch("agents_main.time.sleep")
+@patch("agents_main.AgentClient")
+@patch("agents_main.shutil.which")
+@patch("agents_main.subprocess.run")
+def test_main_calls_sleep_on_error(
+    mock_subprocess_run,
+    mock_shutil_which,
+    mock_agent_client,
+    mock_sleep,
+):
+    mock_shutil_which.return_value = "/usr/bin/gemini"
+    mock_agent_client.return_value.request_task.side_effect = Exception("Test Error")
+    mock_sleep.side_effect = SystemExit  # sleepが呼ばれたら終了
+
+    with pytest.raises(SystemExit):
+        main(run_once=False)
+
+    mock_sleep.assert_called_once_with(ERROR_SLEEP_SECONDS)
