@@ -359,7 +359,19 @@ class TaskService:
                 role_labels = [
                     label for label in task.labels if label in self.AGENT_ROLES
                 ]
-                required_role = role_labels[0] if role_labels else "UNKNOWN"
+
+                # _find_candidates_for_any_role で役割ラベルが1つ以上あることは保証されているはず
+                assert (
+                    role_labels
+                ), f"Candidate issue {task.issue_id} must have at least one role label."
+
+                if len(role_labels) > 1:
+                    logger.warning(
+                        f"[issue_id={task.issue_id}] Multiple role labels found: {role_labels}. "
+                        f"Using the first one: {role_labels[0]}"
+                    )
+
+                required_role = role_labels[0]
 
                 task_type = (
                     TaskType.REVIEW
