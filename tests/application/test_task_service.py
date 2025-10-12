@@ -1063,6 +1063,25 @@ def test_create_task_candidate_stores_in_redis(task_service, mock_redis_client):
 
 
 @pytest.mark.unit
+def test_poll_and_process_reviews_uses_is_open_query(task_service, mock_github_client):
+    """
+    poll_and_process_reviewsがneeds-reviewのIssueを検索する際に、
+    is:open条件を明示的に使用することをテストします。
+    """
+    # Arrange
+    mock_github_client.find_issues_by_labels.return_value = []
+
+    # Act
+    task_service.poll_and_process_reviews()
+
+    # Assert
+    mock_github_client.find_issues_by_labels.assert_called_once_with(
+        labels=[task_service.LABEL_NEEDS_REVIEW],
+        extra_query="is:open",
+    )
+
+
+@pytest.mark.unit
 def test_poll_and_process_reviews_adds_label_after_timeout(
     task_service, mock_github_client
 ):
@@ -1087,7 +1106,8 @@ def test_poll_and_process_reviews_adds_label_after_timeout(
 
     # Assert
     mock_github_client.find_issues_by_labels.assert_called_once_with(
-        labels=[task_service.LABEL_NEEDS_REVIEW]
+        labels=[task_service.LABEL_NEEDS_REVIEW],
+        extra_query="is:open",
     )
     mock_github_client.get_pr_for_issue.assert_called_once_with(
         issue_in_review["number"]
