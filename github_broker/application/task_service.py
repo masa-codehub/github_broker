@@ -79,13 +79,26 @@ class TaskService:
                     self.redis_client.set_value("open_issues", json.dumps([]))
                     logger.info("No open issues found. Cached an empty list.")
 
-                self.poll_and_process_reviews()
-
             except (GithubException, RedisError) as e:
-                logger.error(f"An error occurred during polling: {e}", exc_info=True)
+                logger.error(
+                    f"An error occurred during issue polling: {e}", exc_info=True
+                )
             except Exception as e:
                 logger.error(
-                    f"An unexpected error occurred during polling: {e}", exc_info=True
+                    f"An unexpected error occurred during issue polling: {e}",
+                    exc_info=True,
+                )
+
+            try:
+                self.poll_and_process_reviews()
+            except (GithubException, RedisError) as e:
+                logger.error(
+                    f"An error occurred during review polling: {e}", exc_info=True
+                )
+            except Exception as e:
+                logger.error(
+                    f"An unexpected error occurred during review polling: {e}",
+                    exc_info=True,
                 )
 
             time.sleep(self.polling_interval_seconds)
