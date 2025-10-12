@@ -133,7 +133,7 @@ def test_main_exception_handling(
 
     mock_agent_client.return_value.request_task.assert_called_once()
     mock_logging_error.assert_called_with(
-        "エラーが発生しました: Test Error。60分後に再試行します..."
+        "エラーが発生しました: Test Error。10分後に再試行します..."
     )
     mock_subprocess_run.assert_not_called()
 

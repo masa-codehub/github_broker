@@ -9,8 +9,8 @@ from github_broker import AgentClient
 
 # --- 待機時間設定 (秒) ---
 SUCCESS_SLEEP_SECONDS = 5
-NO_TASK_SLEEP_SECONDS = 60 * 5  # 5分
-ERROR_SLEEP_SECONDS = 60 * 10  # 10分
+NO_TASK_SLEEP_SECONDS = 5 * 60  # 5分
+ERROR_SLEEP_SECONDS = 10 * 60  # 10分
 # --------------------------
 
 # --- ロギング設定 ---
@@ -98,13 +98,17 @@ def main(run_once=False):
                     break
                 time.sleep(SUCCESS_SLEEP_SECONDS)  # 短い待機時間
             else:
-                logging.info("利用可能なタスクがありません。5分後に再試行します。")
+                logging.info(
+                    f"利用可能なタスクがありません。{NO_TASK_SLEEP_SECONDS // 60}分後に再試行します。"
+                )
                 if run_once:
                     break
                 time.sleep(NO_TASK_SLEEP_SECONDS)  # 5分待機
 
         except Exception as e:
-            logging.error(f"エラーが発生しました: {e}。10分後に再試行します...")
+            logging.error(
+                f"エラーが発生しました: {e}。{ERROR_SLEEP_SECONDS // 60}分後に再試行します..."
+            )
             if run_once:
                 break
             time.sleep(ERROR_SLEEP_SECONDS)  # 10分待機

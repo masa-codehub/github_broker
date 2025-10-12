@@ -161,7 +161,7 @@ app/ # プロジェクトルート
 ## 優先度
 - 'P1'
 ## ラベル
-- `feature`, `security`, 'P1'
+- `feature`, `security`, `P1`
 ## ブランチ名
 （ユニークなブランチ名を設定する）
 feature/add-login-script
