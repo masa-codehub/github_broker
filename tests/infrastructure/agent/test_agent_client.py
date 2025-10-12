@@ -10,7 +10,7 @@ from github_broker import AgentClient
 @pytest.fixture
 def agent_client():
     """AgentClientのテストインスタンスを提供します。"""
-    return AgentClient(agent_id="test-agent", agent_role="BACKENDCODER")
+    return AgentClient(agent_id="test-agent")
 
 
 @pytest.mark.unit
@@ -39,7 +39,6 @@ def test_request_task_with_custom_timeout(mock_post, agent_client):
     )
     expected_payload = {
         "agent_id": agent_client.agent_id,
-        "agent_role": agent_client.agent_role,
     }
     mock_post.assert_called_once_with(
         expected_url,
@@ -110,7 +109,7 @@ def test_agent_client_initialization_with_port():
     """
     特定のポートでAgentClientが初期化されることをテストします。
     """
-    client = AgentClient(agent_id="test", agent_role="", host="testhost", port=9000)
+    client = AgentClient(agent_id="test", host="testhost", port=9000)
     assert client.port == 9000
 
 
@@ -120,7 +119,7 @@ def test_agent_client_initialization_with_env_var():
     """
     BROKER_PORT環境変数を使用してAgentClientが初期化されることをテストします。
     """
-    client = AgentClient(agent_id="test", agent_role="")
+    client = AgentClient(agent_id="test")
     assert client.port == 9999
 
 
@@ -130,5 +129,5 @@ def test_agent_client_initialization_default_port(monkeypatch):
     環境変数が設定されていない場合に、AgentClientがデフォルトポートで初期化されることをテストします。
     """
     monkeypatch.delenv("BROKER_PORT", raising=False)
-    client = AgentClient(agent_id="test", agent_role="")
+    client = AgentClient(agent_id="test")
     assert client.port == 8080
