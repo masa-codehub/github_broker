@@ -102,7 +102,7 @@ https://github.com/masa-codehub/github_broker.git
 （特に、Issues, Pull Requests タブ配下のすべての情報を最重要のインプットとする）
 
 ## フォルダ構成
-
+```
 app/ # プロジェクトルート
 ├── docs/   # 設計ドキュメント群 (プロジェクトの「あるべき姿」を理解する上で最重要)
 |   ├── architecture/           # システムの構造や設計思想
@@ -139,7 +139,7 @@ app/ # プロジェクトルート
 │   └── infrastructure/ \# Frameworks, Drivers (DB, Web, UI)
 │
 └── main.py
-
+```
 
 ## Issueテンプレート
 
@@ -158,9 +158,12 @@ app/ # プロジェクトルート
 - [ ] ログインに成功すると、セッショントークンが発行される。
 - [ ] 3回連続でログインに失敗したアカウントは、15分間ロックされる。
 - [ ] 上記ロジックに対する単体テストが実装され、カバレッジが95%以上であること。
+## 優先度
+- 'P1'
 ## ラベル
-- `feature`, `security`
+- `feature`, `security`, `P1`
 ## ブランチ名
+（ユニークなブランチ名を設定する）
 feature/add-login-script
 ## 成果物
 app/project/application/login.py
