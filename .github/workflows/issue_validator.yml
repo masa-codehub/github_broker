@@ -14,8 +14,7 @@ jobs:
         id: extract_branch
         run: |
           ISSUE_BODY="${{ github.event.issue.body }}"
-          # Try to extract branch name from "ブランチ名\n`branch-name`" format
-          BRANCH_NAME=$(echo "$ISSUE_BODY" | grep -oP '(?<=^ブランチ名\n`)[^`]+(?=`$)' || echo "$ISSUE_BODY" | grep -oP '(?<=^ブランチ名: )[^\n]+')
+          BRANCH_NAME=$(echo "$ISSUE_BODY" | grep -oP '(?<=### ブランチ名 \(Branch Name\)\n\n)[^\n]+')
           echo "Extracted Branch Name: $BRANCH_NAME"
           echo "branch_name=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
         shell: bash
@@ -121,7 +120,7 @@ jobs:
           BRANCH_NAME_SECTION=$(echo "$ISSUE_BODY" | awk \\
             '\\
             BEGIN {found=0}
-            /^## ブランチ名/ {found=1; next}
+            /^### ブランチ名 \(Branch Name\)/ {found=1; next}
             found && /^## / {exit}\
             found && /^### / {exit}\
             found {print}\
