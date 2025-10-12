@@ -213,8 +213,8 @@ class TaskService:
     def _has_priority_label(self, labels: set[str]) -> bool:
         return any(self._get_priority_from_label(name) is not None for name in labels)
 
-    def _find_candidates_by_role(
-        self, issues: list[dict[str, Any]], agent_role: str
+    def _find_candidates_for_any_role(
+        self, issues: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
         candidate_issues = []
         for issue in issues:
@@ -223,16 +223,20 @@ class TaskService:
                 for label in issue.get("labels", [])
                 if label.get("name")
             }
+
+            # 役割ラベルが付いているかチェック
+            role_labels = labels.intersection(self.AGENT_ROLES)
+            if not role_labels:
+                continue  # 役割ラベルがないIssueはスキップ
+
             is_development_candidate = (
-                agent_role in labels
-                and self.LABEL_IN_PROGRESS not in labels
+                self.LABEL_IN_PROGRESS not in labels
                 and self.LABEL_NEEDS_REVIEW not in labels
                 and not {"story", "epic"}.intersection(labels)
                 and self._has_priority_label(labels)
             )
             is_review_candidate = (
-                agent_role in labels
-                and self.LABEL_IN_PROGRESS not in labels
+                self.LABEL_IN_PROGRESS not in labels
                 and self.LABEL_NEEDS_REVIEW in labels
                 and not {"story", "epic"}.intersection(labels)
             )
@@ -258,9 +262,7 @@ class TaskService:
                     )
 
         if not candidate_issues:
-            logger.info(
-                f"[agent_role={agent_role}] No issues found with role label that do not also have 'needs-review' or are missing a priority label."
-            )
+            logger.info("No assignable issues found with a role label.")
         return candidate_issues
 
     @staticmethod
@@ -353,6 +355,12 @@ class TaskService:
                     f"[issue_id={task.issue_id}, agent_id={agent_id}] Stored current task in Redis."
                 )
 
+                # 役割ラベルを抽出
+                role_labels = [
+                    label for label in task.labels if label in self.AGENT_ROLES
+                ]
+                required_role = role_labels[0] if role_labels else "UNKNOWN"
+
                 task_type = (
                     TaskType.REVIEW
                     if self.LABEL_NEEDS_REVIEW in task.labels
@@ -366,6 +374,7 @@ class TaskService:
                     labels=task.labels,
                     branch_name=branch_name,
                     prompt=prompt,
+                    required_role=required_role,
                     task_type=task_type,
                     gemini_response=gemini_response,
                 )
@@ -398,14 +407,12 @@ class TaskService:
         return None
 
     async def request_task(
-        self, agent_id: str, agent_role: str, timeout: int | None = 120
+        self, agent_id: str, timeout: int | None = 120
     ) -> TaskResponse | None:
         start_time = time.monotonic()
         check_interval = self.long_polling_check_interval
 
-        task = await self._check_for_available_task(
-            agent_id, agent_role, is_first_check=True
-        )
+        task = await self._check_for_available_task(agent_id, is_first_check=True)
         if task:
             return task
 
@@ -434,15 +441,13 @@ class TaskService:
             )
             await asyncio.sleep(wait_time)
 
-            task = await self._check_for_available_task(
-                agent_id, agent_role, is_first_check=False
-            )
+            task = await self._check_for_available_task(agent_id, is_first_check=False)
             if task:
                 logger.info(f"Task found during long polling after {elapsed_time:.1f}s")
                 return task
 
     async def _check_for_available_task(
-        self, agent_id: str, agent_role: str, is_first_check: bool = True
+        self, agent_id: str, is_first_check: bool = True
     ) -> TaskResponse | None:
         cached_issues_json = self.redis_client.get_value("open_issues")
 
@@ -462,10 +467,10 @@ class TaskService:
         if is_first_check:
             self.complete_previous_task(agent_id)
 
-        candidate_issues = self._find_candidates_by_role(all_issues, agent_role)
+        candidate_issues = self._find_candidates_for_any_role(all_issues)
         if candidate_issues:
             logger.debug(
-                f"Found {len(candidate_issues)} candidate issues for role '{agent_role}'."
+                f"Found {len(candidate_issues)} candidate issues for any role."
             )
             task = await self._find_first_assignable_task(candidate_issues, agent_id)
             if task:
