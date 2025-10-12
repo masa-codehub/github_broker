@@ -149,10 +149,10 @@ def test_start_polling_caches_empty_list_when_no_issues(
 
 @pytest.mark.unit
 @pytest.mark.anyio
-async def test_request_task_selects_by_role_from_cache(
+async def test_request_task_selects_and_sets_required_role_from_cache(
     task_service, mock_redis_client, mock_github_client
 ):
-    """Redisキャッシュから役割に合うIssueを正しく選択できることをテストします。"""
+    """RedisキャッシュからIssueを正しく選択し、required_roleを正しく設定できることをテストします。"""
     # Arrange
     issue1 = create_mock_issue(
         number=1, title="Docs", body="", labels=["documentation", "P1"]
@@ -169,16 +169,14 @@ async def test_request_task_selects_by_role_from_cache(
     mock_redis_client.acquire_lock.return_value = True
 
     agent_id = "test-agent"
-    agent_role = "BACKENDCODER"
 
     # Act
-    result = await task_service.request_task(
-        agent_id=agent_id, agent_role=agent_role, timeout=0
-    )
+    result = await task_service.request_task(agent_id=agent_id, timeout=0)
 
     # Assert
     assert result is not None
     assert result.issue_id == 2
+    assert result.required_role == "BACKENDCODER"
     mock_redis_client.get_value.assert_called_once_with("open_issues")
     mock_redis_client.acquire_lock.assert_called_once_with(
         "issue_lock_2", agent_id, timeout=600
@@ -194,10 +192,10 @@ async def test_request_task_selects_by_role_from_cache(
 
 @pytest.mark.unit
 @pytest.mark.anyio
-async def test_request_task_no_matching_issue(
+async def test_request_task_no_matching_role_label_issue(
     task_service, mock_redis_client, mock_github_client
 ):
-    """エージェントの役割に一致するIssueがない場合にNoneが返されることをテストします。"""
+    """Issueに役割ラベルがない場合にNoneが返されることをテストします。"""
     # Arrange
     issue1 = create_mock_issue(
         number=1,
@@ -209,12 +207,9 @@ async def test_request_task_no_matching_issue(
     mock_redis_client.get_value.return_value = json.dumps(cached_issues)
     mock_github_client.find_issues_by_labels.return_value = []
     agent_id = "test-agent"
-    agent_role = "BACKENDCODER"
 
     # Act
-    result = await task_service.request_task(
-        agent_id=agent_id, agent_role=agent_role, timeout=0
-    )
+    result = await task_service.request_task(agent_id=agent_id, timeout=0)
 
     # Assert
     assert result is None
@@ -229,7 +224,6 @@ async def test_request_task_completes_previous_task(
     """request_taskが前タスクの完了処理を呼び出すことをテストします。"""
     # Arrange
     agent_id = "test-agent"
-    agent_role = "BACKENDCODER"
     prev_issue = create_mock_issue(
         number=1,
         title="Previous Task",
@@ -250,9 +244,7 @@ async def test_request_task_completes_previous_task(
     mock_github_client.find_issues_by_labels.return_value = [prev_issue]
 
     # Act
-    result = await task_service.request_task(
-        agent_id=agent_id, agent_role=agent_role, timeout=0
-    )
+    result = await task_service.request_task(agent_id=agent_id, timeout=0)
 
     # Assert
     mock_github_client.find_issues_by_labels.assert_called_once_with(
@@ -506,28 +498,29 @@ async def test_find_first_assignable_task_skips_locked_issue(
 
 @pytest.mark.unit
 @pytest.mark.anyio
-async def test_no_matching_role_candidates(
+async def test_request_task_selects_issue_with_any_role_label(
     task_service, mock_redis_client, mock_github_client
 ):
-    """オープンなIssueはあるが、役割に合う候補がない場合のテスト。"""
+    """Issueに役割ラベルがあれば、エージェントの役割に関係なく選択されることをテストします。"""
     # Arrange
     issue_other_role = create_mock_issue(
         number=1,
         title="Other Role Task",
         body="""## 成果物\n- work""",
-        labels=["FRONTENDCODER", "P1"],
+        labels=["BACKENDCODER", "P1"],
     )
     cached_issues = [issue_other_role]
     mock_redis_client.get_value.return_value = json.dumps(cached_issues)
     mock_github_client.find_issues_by_labels.return_value = []
+    mock_redis_client.acquire_lock.return_value = True
 
     # Act
-    result = await task_service.request_task(
-        agent_id="test-agent", agent_role="BACKENDCODER", timeout=0
-    )
+    result = await task_service.request_task(agent_id="test-agent", timeout=0)
 
     # Assert
-    assert result is None
+    assert result is not None
+    assert result.issue_id == 1
+    assert result.required_role == "BACKENDCODER"
 
 
 @pytest.mark.parametrize(
@@ -605,7 +598,7 @@ async def test_request_task_stores_current_task_in_redis(
     mock_redis_client.acquire_lock.return_value = True
 
     # Act
-    await task_service.request_task(agent_id=agent_id, agent_role=agent_role, timeout=0)
+    await task_service.request_task(agent_id=agent_id, timeout=0)
 
     # Assert
     mock_redis_client.set_value.assert_called_once_with(
@@ -632,15 +625,13 @@ async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
     mock_redis_client.acquire_lock.return_value = True
 
     agent_id = "test-agent"
-    agent_role = "BACKENDCODER"
 
     # Act
-    result = await task_service.request_task(
-        agent_id=agent_id, agent_role=agent_role, timeout=0
-    )
+    result = await task_service.request_task(agent_id=agent_id, timeout=0)
 
     # Assert
     assert result is not None
+    assert result.required_role == "BACKENDCODER"
     assert result.issue_id == 1
     assert result.task_type == TaskType.REVIEW
     mock_redis_client.get_value.assert_called_once_with("open_issues")
@@ -670,13 +661,10 @@ async def test_request_task_long_polling_timeout(
     mock_time.side_effect = [0, 6, 12, 16]
 
     agent_id = "test-agent"
-    agent_role = "BACKENDCODER"
     timeout = 15
 
     # Act
-    result = await task_service.request_task(
-        agent_id=agent_id, agent_role=agent_role, timeout=timeout
-    )
+    result = await task_service.request_task(agent_id=agent_id, timeout=timeout)
 
     # Assert
     assert result is None
@@ -709,13 +697,10 @@ async def test_request_task_long_polling_finds_task_during_wait(
     mock_time.side_effect = [0, 6]
 
     agent_id = "test-agent"
-    agent_role = "BACKENDCODER"
     timeout = 30
 
     # Act
-    result = await task_service.request_task(
-        agent_id=agent_id, agent_role=agent_role, timeout=timeout
-    )
+    result = await task_service.request_task(agent_id=agent_id, timeout=timeout)
 
     # Assert
     assert result is not None
@@ -736,12 +721,9 @@ async def test_request_task_no_timeout_returns_immediately(
     mock_github_client.find_issues_by_labels.return_value = []
 
     agent_id = "test-agent"
-    agent_role = "BACKENDCODER"
 
     # Act
-    result = await task_service.request_task(
-        agent_id=agent_id, agent_role=agent_role, timeout=None
-    )
+    result = await task_service.request_task(agent_id=agent_id, timeout=None)
 
     # Assert
     assert result is None
@@ -768,13 +750,10 @@ async def test_request_task_finds_task_immediately_no_polling(
     mock_redis_client.acquire_lock.return_value = True
 
     agent_id = "test-agent"
-    agent_role = "BACKENDCODER"
     timeout = 30
 
     # Act
-    result = await task_service.request_task(
-        agent_id=agent_id, agent_role=agent_role, timeout=timeout
-    )
+    result = await task_service.request_task(agent_id=agent_id, timeout=timeout)
 
     # Assert
     assert result is not None
@@ -806,9 +785,7 @@ async def test_request_task_calls_gemini_executor_execute(
     task_service.gemini_executor.execute.return_value = "Gemini Executor Output"
 
     # Act
-    result = await task_service.request_task(
-        agent_id=agent_id, agent_role=agent_role, timeout=0
-    )
+    result = await task_service.request_task(agent_id=agent_id, timeout=0)
 
     # Assert
     assert result is not None
@@ -1016,8 +993,8 @@ def test_sort_issues_by_priority(task_service):
 
 
 @pytest.mark.unit
-def test_find_candidates_by_role_filters_no_priority(task_service):
-    """_find_candidates_by_roleが優先度ラベルのないIssueを除外することをテストします。"""
+def test_find_candidates_for_any_role_filters_no_priority(task_service):
+    """_find_candidates_for_any_roleが優先度ラベルのないIssueを除外することをテストします。"""
     # Arrange
     issue_with_priority = create_mock_issue(
         number=1, title="With Priority", body="", labels=["BACKENDCODER", "P1"]
@@ -1026,10 +1003,9 @@ def test_find_candidates_by_role_filters_no_priority(task_service):
         number=2, title="No Priority", body="", labels=["BACKENDCODER"]
     )
     issues = [issue_with_priority, issue_without_priority]
-    agent_role = "BACKENDCODER"
 
     # Act
-    candidates = task_service._find_candidates_by_role(issues, agent_role)
+    candidates = task_service._find_candidates_for_any_role(issues)
 
     # Assert
     assert len(candidates) == 1
@@ -1044,10 +1020,10 @@ def test_find_candidates_by_role_filters_no_priority(task_service):
         ("review", ["BACKENDCODER", "needs-review"]),
     ],
 )
-def test_find_candidates_by_role_filters_story_and_epic_labels(
+def test_find_candidates_for_any_role_filters_story_and_epic_labels(
     task_service, case, labels
 ):
-    """_find_candidates_by_roleが'story'または'epic'ラベルを持つIssueを除外することをテストします。"""
+    """_find_candidates_for_any_roleが'story'または'epic'ラベルを持つIssueを除外することをテストします。"""
     # Arrange
     issue_story = create_mock_issue(
         number=1, title="Story Issue", body="", labels=labels + ["story"]
@@ -1057,10 +1033,9 @@ def test_find_candidates_by_role_filters_story_and_epic_labels(
     )
     issue_task = create_mock_issue(number=3, title="Task Issue", body="", labels=labels)
     issues = [issue_story, issue_epic, issue_task]
-    agent_role = "BACKENDCODER"
 
     # Act
-    candidates = task_service._find_candidates_by_role(issues, agent_role)
+    candidates = task_service._find_candidates_for_any_role(issues)
 
     # Assert
     assert len(candidates) == 1
@@ -1158,11 +1133,11 @@ async def test_create_fix_task_creates_task_and_builds_prompt(task_service):
 
 
 @pytest.mark.unit
-def test_find_candidates_by_role_review_candidate_with_review_done_pr(
+def test_find_candidates_for_any_role_review_candidate_with_review_done_pr(
     task_service, mock_github_client
 ):
     """
-    _find_candidates_by_roleが、needs-reviewラベルとreview-doneラベルを持つPRを持つIssueを
+    _find_candidates_for_any_roleが、needs-reviewラベルとreview-doneラベルを持つPRを持つIssueを
     レビュー候補として正しく選択することをテストします。
     """
     # Arrange
@@ -1173,7 +1148,6 @@ def test_find_candidates_by_role_review_candidate_with_review_done_pr(
         labels=["BACKENDCODER", task_service.LABEL_NEEDS_REVIEW],
     )
     issues = [issue_review]
-    agent_role = "BACKENDCODER"
 
     mock_pr = MagicMock()
     mock_pr.number = 101
@@ -1181,7 +1155,7 @@ def test_find_candidates_by_role_review_candidate_with_review_done_pr(
     mock_github_client.has_pr_label.return_value = True  # PR has review-done label
 
     # Act
-    candidates = task_service._find_candidates_by_role(issues, agent_role)
+    candidates = task_service._find_candidates_for_any_role(issues)
 
     # Assert
     assert len(candidates) == 1
@@ -1193,11 +1167,11 @@ def test_find_candidates_by_role_review_candidate_with_review_done_pr(
 
 
 @pytest.mark.unit
-def test_find_candidates_by_role_review_candidate_without_review_done_pr(
+def test_find_candidates_for_any_role_review_candidate_without_review_done_pr(
     task_service, mock_github_client
 ):
     """
-    _find_candidates_by_roleが、needs-reviewラベルを持つがreview-doneラベルがないPRを持つIssueを
+    _find_candidates_for_any_roleが、needs-reviewラベルを持つがreview-doneラベルがないPRを持つIssueを
     レビュー候補として選択しないことをテストします。
     """
     # Arrange
@@ -1208,7 +1182,6 @@ def test_find_candidates_by_role_review_candidate_without_review_done_pr(
         labels=["BACKENDCODER", task_service.LABEL_NEEDS_REVIEW],
     )
     issues = [issue_review]
-    agent_role = "BACKENDCODER"
 
     mock_pr = MagicMock()
     mock_pr.number = 101
@@ -1218,7 +1191,7 @@ def test_find_candidates_by_role_review_candidate_without_review_done_pr(
     )
 
     # Act
-    candidates = task_service._find_candidates_by_role(issues, agent_role)
+    candidates = task_service._find_candidates_for_any_role(issues)
 
     # Assert
     assert len(candidates) == 0
@@ -1229,11 +1202,11 @@ def test_find_candidates_by_role_review_candidate_without_review_done_pr(
 
 
 @pytest.mark.unit
-def test_find_candidates_by_role_review_candidate_no_pr_found(
+def test_find_candidates_for_any_role_review_candidate_no_pr_found(
     task_service, mock_github_client
 ):
     """
-    _find_candidates_by_roleが、needs-reviewラベルを持つが関連するPRが見つからないIssueを
+    _find_candidates_for_any_roleが、needs-reviewラベルを持つが関連するPRが見つからないIssueを
     レビュー候補として選択しないことをテストします。
     """
     # Arrange
@@ -1244,12 +1217,11 @@ def test_find_candidates_by_role_review_candidate_no_pr_found(
         labels=["BACKENDCODER", task_service.LABEL_NEEDS_REVIEW],
     )
     issues = [issue_review]
-    agent_role = "BACKENDCODER"
 
     mock_github_client.get_pr_for_issue.return_value = None  # No PR found
 
     # Act
-    candidates = task_service._find_candidates_by_role(issues, agent_role)
+    candidates = task_service._find_candidates_for_any_role(issues)
 
     # Assert
     assert len(candidates) == 0
