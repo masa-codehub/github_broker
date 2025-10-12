@@ -1,7 +1,6 @@
 import logging
 import os
 import re
-import shutil  # noqa: F401
 import subprocess
 import time
 

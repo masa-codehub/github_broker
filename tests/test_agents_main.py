@@ -26,39 +26,14 @@ def mock_env_vars():
         yield
 
 
-@pytest.mark.skip(
-    reason="This test has a persistent issue with mocking and is being skipped to unblock dependent tasks."
-)
-@patch("agents_main.logging.error")
-@patch("agents_main.subprocess.run")
-@patch("shutil.which")
 @patch("agents_main.AgentClient")
-def test_main_gemini_command_not_found(
-    mock_agent_client,
-    mock_shutil_which,
-    mock_subprocess_run,
-    mock_logging_error,
-):
-    mock_shutil_which.return_value = None
-    main(run_once=True)
-    mock_logging_error.assert_called_with(
-        "'gemini' command not found. Please ensure it is installed and in your PATH."
-    )
-    mock_agent_client.assert_not_called()
-    mock_subprocess_run.assert_not_called()
-
-
-@patch("agents_main.AgentClient")
-@patch("shutil.which")
 @patch("agents_main.subprocess.run")
 @patch("agents_main.logging.info")
 def test_main_no_task_assigned(
     mock_logging_info,
     mock_subprocess_run,
-    mock_shutil_which,
     mock_agent_client,
 ):
-    mock_shutil_which.return_value = "/usr/bin/gemini"
     mock_agent_client.return_value.request_task.return_value = None
     main(run_once=True)
     mock_agent_client.return_value.request_task.assert_called_once()
@@ -68,7 +43,6 @@ def test_main_no_task_assigned(
 
 
 @patch("agents_main.subprocess.run")
-@patch("shutil.which")
 @patch("agents_main.AgentClient")
 @patch("builtins.open", new_callable=mock_open)
 @pytest.mark.parametrize(
@@ -83,13 +57,11 @@ def test_main_no_task_assigned(
 def test_main_task_assigned_dynamic_logic(
     mock_file_open,
     mock_agent_client,
-    mock_shutil_which,
     mock_subprocess_run,
     task_type,
     required_role,
     expected_model,
 ):
-    mock_shutil_which.return_value = "/usr/bin/gemini"
     prompt_content = "test prompt content"
 
     return_value = {
@@ -131,14 +103,11 @@ def test_main_task_assigned_dynamic_logic(
 
 
 @patch("agents_main.subprocess.run")
-@patch("shutil.which")
 @patch("agents_main.AgentClient")
 def test_main_task_assigned_without_prompt(
     mock_agent_client,
-    mock_shutil_which,
     mock_subprocess_run,
 ):
-    mock_shutil_which.return_value = "/usr/bin/gemini"
     mock_agent_client.return_value.request_task.return_value = {
         "issue_id": 1,
         "title": "Test Task",
@@ -150,16 +119,13 @@ def test_main_task_assigned_without_prompt(
 
 
 @patch("agents_main.AgentClient")
-@patch("shutil.which")
 @patch("agents_main.subprocess.run")
 @patch("agents_main.logging.error")
 def test_main_exception_handling(
     mock_logging_error,
     mock_subprocess_run,
-    mock_shutil_which,
     mock_agent_client,
 ):
-    mock_shutil_which.return_value = "/usr/bin/gemini"
     mock_agent_client.return_value.request_task.side_effect = Exception("Test Error")
     main(run_once=True)
     mock_agent_client.return_value.request_task.assert_called_once()
@@ -169,16 +135,13 @@ def test_main_exception_handling(
 
 
 @patch("agents_main.subprocess.run")
-@patch("shutil.which")
 @patch("agents_main.AgentClient")
 @patch("builtins.open", new_callable=mock_open)
 def test_main_prompt_sanitization_removes_null_bytes(
     mock_file_open,
     mock_agent_client,
-    mock_shutil_which,
     mock_subprocess_run,
 ):
-    mock_shutil_which.return_value = "/usr/bin/gemini"
     malicious_prompt = "test\n\r\x00prompt\x00 with nulls"
     expected_safe_prompt = "test\n\rprompt with nulls"
     mock_agent_client.return_value.request_task.return_value = {
@@ -196,16 +159,13 @@ def test_main_prompt_sanitization_removes_null_bytes(
 
 
 @patch("agents_main.AgentClient")
-@patch("shutil.which")
 @patch("agents_main.subprocess.run")
 @patch("agents_main.logging.error")
 def test_main_subprocess_called_process_error(
     mock_logging_error,
     mock_subprocess_run,
-    mock_shutil_which,
     mock_agent_client,
 ):
-    mock_shutil_which.return_value = "/usr/bin/gemini"
     mock_agent_client.return_value.request_task.return_value = {
         "issue_id": 1,
         "title": "Test Task",
@@ -236,14 +196,11 @@ def test_main_subprocess_called_process_error(
 
 
 @patch("agents_main.subprocess.run")
-@patch("shutil.which")
 @patch("agents_main.AgentClient")
 def test_main_run_once_true_exits_after_task(
     mock_agent_client,
-    mock_shutil_which,
     mock_subprocess_run,
 ):
-    mock_shutil_which.return_value = "/usr/bin/gemini"
     mock_agent_client.return_value.request_task.return_value = {
         "issue_id": 1,
         "title": "Test Task",
@@ -254,35 +211,28 @@ def test_main_run_once_true_exits_after_task(
 
 
 @patch("agents_main.subprocess.run")
-@patch("shutil.which")
 @patch("agents_main.AgentClient")
 def test_main_run_once_true_exits_no_task(
     mock_agent_client,
-    mock_shutil_which,
     mock_subprocess_run,
 ):
-    mock_shutil_which.return_value = "/usr/bin/gemini"
     mock_agent_client.return_value.request_task.return_value = None
     main(run_once=True)
     mock_agent_client.return_value.request_task.assert_called_once()
 
 
 @patch("agents_main.subprocess.run")
-@patch("shutil.which")
 @patch("agents_main.AgentClient")
 def test_main_run_once_true_exits_on_exception(
     mock_agent_client,
-    mock_shutil_which,
     mock_subprocess_run,
 ):
-    mock_shutil_which.return_value = "/usr/bin/gemini"
     mock_agent_client.return_value.request_task.side_effect = Exception("Test Error")
     main(run_once=True)
     mock_agent_client.return_value.request_task.assert_called_once()
 
 
 @patch("agents_main.subprocess.run")
-@patch("shutil.which")
 @patch("agents_main.AgentClient")
 @patch("agents_main.time.sleep")
 @pytest.mark.parametrize(
@@ -300,12 +250,10 @@ def test_main_run_once_true_exits_on_exception(
 def test_main_calls_sleep_in_loop(
     mock_sleep,
     mock_agent_client,
-    mock_shutil_which,
     mock_subprocess_run,
     task_result,
     expected_sleep_seconds,
 ):
-    mock_shutil_which.return_value = "/usr/bin/gemini"
     if isinstance(task_result, Exception):
         mock_agent_client.return_value.request_task.side_effect = task_result
     else:
