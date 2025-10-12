@@ -14,8 +14,20 @@ jobs:
         id: extract_branch
         run: |
           ISSUE_BODY="${{ github.event.issue.body }}"
-          # Try to extract branch name from "ブランチ名\n`branch-name`" format
-          BRANCH_NAME=$(echo "$ISSUE_BODY" | grep -oP '(?<=^ブランチ名\n`)[^`]+(?=`$)' || echo "$ISSUE_BODY" | grep -oP '(?<=^ブランチ名: )[^\n]+')
+          # New, more flexible regex for Issue Forms
+          BRANCH_NAME=$(echo "$ISSUE_BODY" | grep -oP '(?<=### ブランチ名 \(Branch Name\))\s*\n[^\n]+' | sed -e 's/`//g' -e 's/\r//g')
+
+          # Fallback to legacy format: "ブランチ名: branch-name"
+          if [ -z "$BRANCH_NAME" ]; then
+            BRANCH_NAME=$(echo "$ISSUE_BODY" | grep -oP '(?<=^ブランチ名: )[^
+]+' | sed -e 's/\r//g')
+          fi
+
+          # Fallback to another legacy format: "ブランチ名\n`branch-name`"
+          if [ -z "$BRANCH_NAME" ]; then
+            BRANCH_NAME=$(echo "$ISSUE_BODY" | grep -oP '(?<=^ブランチ名\n`)[^`]+(?=`$)' | sed -e 's/\r//g')
+          fi
+
           echo "Extracted Branch Name: $BRANCH_NAME"
           echo "branch_name=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
         shell: bash
@@ -121,7 +133,7 @@ jobs:
           BRANCH_NAME_SECTION=$(echo "$ISSUE_BODY" | awk \\
             '\\
             BEGIN {found=0}
-            /^## ブランチ名/ {found=1; next}
+            /^### ブランチ名 \(Branch Name\)/ {found=1; next}
             found && /^## / {exit}\
             found && /^### / {exit}\
             found {print}\
