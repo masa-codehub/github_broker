@@ -1,5 +1,13 @@
 import re
 from dataclasses import dataclass
+from enum import Enum
+
+
+class TaskCandidateStatus(Enum):
+    PENDING = "pending"
+    ASSIGNED = "assigned"
+    COMPLETED = "completed"
+    NEEDS_REVIEW = "needs_review"
 
 
 @dataclass
@@ -25,7 +33,7 @@ class Task:
             # `\s*`: 0個以上の空白文字にマッチ
             # ``?`: オプションのバッククォートにマッチ
             # `([^\s`]+)`: 1個以上の空白文字またはバッククォート以外の文字にマッチし、これをキャプチャグループ1とする (ブランチ名本体)
-            # ``?`: オプションのバッククォートにマッチ
+            # ``?`: オプションのバッククォォートにマッチ
             match = re.search(
                 r"## ブランチ名(?: \(Branch name\))?\s*`?([^\s`]+)`?",
                 self.body,

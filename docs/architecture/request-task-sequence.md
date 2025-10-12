@@ -13,44 +13,59 @@ sequenceDiagram
     participant TaskService as TaskService
     participant RedisClient as RedisClient
     participant GitHubClient as GitHubClient
+    participant GeminiExecutor as GeminiExecutor
 
-    Worker->>+ApiServer: POST /request-task (agent_id, agent_role)
-    ApiServer->>+TaskService: request_task(agent_id, agent_role)
+    Worker->>+ApiServer: POST /request-task (agent_id)
+    ApiServer->>+TaskService: request_task(agent_id)
 
-    TaskService->>+RedisClient: get_value(OPEN_ISSUES_CACHE_KEY)
-    RedisClient-->>-TaskService: Cached Issues List
+    Note over TaskService: 最初のタスクチェック (is_first_check=True)
+    TaskService->>TaskService: _check_for_available_task()
 
-    alt 前タスク(in-progress)がRedisに記録されている or GitHub上で見つかる
-        Note over TaskService: prev_issue_id は agent_id に以前割り当てられていた Issue の ID
+    alt 前タスク(in-progress)が見つかる
         TaskService->>+GitHubClient: update_issue(prev_issue_id, remove_labels=["in-progress", "{agent_id}"], add_labels=["needs-review"])
         GitHubClient-->>-TaskService: OK
     end
 
-    TaskService->>TaskService: 1. 役割に合うタスクを候補化 (フィルタリング)
-    
+    TaskService->>+RedisClient: get_value("open_issues")
+    RedisClient-->>-TaskService: Cached Issues List
+    TaskService->>TaskService: 役割に合うタスクを候補化
+
     alt 割り当て可能なタスク候補あり
-        Note over TaskService: 優先順位に基づき最初の候補を選択 (selected_issue_id)
-        TaskService->>+RedisClient: acquire_lock(issue_lock_{selected_issue_id}, "locked", timeout=600)
-        RedisClient-->>-TaskService: Lock Acquired / Failed
+        TaskService->>TaskService: 候補IssueをIssue番号順にソート
+        TaskService->>+RedisClient: acquire_lock(issue_lock_{issue_id})
+        RedisClient-->>-TaskService: Lock Acquired
+        
+        TaskService->>+GitHubClient: create_branch(branch_name)
+        GitHubClient-->>-TaskService: OK
+        TaskService->>+GitHubClient: add_label(issue_id, ["in-progress", "{agent_id}"])
+        GitHubClient-->>-TaskService: OK
 
-        alt ロック取得成功 & 前提条件(成果物セクション)満たす
-            TaskService->>+GitHubClient: create_branch(branch_name, base_branch)
-            GitHubClient-->>-TaskService: OK
+        TaskService->>+GeminiExecutor: build_prompt(issue_url, branch_name)
+        GeminiExecutor-->>-TaskService: prompt_string
 
-            TaskService->>+GitHubClient: update_issue(selected_issue_id, add_labels=["in-progress", "{agent_id}"])
-            GitHubClient-->>-TaskService: OK
+        TaskService->>+RedisClient: set_value(agent_current_task:{agent_id}, {issue_id})
+        RedisClient-->>-TaskService: OK
 
-            TaskService->>+RedisClient: set_value(agent_current_task:{agent_id}, selected_issue_id)
-            RedisClient-->>-TaskService: OK
+        TaskService-->>-ApiServer: TaskResponse
+        ApiServer-->>-Worker: 200 OK (TaskResponse)
 
-            TaskService-->>-ApiServer: TaskResponse (issue_id, url, title, body, labels, branch_name, prompt)
-            ApiServer-->>-Worker: 200 OK (TaskResponse)
-        else ロック取得失敗 または 前提条件満たさない
-            TaskService->>TaskService: 次の候補Issueをチェック / リトライ
+    else 割り当て可能なタスク候補なし (ロングポーリング開始)
+        loop Long Polling (timeoutまで)
+            ApiServer->>TaskService: asyncio.sleep(interval)
+            Note over TaskService: 次のタスクチェック (is_first_check=False)
+            TaskService->>TaskService: _check_for_available_task()
+            
+            alt タスクが見つかる
+                TaskService-->>-ApiServer: TaskResponse
+                ApiServer-->>-Worker: 200 OK (TaskResponse)
+                break
+            end
         end
-    else 割り当て可能なタスク候補なし
-        TaskService-->>-ApiServer: None
-        ApiServer-->>-Worker: 204 No Content
+        
+        alt タイムアウト
+            TaskService-->>-ApiServer: None
+            ApiServer-->>-Worker: 204 No Content
+        end
     end
 ```
 
@@ -66,18 +81,28 @@ sequenceDiagram
 
 ### 3.2. 処理フロー
 
-1.  **タスク要求:** ワーカーエージェントは、自身の`agent_id`と`agent_role`を添えてAPIサーバーの`/request-task`エンドポイントにPOSTリクエストを送信します。
-2.  **TaskService呼び出し:** APIサーバーはリクエストを受け取り、`TaskService`の`request_task`メソッドを呼び出します。
-3.  **Issueキャッシュの取得:** `TaskService`は、まず`RedisClient`を介して、バックグラウンドで定期的にキャッシュされているオープンなIssueのリストを取得します。
-4.  **前タスクの完了処理:** エージェントに以前割り当てられていた`in-progress`状態のタスク(`prev_issue_id`)がないか確認します。もし存在すれば、そのIssueのラベルを`needs-review`に更新し、`in-progress`と`[agent_id]`ラベルを削除します。
-5.  **タスク候補の選定:**
-    *   **候補のフィルタリング:** Redisから取得したIssueリストから、エージェントの`agent_role`に合致し、かつ`in-progress`や`needs-review`ラベルが付いていないタスクをフィルタリングします。
-    *   **最適Issue選択:** フィルタリングされた候補Issueが存在する場合、`TaskService`は優先順位（例: 作成日が最も古い）に基づき、最初の候補を最適なIssueとして選択します (`selected_issue_id`)。
-    *   **ロック取得:** 選択されたIssue (`selected_issue_id`) に対して、`RedisClient`を使用して分散ロックの取得を試みます。これにより、複数のエージェントが同時に同じIssueを処理することを防ぎます。
-    *   **前提条件チェック:** ロック取得に成功した場合、Issueの本文に「成果物」セクションが正しく定義されているかなどの前提条件をチェックします。
+1.  **タスク要求とロングポーリング:** ワーカーエージェントは、自身の`agent_id`を添えてAPIサーバーの`/request-task`エンドポイントにPOSTリクエストを送信します。サーバーはリクエストを受け取ると`TaskService`の`request_task`メソッドを呼び出します。このメソッドはロングポーリングで動作し、割り当て可能なタスクが見つからない場合は、指定されたタイムアウト時間までタスクの出現を待ち続けます。
+
+2.  **初回タスクチェック:** `request_task`は、まず内部的に`_check_for_available_task(is_first_check=True)`を呼び出します。これが最初のチェックであることを示します。
+
+3.  **前タスクの完了処理:** `is_first_check`が`True`の場合のみ、エージェントに以前割り当てられていた`in-progress`状態のタスクがないか検索します。もし存在すれば、そのIssueのラベルを`needs-review`に更新し、`in-progress`と`[agent_id]`ラベルを削除します。
+
+4.  **タスク候補の選定:**
+    *   **キャッシュ取得:** `RedisClient`を介して、バックグラウンドで定期的にキャッシュされているオープンなIssueのリスト (`open_issues`) を取得します。
+    *   **候補フィルタリング:** Redisから取得したIssueリストから、`in-progress`や`needs-review`ラベルが付いていないタスクを候補としてフィルタリングします。さらに、各Issueに付与された役割ラベル（例: `BACKENDCODER`）を解釈し、タスクを絞り込みます。
+    *   **ソート:** 候補Issueを**Issue番号の昇順（作成順）**でソートします。
+
+5.  **タスク割り当て処理:**
+    *   ソートされた順に各候補Issueをチェックします。
+    *   **ロック取得:** 割り当て試行中の競合を防ぐため、`RedisClient`を介してIssueごとの分散ロック (`issue_lock_{issue_id}`) の取得を試みます。
+    *   **前提条件チェック:** ロック取得後、Issue本文に「成果物」セクションが定義されているかなどの前提条件をチェックします。
+    *   ロック取得と前提条件チェックに成功した最初のIssueが、割り当てタスクとして決定されます。
 6.  **タスク割り当てとレスポンス:**
-    *   **ブランチ作成:** 新しいタスクとして選択されたIssueに対応するブランチを`GitHubClient`を介して作成します。
-    *   **タスク割り当て:** 新しいタスクのIssueに`in-progress`と`[agent_id]`ラベルを付与します。
-    *   **現在タスクの記録:** `RedisClient`に、エージェントが現在どのIssueに取り組んでいるか (`agent_current_task:{agent_id}`) を記録します。
-    *   **レスポンス:** 割り当てられたタスク情報（Issue ID, URL, タイトル, 本文, ラベル, ブランチ名, プロンプト）を`TaskResponse`としてワーカーエージェントに返します。
-7.  **タスクなし:** 割り当て可能なタスクが見つからなかった場合、APIサーバーは`204 No Content`を返します。
+    *   **GitHub操作:** `GitHubClient`を介して、タスク用のブランチを作成し、Issueに`in-progress`と`[agent_id]`ラベルを付与します。
+    *   **プロンプト生成:** `GeminiExecutor`を呼び出し、IssueのURLやブランチ名などの情報から、エージェントが実行すべきプロンプトを生成します。
+    *   **状態保存:** `RedisClient`に、エージェントが現在どのIssueに取り組んでいるか (`agent_current_task:{agent_id}`) を記録します。
+    *   **レスポンス:** 割り当てられたタスク情報（Issue ID, URL, プロンプトなど）を含む`TaskResponse`を生成し、ワーカーエージェントに`200 OK`として返します。
+
+7.  **タスクなし (ロングポーリング継続):** 初回チェックでタスクが見つからなかった場合、`request_task`は`asyncio.sleep`を挟みながら`_check_for_available_task(is_first_check=False)`の呼び出しを繰り返します。ループ中にタスクが見つかれば、その時点でステップ6に進みます。
+
+8.  **タイムアウト:** ロングポーリングがタイムアウトした場合、APIサーバーは`204 No Content`をワーカーエージェントに返します。

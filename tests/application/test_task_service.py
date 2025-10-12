@@ -1,6 +1,7 @@
 import json
 import logging
 import threading
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -8,6 +9,7 @@ from github import GithubException
 
 from github_broker.application.task_service import TaskService
 from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
+from github_broker.interface.models import TaskType
 
 
 @pytest.fixture
@@ -30,10 +32,15 @@ def task_service(mock_redis_client, mock_github_client):
     mock_settings.GITHUB_INDEXING_WAIT_SECONDS = 0
     mock_settings.POLLING_INTERVAL_SECONDS = 60
     mock_settings.LONG_POLLING_CHECK_INTERVAL = 5
+    mock_settings.REVIEW_TIMEOUT_MINUTES = 10
 
     mock_gemini_executor_instance = MagicMock(spec=GeminiExecutor)
-    mock_gemini_executor_instance.build_prompt.return_value = (
-        "Generated Prompt for Issue 2"
+    mock_gemini_executor_instance.build_prompt.return_value = "Generated Prompt"
+    mock_gemini_executor_instance.build_code_review_prompt.return_value = (
+        "Generated Code Review Prompt"
+    )
+    mock_gemini_executor_instance.execute = AsyncMock(
+        return_value="Gemini Executor Output"
     )
 
     return TaskService(
@@ -66,15 +73,25 @@ def create_mock_issue(
     }
 
 
+def create_mock_pr(number, created_at):
+    """テスト用のPull Requestオブジェクトのモックを生成するヘルパー関数。"""
+    mock_pr = MagicMock()
+    mock_pr.number = number
+    mock_pr.created_at = created_at
+    return mock_pr
+
+
 @pytest.mark.unit
 def test_start_polling_fetches_and_caches_issues(
     task_service, mock_github_client, mock_redis_client
 ):
     """start_pollingがIssueを取得し、単一キーでRedisにキャッシュすることをテストします。"""
     # Arrange
-    issue1 = create_mock_issue(number=1, title="Poll Task 1", body="", labels=["bug"])
+    issue1 = create_mock_issue(
+        number=1, title="Poll Task 1", body="", labels=["bug", "P1"]
+    )
     issue2 = create_mock_issue(
-        number=2, title="Poll Task 2", body="", labels=["feature"]
+        number=2, title="Poll Task 2", body="", labels=["feature", "P1"]
     )
     mock_issues = [issue1, issue2]
     mock_github_client.get_open_issues.return_value = mock_issues
@@ -132,20 +149,19 @@ def test_start_polling_caches_empty_list_when_no_issues(
 
 @pytest.mark.unit
 @pytest.mark.anyio
-async def test_request_task_selects_by_role_from_cache(
+async def test_request_task_selects_and_sets_required_role_from_cache(
     task_service, mock_redis_client, mock_github_client
 ):
-    """Redisキャッシュから役割に合うIssueを正しく選択できることをテストします。"""
+    """RedisキャッシュからIssueを正しく選択し、required_roleを正しく設定できることをテストします。"""
     # Arrange
     issue1 = create_mock_issue(
-        number=1, title="Docs", body="", labels=["documentation"]
+        number=1, title="Docs", body="", labels=["documentation", "P1"]
     )
     issue2 = create_mock_issue(
         number=2,
         title="Backend Task",
-        body="""## 成果物
-- test.py""",
-        labels=["feature", "BACKENDCODER"],
+        body="""## 成果物\n- test.py""",
+        labels=["feature", "BACKENDCODER", "P1"],
     )
     cached_issues = [issue1, issue2]
     mock_redis_client.get_value.return_value = json.dumps(cached_issues)
@@ -153,16 +169,14 @@ async def test_request_task_selects_by_role_from_cache(
     mock_redis_client.acquire_lock.return_value = True
 
     agent_id = "test-agent"
-    agent_role = "BACKENDCODER"
 
     # Act
-    result = await task_service.request_task(
-        agent_id=agent_id, agent_role=agent_role, timeout=0
-    )
+    result = await task_service.request_task(agent_id=agent_id, timeout=0)
 
     # Assert
     assert result is not None
     assert result.issue_id == 2
+    assert result.required_role == "BACKENDCODER"
     mock_redis_client.get_value.assert_called_once_with("open_issues")
     mock_redis_client.acquire_lock.assert_called_once_with(
         "issue_lock_2", agent_id, timeout=600
@@ -178,68 +192,28 @@ async def test_request_task_selects_by_role_from_cache(
 
 @pytest.mark.unit
 @pytest.mark.anyio
-async def test_request_task_no_matching_issue(
+async def test_request_task_no_matching_role_label_issue(
     task_service, mock_redis_client, mock_github_client
 ):
-    """エージェントの役割に一致するIssueがない場合にNoneが返されることをテストします。"""
+    """Issueに役割ラベルがない場合にNoneが返されることをテストします。"""
     # Arrange
     issue1 = create_mock_issue(
         number=1,
         title="Docs",
-        body="""## 成果物
-- docs""",
-        labels=["documentation"],
+        body="""## 成果物\n- docs""",
+        labels=["documentation", "P1"],
     )
     cached_issues = [issue1]
     mock_redis_client.get_value.return_value = json.dumps(cached_issues)
     mock_github_client.find_issues_by_labels.return_value = []
     agent_id = "test-agent"
-    agent_role = "BACKENDCODER"
 
     # Act
-    result = await task_service.request_task(
-        agent_id=agent_id, agent_role=agent_role, timeout=0
-    )
+    result = await task_service.request_task(agent_id=agent_id, timeout=0)
 
     # Assert
     assert result is None
     mock_redis_client.get_value.assert_called_once_with("open_issues")
-
-
-@pytest.mark.unit
-@pytest.mark.anyio
-async def test_request_task_excludes_needs_review_label(
-    task_service, mock_redis_client, mock_github_client
-):
-    """'needs-review'ラベルを持つIssueがタスク割り当てから除外されることをテストします。"""
-    # Arrange
-    issue1 = create_mock_issue(
-        number=1,
-        title="Task Needs Review",
-        body="""## 成果物
-- review.py""",
-        labels=["BACKENDCODER", "needs-review"],
-    )
-    issue2 = create_mock_issue(
-        number=2,
-        title="Assignable Task",
-        body="""## 成果物
-- assign.py""",
-        labels=["BACKENDCODER"],
-    )
-    cached_issues = [issue1, issue2]
-    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
-    mock_github_client.find_issues_by_labels.return_value = []
-    mock_redis_client.acquire_lock.return_value = True
-
-    # Act
-    result = await task_service.request_task(
-        agent_id="test-agent", agent_role="BACKENDCODER", timeout=0
-    )
-
-    # Assert
-    assert result is not None
-    assert result.issue_id == 2
 
 
 @pytest.mark.unit
@@ -250,19 +224,17 @@ async def test_request_task_completes_previous_task(
     """request_taskが前タスクの完了処理を呼び出すことをテストします。"""
     # Arrange
     agent_id = "test-agent"
-    agent_role = "BACKENDCODER"
     prev_issue = create_mock_issue(
         number=1,
         title="Previous Task",
         body="",
-        labels=["in-progress", agent_id],
+        labels=["in-progress", agent_id, "P1"],
     )
     new_issue = create_mock_issue(
         number=2,
         title="New Task",
-        body="""## 成果物
-- new.py""",
-        labels=["BACKENDCODER"],
+        body="""## 成果物\n- new.py""",
+        labels=["BACKENDCODER", "P1"],
     )
     cached_issues = [new_issue]
     mock_redis_client.get_value.return_value = json.dumps(cached_issues)
@@ -272,9 +244,7 @@ async def test_request_task_completes_previous_task(
     mock_github_client.find_issues_by_labels.return_value = [prev_issue]
 
     # Act
-    result = await task_service.request_task(
-        agent_id=agent_id, agent_role=agent_role, timeout=0
-    )
+    result = await task_service.request_task(agent_id=agent_id, timeout=0)
 
     # Assert
     mock_github_client.find_issues_by_labels.assert_called_once_with(
@@ -290,7 +260,8 @@ async def test_request_task_completes_previous_task(
 
 
 @pytest.mark.unit
-def test_find_first_assignable_task_exception_releases_lock(
+@pytest.mark.anyio
+async def test_find_first_assignable_task_exception_releases_lock(
     task_service, mock_github_client, mock_redis_client
 ):
     """
@@ -300,9 +271,8 @@ def test_find_first_assignable_task_exception_releases_lock(
     issue = create_mock_issue(
         number=1,
         title="Test Task",
-        body="""## 成果物
-- test.py""",
-        labels=["BACKENDCODER"],
+        body="""## 成果物\n- test.py""",
+        labels=["BACKENDCODER", "P1"],
     )
     mock_redis_client.acquire_lock.return_value = True
     mock_github_client.add_label.side_effect = Exception("GitHub API Error")
@@ -312,13 +282,14 @@ def test_find_first_assignable_task_exception_releases_lock(
 
     # Act & Assert
     with pytest.raises(Exception, match="GitHub API Error"):
-        task_service._find_first_assignable_task(candidate_issues, agent_id)
+        await task_service._find_first_assignable_task(candidate_issues, agent_id)
 
     mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
 
 
 @pytest.mark.unit
-def test_find_first_assignable_task_create_branch_exception_releases_lock(
+@pytest.mark.anyio
+async def test_find_first_assignable_task_create_branch_exception_releases_lock(
     task_service, mock_github_client, mock_redis_client
 ):
     """
@@ -328,9 +299,8 @@ def test_find_first_assignable_task_create_branch_exception_releases_lock(
     issue = create_mock_issue(
         number=1,
         title="Test Task",
-        body="""## 成果物
-- test.py""",
-        labels=["BACKENDCODER"],
+        body="""## 成果物\n- test.py""",
+        labels=["BACKENDCODER", "P1"],
     )
     mock_redis_client.acquire_lock.return_value = True
     mock_github_client.create_branch.side_effect = Exception("Branch Creation Error")
@@ -340,13 +310,14 @@ def test_find_first_assignable_task_create_branch_exception_releases_lock(
 
     # Act & Assert
     with pytest.raises(Exception, match="Branch Creation Error"):
-        task_service._find_first_assignable_task(candidate_issues, agent_id)
+        await task_service._find_first_assignable_task(candidate_issues, agent_id)
 
     mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
 
 
 @pytest.mark.unit
-def test_find_first_assignable_task_rollback_labels_on_branch_creation_failure(
+@pytest.mark.anyio
+async def test_find_first_assignable_task_rollback_labels_on_branch_creation_failure(
     task_service, mock_github_client, mock_redis_client, caplog
 ):
     """
@@ -357,9 +328,8 @@ def test_find_first_assignable_task_rollback_labels_on_branch_creation_failure(
     issue = create_mock_issue(
         number=1,
         title="Test Task",
-        body="""## 成果物
-- test.py""",
-        labels=["BACKENDCODER"],
+        body="""## 成果物\n- test.py""",
+        labels=["BACKENDCODER", "P1"],
     )
     mock_redis_client.acquire_lock.return_value = True
     mock_github_client.create_branch.side_effect = GithubException(
@@ -372,7 +342,7 @@ def test_find_first_assignable_task_rollback_labels_on_branch_creation_failure(
     with caplog.at_level(logging.ERROR):
         # Act & Assert
         with pytest.raises(GithubException, match="Branch already exists"):
-            task_service._find_first_assignable_task(candidate_issues, agent_id)
+            await task_service._find_first_assignable_task(candidate_issues, agent_id)
 
         mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
         mock_github_client.update_issue.assert_called_once_with(
@@ -382,7 +352,8 @@ def test_find_first_assignable_task_rollback_labels_on_branch_creation_failure(
 
 
 @pytest.mark.unit
-def test_find_first_assignable_task_rollback_failure_logs_error(
+@pytest.mark.anyio
+async def test_find_first_assignable_task_rollback_failure_logs_error(
     task_service, mock_github_client, mock_redis_client, caplog
 ):
     """
@@ -393,9 +364,8 @@ def test_find_first_assignable_task_rollback_failure_logs_error(
     issue = create_mock_issue(
         number=1,
         title="Test Task",
-        body="""## 成果物
-- test.py""",
-        labels=["BACKENDCODER"],
+        body="""## 成果物\n- test.py""",
+        labels=["BACKENDCODER", "P1"],
     )
     mock_redis_client.acquire_lock.return_value = True
     mock_github_client.create_branch.side_effect = GithubException(
@@ -408,7 +378,7 @@ def test_find_first_assignable_task_rollback_failure_logs_error(
 
     with caplog.at_level(logging.ERROR):
         with pytest.raises(GithubException, match="Branch already exists"):
-            task_service._find_first_assignable_task(candidate_issues, agent_id)
+            await task_service._find_first_assignable_task(candidate_issues, agent_id)
 
         assert "Failed to rollback labels" in caplog.text
         mock_redis_client.release_lock.assert_called_once_with("issue_lock_1")
@@ -416,7 +386,8 @@ def test_find_first_assignable_task_rollback_failure_logs_error(
 
 
 @pytest.mark.unit
-def test_find_first_assignable_task_skips_non_assignable(
+@pytest.mark.anyio
+async def test_find_first_assignable_task_skips_non_assignable(
     task_service, mock_redis_client
 ):
     """is_assignable()がFalseを返すIssueをスキップすることをテストします。"""
@@ -425,21 +396,22 @@ def test_find_first_assignable_task_skips_non_assignable(
         number=1,
         title="Not Assignable",
         body="No deliverables section",
-        labels=["BACKENDCODER"],
+        labels=["BACKENDCODER", "P1"],
         has_branch_name=True,
     )
     issue_assignable = create_mock_issue(
         number=2,
         title="Assignable",
-        body="""## 成果物
-- work""",
-        labels=["BACKENDCODER"],
+        body="""## 成果物\n- work""",
+        labels=["BACKENDCODER", "P1"],
     )
     candidate_issues = [issue_not_assignable, issue_assignable]
     mock_redis_client.acquire_lock.return_value = True
 
     # Act
-    result = task_service._find_first_assignable_task(candidate_issues, "test-agent")
+    result = await task_service._find_first_assignable_task(
+        candidate_issues, "test-agent"
+    )
 
     # Assert
     assert result is not None
@@ -450,7 +422,8 @@ def test_find_first_assignable_task_skips_non_assignable(
 
 
 @pytest.mark.unit
-def test_find_first_assignable_task_skips_no_branch_name(
+@pytest.mark.anyio
+async def test_find_first_assignable_task_skips_no_branch_name(
     task_service, mock_redis_client
 ):
     """ブランチ名が本文にないIssueをスキップすることをテストします。"""
@@ -458,24 +431,24 @@ def test_find_first_assignable_task_skips_no_branch_name(
     issue_no_branch = create_mock_issue(
         number=1,
         title="No Branch",
-        body="""## 成果物
-- work""",
-        labels=["BACKENDCODER"],
+        body="""## 成果物\n- work""",
+        labels=["BACKENDCODER", "P1"],
         has_branch_name=False,
     )
     issue_with_branch = create_mock_issue(
         number=2,
         title="With Branch",
-        body="""## 成果物
-- work""",
-        labels=["BACKENDCODER"],
+        body="""## 成果物\n- work""",
+        labels=["BACKENDCODER", "P1"],
         has_branch_name=True,
     )
     candidate_issues = [issue_no_branch, issue_with_branch]
     mock_redis_client.acquire_lock.return_value = True
 
     # Act
-    result = task_service._find_first_assignable_task(candidate_issues, "test-agent")
+    result = await task_service._find_first_assignable_task(
+        candidate_issues, "test-agent"
+    )
 
     # Assert
     assert result is not None
@@ -486,29 +459,30 @@ def test_find_first_assignable_task_skips_no_branch_name(
 
 
 @pytest.mark.unit
-def test_find_first_assignable_task_skips_locked_issue(task_service, mock_redis_client):
+@pytest.mark.anyio
+async def test_find_first_assignable_task_skips_locked_issue(
+    task_service, mock_redis_client
+):
     """RedisでロックされているIssueをスキップすることをテストします。"""
     # Arrange
     agent_id = "test-agent"
     issue_locked = create_mock_issue(
         number=1,
         title="Locked Issue",
-        body="""## 成果物
-- work""",
-        labels=["BACKENDCODER"],
+        body="""## 成果物\n- work""",
+        labels=["BACKENDCODER", "P1"],
     )
     issue_unlocked = create_mock_issue(
         number=2,
         title="Unlocked Issue",
-        body="""## 成果物
-- work""",
-        labels=["BACKENDCODER"],
+        body="""## 成果物\n- work""",
+        labels=["BACKENDCODER", "P1"],
     )
     candidate_issues = [issue_locked, issue_unlocked]
     mock_redis_client.acquire_lock.side_effect = [False, True]
 
     # Act
-    result = task_service._find_first_assignable_task(candidate_issues, agent_id)
+    result = await task_service._find_first_assignable_task(candidate_issues, agent_id)
 
     # Assert
     assert result is not None
@@ -524,29 +498,29 @@ def test_find_first_assignable_task_skips_locked_issue(task_service, mock_redis_
 
 @pytest.mark.unit
 @pytest.mark.anyio
-async def test_no_matching_role_candidates(
+async def test_request_task_selects_issue_with_any_role_label(
     task_service, mock_redis_client, mock_github_client
 ):
-    """オープンなIssueはあるが、役割に合う候補がない場合のテスト。"""
+    """Issueに役割ラベルがあれば、エージェントの役割に関係なく選択されることをテストします。"""
     # Arrange
     issue_other_role = create_mock_issue(
         number=1,
         title="Other Role Task",
-        body="""## 成果物
-- work""",
-        labels=["FRONTENDCODER"],
+        body="""## 成果物\n- work""",
+        labels=["BACKENDCODER", "P1"],
     )
     cached_issues = [issue_other_role]
     mock_redis_client.get_value.return_value = json.dumps(cached_issues)
     mock_github_client.find_issues_by_labels.return_value = []
+    mock_redis_client.acquire_lock.return_value = True
 
     # Act
-    result = await task_service.request_task(
-        agent_id="test-agent", agent_role="BACKENDCODER", timeout=0
-    )
+    result = await task_service.request_task(agent_id="test-agent", timeout=0)
 
     # Assert
-    assert result is None
+    assert result is not None
+    assert result.issue_id == 1
+    assert result.required_role == "BACKENDCODER"
 
 
 @pytest.mark.parametrize(
@@ -574,13 +548,13 @@ def test_complete_previous_task_handles_exceptions(
         number=101,
         title="Previous Task 1",
         body="",
-        labels=["in-progress", "test-agent"],
+        labels=["in-progress", "test-agent", "P1"],
     )
     prev_issue_2 = create_mock_issue(
         number=102,
         title="Previous Task 2",
         body="",
-        labels=["in-progress", "test-agent"],
+        labels=["in-progress", "test-agent", "P1"],
     )
     mock_github_client.find_issues_by_labels.return_value = [prev_issue_1, prev_issue_2]
     agent_id = "test-agent"
@@ -616,18 +590,58 @@ async def test_request_task_stores_current_task_in_redis(
     issue = create_mock_issue(
         number=1,
         title="Test Task",
-        body="""## 成果物
-- test.py""",
-        labels=[agent_role],
+        body="""## 成果物\n- test.py""",
+        labels=[agent_role, "P1"],
     )
     mock_redis_client.get_value.return_value = json.dumps([issue])
     mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = True
 
     # Act
-    await task_service.request_task(agent_id=agent_id, agent_role=agent_role, timeout=0)
+    await task_service.request_task(agent_id=agent_id, timeout=0)
 
     # Assert
+    mock_redis_client.set_value.assert_called_once_with(
+        f"agent_current_task:{agent_id}", str(issue["number"]), timeout=3600
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
+async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
+    task_service, mock_redis_client, mock_github_client
+):
+    """'needs-review'ラベルを持つIssueが割り当てられた際に、task_typeが'review'に設定されることをテストします。"""
+    # Arrange
+    issue = create_mock_issue(
+        number=1,
+        title="Review Task",
+        body="""## 成果物\n- review.py""",
+        labels=["BACKENDCODER", "needs-review"],
+    )
+    cached_issues = [issue]
+    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
+    mock_github_client.find_issues_by_labels.return_value = []
+    mock_redis_client.acquire_lock.return_value = True
+
+    agent_id = "test-agent"
+
+    # Act
+    result = await task_service.request_task(agent_id=agent_id, timeout=0)
+
+    # Assert
+    assert result is not None
+    assert result.required_role == "BACKENDCODER"
+    assert result.issue_id == 1
+    assert result.task_type == TaskType.REVIEW
+    mock_redis_client.get_value.assert_called_once_with("open_issues")
+    mock_redis_client.acquire_lock.assert_called_once_with(
+        "issue_lock_1", agent_id, timeout=600
+    )
+    task_service.gemini_executor.build_prompt.assert_called_once_with(
+        html_url=issue["html_url"],
+        branch_name="feature/issue-1",
+    )
     mock_redis_client.set_value.assert_called_once_with(
         f"agent_current_task:{agent_id}", str(issue["number"]), timeout=3600
     )
@@ -647,13 +661,10 @@ async def test_request_task_long_polling_timeout(
     mock_time.side_effect = [0, 6, 12, 16]
 
     agent_id = "test-agent"
-    agent_role = "BACKENDCODER"
     timeout = 15
 
     # Act
-    result = await task_service.request_task(
-        agent_id=agent_id, agent_role=agent_role, timeout=timeout
-    )
+    result = await task_service.request_task(agent_id=agent_id, timeout=timeout)
 
     # Assert
     assert result is None
@@ -672,9 +683,8 @@ async def test_request_task_long_polling_finds_task_during_wait(
     issue = create_mock_issue(
         number=123,
         title="Found Task",
-        body="""## 成果物
-- found.py""",
-        labels=["BACKENDCODER"],
+        body="""## 成果物\n- found.py""",
+        labels=["BACKENDCODER", "P1"],
     )
 
     mock_redis_client.get_value.side_effect = [
@@ -687,13 +697,10 @@ async def test_request_task_long_polling_finds_task_during_wait(
     mock_time.side_effect = [0, 6]
 
     agent_id = "test-agent"
-    agent_role = "BACKENDCODER"
     timeout = 30
 
     # Act
-    result = await task_service.request_task(
-        agent_id=agent_id, agent_role=agent_role, timeout=timeout
-    )
+    result = await task_service.request_task(agent_id=agent_id, timeout=timeout)
 
     # Assert
     assert result is not None
@@ -714,12 +721,9 @@ async def test_request_task_no_timeout_returns_immediately(
     mock_github_client.find_issues_by_labels.return_value = []
 
     agent_id = "test-agent"
-    agent_role = "BACKENDCODER"
 
     # Act
-    result = await task_service.request_task(
-        agent_id=agent_id, agent_role=agent_role, timeout=None
-    )
+    result = await task_service.request_task(agent_id=agent_id, timeout=None)
 
     # Assert
     assert result is None
@@ -737,9 +741,8 @@ async def test_request_task_finds_task_immediately_no_polling(
     issue = create_mock_issue(
         number=456,
         title="Immediate Task",
-        body="""## 成果物
-- immediate.py""",
-        labels=["BACKENDCODER"],
+        body="""## 成果物\n- immediate.py""",
+        labels=["BACKENDCODER", "P1"],
     )
     cached_issues = [issue]
     mock_redis_client.get_value.return_value = json.dumps(cached_issues)
@@ -747,18 +750,52 @@ async def test_request_task_finds_task_immediately_no_polling(
     mock_redis_client.acquire_lock.return_value = True
 
     agent_id = "test-agent"
-    agent_role = "BACKENDCODER"
     timeout = 30
 
     # Act
-    result = await task_service.request_task(
-        agent_id=agent_id, agent_role=agent_role, timeout=timeout
-    )
+    result = await task_service.request_task(agent_id=agent_id, timeout=timeout)
 
     # Assert
     assert result is not None
     assert result.issue_id == 456
     mock_sleep.assert_not_called()
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
+async def test_request_task_calls_gemini_executor_execute(
+    task_service, mock_redis_client, mock_github_client
+):
+    """request_taskがGeminiExecutorのexecuteメソッドを呼び出すことをテストします。"""
+    # Arrange
+    agent_id = "test-agent"
+    agent_role = "BACKENDCODER"
+    issue = create_mock_issue(
+        number=1,
+        title="Test Task",
+        body="""## 成果物
+- test.py""",
+        labels=[agent_role, "P1"],
+    )
+    mock_redis_client.get_value.return_value = json.dumps([issue])
+    mock_github_client.find_issues_by_labels.return_value = []
+    mock_redis_client.acquire_lock.return_value = True
+
+    # GeminiExecutorのexecuteメソッドのモックを設定
+    task_service.gemini_executor.execute.return_value = "Gemini Executor Output"
+
+    # Act
+    result = await task_service.request_task(agent_id=agent_id, timeout=0)
+
+    # Assert
+    assert result is not None
+    task_service.gemini_executor.execute.assert_called_once_with(
+        issue_id=issue["number"],
+        html_url=issue["html_url"],
+        branch_name="feature/issue-1",
+        prompt="Generated Prompt",
+    )
+    assert result.gemini_response == "Gemini Executor Output"
 
 
 @pytest.mark.unit
@@ -773,7 +810,7 @@ def test_complete_previous_task_finds_and_completes_issues_via_github_api(
         number=101,
         title="Previous Task",
         body="",
-        labels=["in-progress", agent_id],
+        labels=["in-progress", agent_id, "P1"],
     )
     mock_github_client.find_issues_by_labels.return_value = [previous_issue]
 
@@ -828,13 +865,13 @@ def test_complete_previous_task_handles_multiple_issues(
         number=101,
         title="Previous Task 1",
         body="",
-        labels=["in-progress", agent_id],
+        labels=["in-progress", agent_id, "P1"],
     )
     previous_issue_2 = create_mock_issue(
         number=102,
         title="Previous Task 2",
         body="",
-        labels=["in-progress", agent_id],
+        labels=["in-progress", agent_id, "P1"],
     )
     mock_github_client.find_issues_by_labels.return_value = [
         previous_issue_1,
@@ -862,10 +899,26 @@ def test_complete_previous_task_handles_multiple_issues(
     )
 
 
+@pytest.mark.parametrize(
+    "exception_to_raise, expected_log_message",
+    [
+        (
+            GithubException(status=500, data="Server Error"),
+            "Failed to update issue",
+        ),
+        (Exception("Unexpected error"), "An unexpected error occurred"),
+    ],
+)
 @pytest.mark.unit
 @patch("time.sleep", return_value=None)
 def test_complete_previous_task_handles_github_exception(
-    mock_sleep, task_service, mock_redis_client, mock_github_client, caplog
+    mock_sleep,
+    task_service,
+    mock_redis_client,
+    mock_github_client,
+    caplog,
+    exception_to_raise,
+    expected_log_message,
 ):
     """
     complete_previous_task内でGitHub APIの例外が発生した場合の処理をテストします。
@@ -876,7 +929,7 @@ def test_complete_previous_task_handles_github_exception(
         number=101,
         title="Previous Task",
         body="",
-        labels=["in-progress", agent_id],
+        labels=["in-progress", agent_id, "P1"],
     )
     mock_github_client.find_issues_by_labels.return_value = [previous_issue]
     mock_github_client.update_issue.side_effect = GithubException(
@@ -901,3 +954,276 @@ def test_complete_previous_task_handles_github_exception(
             f"[issue_id={previous_issue['number']}, agent_id={agent_id}] Failed to update issue"
             in caplog.text
         )
+
+
+@pytest.mark.unit
+def test_sort_issues_by_priority(task_service):
+    """Issueが優先度ラベルに基づいて正しくソートされることをテストします。"""
+    # Arrange
+    issue_p1 = create_mock_issue(
+        number=1, title="P1 Task", body="", labels=["P1", "feature"]
+    )
+    issue_p0 = create_mock_issue(
+        number=2, title="P0 Task", body="", labels=["P0", "bug"]
+    )
+    issue_no_priority = create_mock_issue(
+        number=3, title="No Priority Task", body="", labels=["documentation"]
+    )
+    issue_p2 = create_mock_issue(number=4, title="P2 Task", body="", labels=["P2"])
+    issue_p0_another = create_mock_issue(
+        number=5, title="Another P0 Task", body="", labels=["P0"]
+    )
+
+    issues = [issue_p1, issue_p0, issue_no_priority, issue_p2, issue_p0_another]
+
+    # Act
+    sorted_issues = task_service._sort_issues_by_priority(issues)
+
+    # Assert
+    # 期待されるソート順: P0, P0, P1, P2, No Priority
+    expected_order = [
+        issue_p0["number"],
+        issue_p0_another["number"],
+        issue_p1["number"],
+        issue_p2["number"],
+        issue_no_priority["number"],
+    ]
+    actual_order = [issue["number"] for issue in sorted_issues]
+    assert actual_order == expected_order
+
+
+@pytest.mark.unit
+def test_find_candidates_for_any_role_filters_no_priority(task_service):
+    """_find_candidates_for_any_roleが優先度ラベルのないIssueを除外することをテストします。"""
+    # Arrange
+    issue_with_priority = create_mock_issue(
+        number=1, title="With Priority", body="", labels=["BACKENDCODER", "P1"]
+    )
+    issue_without_priority = create_mock_issue(
+        number=2, title="No Priority", body="", labels=["BACKENDCODER"]
+    )
+    issues = [issue_with_priority, issue_without_priority]
+
+    # Act
+    candidates = task_service._find_candidates_for_any_role(issues)
+
+    # Assert
+    assert len(candidates) == 1
+    assert candidates[0]["number"] == issue_with_priority["number"]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "case, labels",
+    [
+        ("development", ["BACKENDCODER", "P1"]),
+        ("review", ["BACKENDCODER", "needs-review"]),
+    ],
+)
+def test_find_candidates_for_any_role_filters_story_and_epic_labels(
+    task_service, case, labels
+):
+    """_find_candidates_for_any_roleが'story'または'epic'ラベルを持つIssueを除外することをテストします。"""
+    # Arrange
+    issue_story = create_mock_issue(
+        number=1, title="Story Issue", body="", labels=labels + ["story"]
+    )
+    issue_epic = create_mock_issue(
+        number=2, title="Epic Issue", body="", labels=labels + ["epic"]
+    )
+    issue_task = create_mock_issue(number=3, title="Task Issue", body="", labels=labels)
+    issues = [issue_story, issue_epic, issue_task]
+
+    # Act
+    candidates = task_service._find_candidates_for_any_role(issues)
+
+    # Assert
+    assert len(candidates) == 1
+    assert candidates[0]["number"] == issue_task["number"]
+
+
+@pytest.mark.unit
+def test_create_task_candidate_stores_in_redis(task_service, mock_redis_client):
+    """create_task_candidateがTaskCandidateをRedisに正しく保存することをテストします。"""
+    # Arrange
+    issue_id = 123
+    agent_id = "test-agent"
+
+    # Act
+    task_service.create_task_candidate(issue_id, agent_id)
+
+    # Assert
+    mock_redis_client.set_value.assert_called_once()
+    call_args, call_kwargs = mock_redis_client.set_value.call_args
+    assert call_args[0] == f"task_candidate:{issue_id}:{agent_id}"
+    stored_value = json.loads(call_args[1])
+    assert stored_value["issue_id"] == issue_id
+    assert stored_value["agent_id"] == agent_id
+    assert stored_value["status"] == "pending"
+
+
+@pytest.mark.unit
+def test_poll_and_process_reviews_adds_label_after_timeout(
+    task_service, mock_github_client
+):
+    """
+    ポーリングサービスが、タイムアウトしたレビュー待ちPRに 'review-done' ラベルを付与することをテストします。
+    """
+    # Arrange
+    issue_in_review = create_mock_issue(
+        number=1, title="In Review", body="", labels=[task_service.LABEL_NEEDS_REVIEW]
+    )
+    mock_github_client.find_issues_by_labels.return_value = [issue_in_review]
+
+    now = datetime.now(UTC)
+    pr_created_time = now - timedelta(
+        minutes=task_service.settings.REVIEW_TIMEOUT_MINUTES + 1
+    )
+    mock_pr = create_mock_pr(number=123, created_at=pr_created_time)
+    mock_github_client.get_pr_for_issue.return_value = mock_pr
+
+    # Act
+    task_service.poll_and_process_reviews()
+
+    # Assert
+    mock_github_client.find_issues_by_labels.assert_called_once_with(
+        labels=[task_service.LABEL_NEEDS_REVIEW]
+    )
+    mock_github_client.get_pr_for_issue.assert_called_once_with(
+        issue_in_review["number"]
+    )
+    mock_github_client.add_label_to_pr.assert_called_once_with(
+        pr_number=mock_pr.number, label=task_service.LABEL_REVIEW_DONE
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
+async def test_create_fix_task_creates_task_and_builds_prompt(task_service):
+    """create_fix_taskがプロンプトを生成し、FIXタスクをRedisに保存することをテストします。"""
+    # Arrange
+    pull_request_number = 123
+    review_comments = ["Your code needs fixing."]
+    pr_url = f"https://github.com/test/repo/pull/{pull_request_number}"
+    generated_prompt = (
+        f"Please fix the code based on the following comments: {review_comments}"
+    )
+    task_service.gemini_executor.build_code_review_prompt.return_value = (
+        generated_prompt
+    )
+
+    # Act
+    await task_service.create_fix_task(pull_request_number, review_comments)
+
+    # Assert
+    task_service.gemini_executor.build_code_review_prompt.assert_called_once_with(
+        pr_url=pr_url, review_comments=review_comments
+    )
+
+    task_service.redis_client.set_value.assert_called_once()
+    call_args, _ = task_service.redis_client.set_value.call_args
+    redis_key = call_args[0]
+    redis_value = json.loads(call_args[1])
+
+    assert redis_key == f"task:fix:{pull_request_number}"
+    assert redis_value["task_type"] == TaskType.FIX.value
+    assert redis_value["title"] == f"Fix task for PR #{pull_request_number}"
+    assert redis_value["body"] == generated_prompt
+    assert redis_value["issue_id"] == pull_request_number
+
+
+@pytest.mark.unit
+def test_find_candidates_for_any_role_review_candidate_with_review_done_pr(
+    task_service, mock_github_client
+):
+    """
+    _find_candidates_for_any_roleが、needs-reviewラベルとreview-doneラベルを持つPRを持つIssueを
+    レビュー候補として正しく選択することをテストします。
+    """
+    # Arrange
+    issue_review = create_mock_issue(
+        number=1,
+        title="Review Task",
+        body="",
+        labels=["BACKENDCODER", task_service.LABEL_NEEDS_REVIEW],
+    )
+    issues = [issue_review]
+
+    mock_pr = MagicMock()
+    mock_pr.number = 101
+    mock_github_client.get_pr_for_issue.return_value = mock_pr
+    mock_github_client.has_pr_label.return_value = True  # PR has review-done label
+
+    # Act
+    candidates = task_service._find_candidates_for_any_role(issues)
+
+    # Assert
+    assert len(candidates) == 1
+    assert candidates[0]["number"] == issue_review["number"]
+    mock_github_client.get_pr_for_issue.assert_called_once_with(issue_review["number"])
+    mock_github_client.has_pr_label.assert_called_once_with(
+        mock_pr.number, task_service.LABEL_REVIEW_DONE
+    )
+
+
+@pytest.mark.unit
+def test_find_candidates_for_any_role_review_candidate_without_review_done_pr(
+    task_service, mock_github_client
+):
+    """
+    _find_candidates_for_any_roleが、needs-reviewラベルを持つがreview-doneラベルがないPRを持つIssueを
+    レビュー候補として選択しないことをテストします。
+    """
+    # Arrange
+    issue_review = create_mock_issue(
+        number=1,
+        title="Review Task",
+        body="",
+        labels=["BACKENDCODER", task_service.LABEL_NEEDS_REVIEW],
+    )
+    issues = [issue_review]
+
+    mock_pr = MagicMock()
+    mock_pr.number = 101
+    mock_github_client.get_pr_for_issue.return_value = mock_pr
+    mock_github_client.has_pr_label.return_value = (
+        False  # PR does NOT have review-done label
+    )
+
+    # Act
+    candidates = task_service._find_candidates_for_any_role(issues)
+
+    # Assert
+    assert len(candidates) == 0
+    mock_github_client.get_pr_for_issue.assert_called_once_with(issue_review["number"])
+    mock_github_client.has_pr_label.assert_called_once_with(
+        mock_pr.number, task_service.LABEL_REVIEW_DONE
+    )
+
+
+@pytest.mark.unit
+def test_find_candidates_for_any_role_review_candidate_no_pr_found(
+    task_service, mock_github_client
+):
+    """
+    _find_candidates_for_any_roleが、needs-reviewラベルを持つが関連するPRが見つからないIssueを
+    レビュー候補として選択しないことをテストします。
+    """
+    # Arrange
+    issue_review = create_mock_issue(
+        number=1,
+        title="Review Task",
+        body="",
+        labels=["BACKENDCODER", task_service.LABEL_NEEDS_REVIEW],
+    )
+    issues = [issue_review]
+
+    mock_github_client.get_pr_for_issue.return_value = None  # No PR found
+
+    # Act
+    candidates = task_service._find_candidates_for_any_role(issues)
+
+    # Assert
+    assert len(candidates) == 0
+    mock_github_client.get_pr_for_issue.assert_called_once_with(issue_review["number"])
+    mock_github_client.has_pr_label.assert_not_called()  # has_pr_label should not be called if no PR

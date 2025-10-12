@@ -1,7 +1,6 @@
 import logging
 import os
 import re
-import shutil
 import subprocess
 import time
 
@@ -11,12 +10,18 @@ from github_broker import AgentClient
 SUCCESS_SLEEP_SECONDS = 5
 NO_TASK_SLEEP_SECONDS = 5 * 60  # 5分
 ERROR_SLEEP_SECONDS = 10 * 60  # 10分
+CONTEXT_UPDATE_TIMEOUT_SECONDS = 300  # 5分
 # --------------------------
 
 # --- ロギング設定 ---
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
+# --------------------
+
+# --- デフォルト値 ---
+DEFAULT_TASK_TYPE = "development"
+DEFAULT_REQUIRED_ROLE = "BACKENDCODER"
 # --------------------
 
 
@@ -27,23 +32,8 @@ def main(run_once=False):
     host = os.getenv("BROKER_HOST", "localhost")
     port = int(os.getenv("BROKER_PORT", 8080))
 
-    agent_role = os.getenv("AGENT_ROLE", "BACKENDCODER")
-    # --------------------------
-
-    logging.info(f"エージェント '{agent_id}' を開始します。")
-    logging.info(f"サーバー {host}:{port} に接続しています。")
-    logging.info(f"ロール: {agent_role}")
-    logging.info("-" * 30)
-
-    # geminiコマンドの存在をチェック
-    if not shutil.which("gemini"):
-        logging.error(
-            "'gemini' command not found. Please ensure it is installed and in your PATH."
-        )
-        return
-
     # AgentClientを初期化
-    client = AgentClient(agent_id=agent_id, agent_role=agent_role, host=host, port=port)
+    client = AgentClient(agent_id=agent_id, host=host, port=port)
 
     while True:
         try:
@@ -58,20 +48,49 @@ def main(run_once=False):
 
                 prompt = assigned_task.get("prompt")
                 if prompt:
-                    logging.info("プロンプトを実行しています...")
-                    try:
-                        # promptからnull文字のみを削除
-                        safe_prompt = re.sub(r"[\x00]+", "", prompt).strip()
+                    # タスクタイプと必須ロールを取得し、使用するGeminiモデルを決定
+                    task_type = assigned_task.get("task_type", DEFAULT_TASK_TYPE)
+                    required_role = assigned_task.get(
+                        "required_role", DEFAULT_REQUIRED_ROLE
+                    )
 
-                        # context.mdにsafe_promptを書き込む
+                    if task_type == "review":
+                        gemini_model = "gemini-2.5-pro"
+                    else:
+                        # development またはその他のタスクタイプ
+                        gemini_model = "gemini-2.5-flash"
+
+                    logging.info(
+                        f"タスクタイプ: {task_type}, 必須ロール: {required_role}, 使用モデル: {gemini_model}"
+                    )
+
+                    try:
+                        # 1. コンテキスト更新スクリプトの実行
+                        # エージェントの役割に応じて、LLMに渡すコンテキストを更新する
+                        logging.info("コンテキスト更新スクリプトを実行しています...")
+                        env = os.environ.copy()
+                        env["AGENT_ROLE"] = required_role
+                        subprocess.run(
+                            ["/app/.build/update_gemini_context.sh"],
+                            text=True,
+                            check=True,
+                            capture_output=True,
+                            env=env,
+                            timeout=CONTEXT_UPDATE_TIMEOUT_SECONDS,
+                        )
+                        logging.info("コンテキスト更新完了。")
+
+                        # 2. プロンプトの書き込み
+                        safe_prompt = re.sub(r"[\x00]+", "", prompt).strip()
                         with open("context.md", "w", encoding="utf-8") as f:
                             f.write(safe_prompt)
 
-                        # geminiコマンドを実行
+                        # 3. geminiコマンドの実行
                         command = (
-                            "cat context.md | gemini --model gemini-2.5-flash --yolo"
+                            f"cat context.md | gemini --model {gemini_model} --yolo"
                         )
 
+                        logging.info(f"プロンプトを実行しています: {command}")
                         result = subprocess.run(
                             command,
                             text=True,
@@ -85,9 +104,15 @@ def main(run_once=False):
                                 f"gemini cli 実行結果 (stderr):\n{result.stderr}"
                             )
                     except subprocess.CalledProcessError as e:
-                        logging.error(f"gemini cli の実行中にエラーが発生しました: {e}")
+                        logging.error(
+                            f"コマンド '{e.cmd}' の実行中にエラーが発生しました: {e}"
+                        )
                         logging.error(f"stdout: {e.stdout}")
                         logging.error(f"stderr: {e.stderr}")
+                    except Exception as e:
+                        logging.error(
+                            f"タスク実行中に予期せぬエラーが発生しました: {e}"
+                        )
                 else:
                     logging.warning(
                         "割り当てられたタスクにプロンプトが含まれていません。"

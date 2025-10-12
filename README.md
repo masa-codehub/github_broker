@@ -27,7 +27,7 @@ GitHub Brokerは、人間とAI（特にPRODUCT_MANAGERエージェント）と�
 
 ## 主要なユースケース（ワークフロー）
 
-GitHub Brokerは以下のワークフローを通じて、アイデアをコードに変換します。
+GitHub Brokerは以下のワークフローを通じて、アイデアをコードに変換します。特に、人間がプルリクエストをレビューする際に、そのコメントに基づいてAIへコードの修正を依頼する協調的なプロセスが加わりました。
 
 ```mermaid
 graph TD
@@ -35,11 +35,14 @@ graph TD
     B -->|Brokerがタスクを割り当て| C{3. 自律的な開発サイクル};
     C -->|設計・実装| D[4. コード生成];
     D -->|テスト・検証| E[5. プルリクエスト作成];
-    E -->|人間がレビュー・マージ| F(6. デプロイ);
-    F --> A;
+    E --> F{6. レビューサイクル};
+    F -->|人間 or 自動で 'review-done' ラベル付与| G[7. レビュータスク化];
+    G -- レビューコメントに基づき修正 --> C;
+    F -- 承認 & マージ --> H(8. デプロイ);
+    H --> A;
 ```
 
-このサイクルを通じて、継続的なプロダクト改善が自律的に行われます。
+このサイクルを通じて、継続的なプロダクト改善が自律的に行われます。人間は戦略的な判断と最終承認を行い、AIは実装と修正のサイクルを高速で回すことで、開発プロセス全体の効率と品質を向上させます。
 
 ## アーキテクチャ概要
 
@@ -51,46 +54,11 @@ graph TD
 
 ## Getting Started
 
-プロジェクトをローカルで実行するための推奨手順です。
+プロジェクトをローカル環境でセットアップし、実行するための詳細な手順については、以下の公式ガイドを参照してください。
 
-1.  **リポジトリをクローン:**
-    ```bash
-    git clone https://github.com/masa-codehub/github_broker.git
-    cd github_broker
-    ```
+-   [**Getting Started Guide**](./docs/guides/getting-started.md)
 
-2.  **Docker Composeファイルと.envファイルの準備:**
-    プロジェクトを実行するための設定ファイルを、ルートディレクトリにコピーします。
-    ```bash
-    cp .build/context/docker-compose.yml .
-    cp .build/context/.env.sample .env
-    ```
-    `.env`ファイルは、必要に応じてご自身の環境に合わせて編集してください。
-
-3.  **機密情報の設定 (Docker Secrets):**
-    APIキーなどの機密情報は、Docker Secretsを通じて安全にコンテナに渡されます。
-    
-    まず、プロジェクトのルートに`secrets`ディレクトリを作成します。
-    ```bash
-    mkdir secrets
-    ```
-    次に、サンプルを参考に`secrets`ディレクトリ内にAPIキーを記述したファイルを作成します。
-    ```bash
-    cp .build/context/secrets/github_token.sample secrets/github_token
-    cp .build/context/secrets/gemini_api_key.sample secrets/gemini_api_key
-    ```
-    作成した`secrets/github_token`と`secrets/gemini_api_key`に、ご自身の有効なキーを記述してください。
-    
-    **Note:** `secrets`ディレクトリは`.gitignore`によってバージョン管理の対象外となっています。
-
-4.  **Dockerコンテナのビルドと起動:**
-    全ての設定が完了したら、以下のコマンドでコンテナをビルドし、バックグラウンドで起動します。
-    ```bash
-    docker-compose up --build -d
-    ```
-    APIサーバーは `http://localhost:8000` で、各エージェントは`http://localhost:8080`で利用可能になります。
-
-詳細な手順やトラブルシューティングについては、[Development Setup Guide](./docs/guides/development-setup.md)を参照してください。
+このガイドには、必要なツールのインストール、依存関係のセットアップ、およびシステムの基本的な実行方法が含まれています。
 
 ## Contributing
 
