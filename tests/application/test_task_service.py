@@ -1070,30 +1070,25 @@ def test_poll_and_process_reviews_adds_label_after_timeout(
     ポーリングサービスが、タイムアウトしたレビュー待ちPRに 'review-done' ラベルを付与することをテストします。
     """
     # Arrange
-    issue_in_review = create_mock_issue(
-        number=1, title="In Review", body="", labels=[task_service.LABEL_NEEDS_REVIEW]
-    )
-    mock_github_client.find_issues_by_labels.return_value = [issue_in_review]
-
+    pr_number = 123
     now = datetime.now(UTC)
     pr_created_time = now - timedelta(
         minutes=task_service.settings.REVIEW_TIMEOUT_MINUTES + 1
     )
-    mock_pr = create_mock_pr(number=123, created_at=pr_created_time)
-    mock_github_client.get_pr_for_issue.return_value = mock_pr
+    mock_pr = create_mock_pr(number=pr_number, created_at=pr_created_time)
+
+    # 新しいメソッドのモック設定
+    mock_github_client.get_needs_review_issues_and_prs.return_value = {
+        pr_number: mock_pr
+    }
 
     # Act
     task_service.poll_and_process_reviews()
 
     # Assert
-    mock_github_client.find_issues_by_labels.assert_called_once_with(
-        labels=[task_service.LABEL_NEEDS_REVIEW]
-    )
-    mock_github_client.get_pr_for_issue.assert_called_once_with(
-        issue_in_review["number"]
-    )
+    mock_github_client.get_needs_review_issues_and_prs.assert_called_once()
     mock_github_client.add_label_to_pr.assert_called_once_with(
-        pr_number=mock_pr.number, label=task_service.LABEL_REVIEW_DONE
+        pr_number=pr_number, label=task_service.LABEL_REVIEW_DONE
     )
 
 
