@@ -11,6 +11,7 @@ from github_broker import AgentClient
 SUCCESS_SLEEP_SECONDS = 5
 NO_TASK_SLEEP_SECONDS = 30 * 60  # 30分
 ERROR_SLEEP_SECONDS = 60 * 60  # 60分
+CONTEXT_UPDATE_TIMEOUT_SECONDS = 300  # 5分
 # --------------------------
 
 # --- ロギング設定 ---
@@ -91,6 +92,7 @@ def main(run_once=False):
                             check=True,
                             capture_output=True,
                             env=env,
+                            timeout=CONTEXT_UPDATE_TIMEOUT_SECONDS,
                         )
                         logging.info("コンテキスト更新完了。")
 
