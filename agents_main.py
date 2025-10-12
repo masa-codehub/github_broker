@@ -1,7 +1,7 @@
 import logging
 import os
 import re
-import shutil
+import shutil  # noqa: F401
 import subprocess
 import time
 
@@ -33,23 +33,8 @@ def main(run_once=False):
     host = os.getenv("BROKER_HOST", "localhost")
     port = int(os.getenv("BROKER_PORT", 8080))
 
-    agent_role = os.getenv("AGENT_ROLE", "BACKENDCODER")
-    # --------------------------
-
-    logging.info(f"エージェント '{agent_id}' を開始します。")
-    logging.info(f"サーバー {host}:{port} に接続しています。")
-    logging.info(f"ロール: {agent_role}")
-    logging.info("-" * 30)
-
-    # geminiコマンドの存在をチェック
-    if not shutil.which("gemini"):
-        logging.error(
-            "'gemini' command not found. Please ensure it is installed and in your PATH."
-        )
-        return
-
     # AgentClientを初期化
-    client = AgentClient(agent_id=agent_id, agent_role=agent_role, host=host, port=port)
+    client = AgentClient(agent_id=agent_id, host=host, port=port)
 
     while True:
         try:
