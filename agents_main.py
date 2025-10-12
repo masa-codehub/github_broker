@@ -91,6 +91,7 @@ def main(run_once=False):
                             check=True,
                             capture_output=True,
                             env=env,
+                            timeout=300,
                         )
                         logging.info("コンテキスト更新完了。")
 
