@@ -773,8 +773,7 @@ async def test_request_task_calls_gemini_executor_execute(
     issue = create_mock_issue(
         number=1,
         title="Test Task",
-        body="""## 成果物
-- test.py""",
+        body="""## 成果物\n- test.py""",
         labels=[agent_role, "P1"],
     )
     mock_redis_client.get_value.return_value = json.dumps([issue])
@@ -1012,7 +1011,6 @@ def test_find_candidates_for_any_role_filters_no_priority(task_service):
     assert candidates[0]["number"] == issue_with_priority["number"]
 
 
-@pytest.mark.unit
 @pytest.mark.parametrize(
     "case, labels",
     [
@@ -1060,6 +1058,22 @@ def test_create_task_candidate_stores_in_redis(task_service, mock_redis_client):
     assert stored_value["issue_id"] == issue_id
     assert stored_value["agent_id"] == agent_id
     assert stored_value["status"] == "pending"
+
+
+@pytest.mark.unit
+def test_poll_and_process_reviews_uses_is_open_query(task_service, mock_github_client):
+    """
+    poll_and_process_reviewsがneeds-reviewのIssueを検索する際に、
+    is:open条件を明示的に使用することをテストします。
+    """
+    # Arrange
+    mock_github_client.get_needs_review_issues_and_prs.return_value = {}
+
+    # Act
+    task_service.poll_and_process_reviews()
+
+    # Assert
+    mock_github_client.get_needs_review_issues_and_prs.assert_called_once_with()
 
 
 @pytest.mark.unit

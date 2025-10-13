@@ -29,13 +29,16 @@ class GitHubClient:
             )
             raise
 
-    def find_issues_by_labels(self, labels: list[str]):
+    def find_issues_by_labels(self, labels: list[str], extra_query: str = ""):
         """
-        指定されたすべてのラベルを持つIssue（オープンまたはクローズ済み）を検索します。
+        指定されたすべてのラベルを持つIssueを検索します。
+        `extra_query` を使用して、'is:open' などの追加の検索条件を指定できます。
         """
         try:
             labels_query = " ".join([f'label:"{label}"' for label in labels])
-            query = f"repo:{self._repo_name} is:issue {labels_query}"
+            query = (
+                f"repo:{self._repo_name} is:issue {labels_query} {extra_query}".strip()
+            )
             logging.info(f"クエリ: {query} でIssueを検索中")
             issues = self._client.search_issues(query=query)
             logging.info(f"{issues.totalCount} 件のIssueが見つかりました。")
