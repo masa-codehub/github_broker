@@ -186,8 +186,8 @@ async def test_request_task_selects_and_sets_required_role_from_cache(
         branch_name="feature/issue-2",
     )
     mock_redis_client.set_value.assert_called_once_with(
-        f"agent_current_task:{agent_id}",
-        str(issue2["number"]),
+        f"agent_current_task:{agent_id}", str(issue2["number"]),
+        timeout=3600
     )
 
 
@@ -603,8 +603,8 @@ async def test_request_task_stores_current_task_in_redis(
 
     # Assert
     mock_redis_client.set_value.assert_called_once_with(
-        f"agent_current_task:{agent_id}",
-        str(issue["number"]),
+        f"agent_current_task:{agent_id}", str(issue["number"]),
+        timeout=3600
     )
 
 
@@ -645,8 +645,8 @@ async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
         branch_name="feature/issue-1",
     )
     mock_redis_client.set_value.assert_called_once_with(
-        f"agent_current_task:{agent_id}",
-        str(issue["number"]),
+        f"agent_current_task:{agent_id}", str(issue["number"]),
+        timeout=3600
     )
 
 
@@ -1070,16 +1070,13 @@ def test_poll_and_process_reviews_uses_is_open_query(task_service, mock_github_c
     is:open条件を明示的に使用することをテストします。
     """
     # Arrange
-    mock_github_client.find_issues_by_labels.return_value = []
+    mock_github_client.get_needs_review_issues_and_prs.return_value = {}
 
     # Act
     task_service.poll_and_process_reviews()
 
     # Assert
-    mock_github_client.find_issues_by_labels.assert_called_once_with(
-        labels=[task_service.LABEL_NEEDS_REVIEW],
-        extra_query="is:open",
-    )
+    mock_github_client.get_needs_review_issues_and_prs.assert_called_once_with()
 
 
 @pytest.mark.unit
@@ -1123,9 +1120,8 @@ async def test_create_fix_task_creates_task_and_builds_prompt(task_service):
     generated_prompt = (
         f"Please fix the code based on the following comments: {review_comments}"
     )
-    task_service.gemini_executor.build_code_review_prompt.return_value = (
+    task_service.gemini_executor.build_code_review_prompt.return_value =
         generated_prompt
-    )
 
     # Act
     await task_service.create_fix_task(pull_request_number, review_comments)
@@ -1201,9 +1197,8 @@ def test_find_candidates_for_any_role_review_candidate_without_review_done_pr(
     mock_pr = MagicMock()
     mock_pr.number = 101
     mock_github_client.get_pr_for_issue.return_value = mock_pr
-    mock_github_client.has_pr_label.return_value = (
+    mock_github_client.has_pr_label.return_value =
         False  # PR does NOT have review-done label
-    )
 
     # Act
     candidates = task_service._find_candidates_for_any_role(issues)
