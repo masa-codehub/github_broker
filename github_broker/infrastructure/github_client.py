@@ -190,6 +190,33 @@ class GitHubClient:
             )
             raise
 
+    def get_needs_review_issues_and_prs(self) -> dict[int, PullRequest]:
+        """
+        'needs-review'ラベルが付いたPull Requestをまとめて取得します。
+        PR番号をキーとし、PullRequestオブジェクトを値とする辞書を返します。
+        """
+        try:
+            query = f'repo:{self._repo_name} is:pr is:open label:"needs-review"'
+            logging.info(f"クエリ: {query} でレビュー待ちのPRを検索中")
+            results = self._client.search_issues(query=query)
+            logging.info(f"レビュー待ちのPRが {results.totalCount} 件見つかりました。")
+
+            pr_map: dict[int, PullRequest] = {}
+            for item in results:
+                try:
+                    pr = item.as_pull_request()
+                    pr_map[pr.number] = pr
+                except GithubException as e:
+                    logging.warning(f"Failed to convert item to PullRequest: {e}")
+                    continue
+
+            return pr_map
+        except GithubException as e:
+            logging.error(
+                f"リポジトリ {self._repo_name} のレビュー待ちPR検索中にエラーが発生しました: {e}"
+            )
+            raise
+
     def add_label_to_pr(self, pr_number: int, label: str) -> None:
         """
         特定のPull Requestにラベルを追加します。

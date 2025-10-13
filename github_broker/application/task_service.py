@@ -110,23 +110,14 @@ class TaskService:
         'needs-review'ラベルが付いたIssueをポーリングし、関連するPRがタイムアウトした場合に
         'review-done'ラベルを付与します。
         """
-        logger.info("Polling for issues needing review...")
+        logger.info("Polling for pull requests needing review...")
         try:
-            issues_in_review = self.github_client.find_issues_by_labels(
-                labels=[self.LABEL_NEEDS_REVIEW]
-            )
-            logger.info(f"Found {len(issues_in_review)} issues in review.")
+            # 修正: IssueごとのAPIコールを避けるため、一括でPR情報を取得
+            pr_map = self.github_client.get_needs_review_issues_and_prs()
+            logger.info(f"Found {len(pr_map)} pull requests in review.")
 
-            for issue in issues_in_review:
-                issue_id = issue["number"]
-                logger.debug(f"[issue_id={issue_id}] Processing issue in review.")
-                pr = self.github_client.get_pr_for_issue(issue_id)
-
-                if not pr:
-                    logger.warning(
-                        f"[issue_id={issue_id}] No pull request found for issue in review. Skipping."
-                    )
-                    continue
+            for pr_number, pr in pr_map.items():
+                logger.debug(f"[pr_number={pr_number}] Processing PR in review.")
 
                 timeout_minutes = self.settings.REVIEW_TIMEOUT_MINUTES
                 timeout_delta = timedelta(minutes=timeout_minutes)
@@ -139,23 +130,23 @@ class TaskService:
 
                 if time_since_creation > timeout_delta:
                     logger.info(
-                        f"[issue_id={issue_id}, pr_number={pr.number}] PR has exceeded the review timeout of {timeout_minutes} minutes. Adding 'review-done' label."
+                        f"[pr_number={pr_number}] PR has exceeded the review timeout of {timeout_minutes} minutes. Adding 'review-done' label."
                     )
                     try:
                         self.github_client.add_label_to_pr(
-                            pr_number=pr.number, label=self.LABEL_REVIEW_DONE
+                            pr_number=pr_number, label=self.LABEL_REVIEW_DONE
                         )
                         logger.info(
-                            f"[issue_id={issue_id}, pr_number={pr.number}] Successfully added 'review-done' label."
+                            f"[pr_number={pr_number}] Successfully added 'review-done' label."
                         )
                     except GithubException as e:
                         logger.error(
-                            f"[issue_id={issue_id}, pr_number={pr.number}] Failed to add 'review-done' label: {e}",
+                            f"[pr_number={pr_number}] Failed to add 'review-done' label: {e}",
                             exc_info=True,
                         )
                 else:
                     logger.debug(
-                        f"[issue_id={issue_id}, pr_number={pr.number}] PR is within the review timeout. Skipping."
+                        f"[pr_number={pr_number}] PR is within the review timeout. Skipping."
                     )
 
         except GithubException as e:
