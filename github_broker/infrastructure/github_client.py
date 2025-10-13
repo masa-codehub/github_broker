@@ -192,40 +192,28 @@ class GitHubClient:
 
     def get_needs_review_issues_and_prs(self) -> dict[int, PullRequest]:
         """
-        'needs-review'ラベルが付いたIssueと、それに関連するPull Requestをまとめて取得します。
-        Issue番号をキーとし、PullRequestオブジェクトを値とする辞書を返します。
+        'needs-review'ラベルが付いたPull Requestをまとめて取得します。
+        PR番号をキーとし、PullRequestオブジェクトを値とする辞書を返します。
         """
         try:
-            # 'needs-review'ラベルが付いたオープンなIssueとPRを検索
-            # is:issue を含めないことで、PRも検索対象に含める
-            query = f'repo:{self._repo_name} is:open label:"needs-review"'
-            logging.info(f"クエリ: {query} でレビュー待ちのIssueとPRを検索中")
+            query = f'repo:{self._repo_name} is:pr is:open label:"needs-review"'
+            logging.info(f"クエリ: {query} でレビュー待ちのPRを検索中")
             results = self._client.search_issues(query=query)
-            logging.info(
-                f"レビュー待ちのIssue/PRが {results.totalCount} 件見つかりました。"
-            )
+            logging.info(f"レビュー待ちのPRが {results.totalCount} 件見つかりました。")
 
             pr_map: dict[int, PullRequest] = {}
             for item in results:
-                # Pull Requestであるかを確認
-                if item.pull_request:
-                    # item.as_pull_request() は追加のAPIコールを発生させる可能性があるため、
-                    # item が PullRequest のインスタンスであることを確認し、
-                    # PullRequest オブジェクトを取得する。
-                    # search_issues の結果は Issue.Issue または PullRequest.PullRequest のインスタンスを返す。
-                    # item.pull_request が None でない場合、それは Pull Request である。
-                    try:
-                        pr = item.as_pull_request()
-                        issue_number = pr.number
-                        pr_map[issue_number] = pr
-                    except Exception as e:
-                        logging.warning(f"Failed to convert item to PullRequest: {e}")
-                        continue
+                try:
+                    pr = item.as_pull_request()
+                    pr_map[pr.number] = pr
+                except GithubException as e:
+                    logging.warning(f"Failed to convert item to PullRequest: {e}")
+                    continue
 
             return pr_map
         except GithubException as e:
             logging.error(
-                f"リポジトリ {self._repo_name} のレビュー待ちIssue/PR検索中にエラーが発生しました: {e}"
+                f"リポジトリ {self._repo_name} のレビュー待ちPR検索中にエラーが発生しました: {e}"
             )
             raise
 
