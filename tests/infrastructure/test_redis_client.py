@@ -123,3 +123,27 @@ def test_delete_key(redis_client, mock_redis_instance):
     # 検証
     expected_prefixed_key = "repo::test_owner::test_repo:test_key"
     mock_redis_instance.delete.assert_called_once_with(expected_prefixed_key)
+
+
+@pytest.mark.unit
+def test_get_keys_by_pattern(redis_client, mock_redis_instance):
+    # 準備
+    pattern = "issue:*"
+    prefixed_pattern = "repo::test_owner::test_repo:issue:*"
+    found_keys = [
+        "repo::test_owner::test_repo:issue:1",
+        "repo::test_owner::test_repo:issue:2",
+    ]
+    # `decode_responses=True` のため、scanは文字列を返す
+    mock_redis_instance.scan.side_effect = [
+        (1, found_keys[:1]),
+        (0, found_keys[1:]),
+    ]
+
+    # 実行
+    result = redis_client.get_keys_by_pattern(pattern)
+
+    # 検証
+    mock_redis_instance.scan.assert_any_call(0, match=prefixed_pattern)
+    mock_redis_instance.scan.assert_any_call(1, match=prefixed_pattern)
+    assert result == ["issue:1", "issue:2"]
