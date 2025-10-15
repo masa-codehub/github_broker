@@ -69,15 +69,7 @@ class TaskService:
             try:
                 logger.info(f"Fetching open issues from {self.repo_name}...")
                 issues = self.github_client.get_open_issues()
-                if issues:
-                    logger.info(
-                        f"Found {len(issues)} open issues. Caching them in Redis."
-                    )
-                    self.redis_client.set_value("open_issues", json.dumps(issues))
-                    logger.info("Finished caching all open issues under a single key.")
-                else:
-                    self.redis_client.set_value("open_issues", json.dumps([]))
-                    logger.info("No open issues found. Cached an empty list.")
+                self.redis_client.sync_issues(issues)
 
             except (GithubException, RedisError) as e:
                 logger.error(
@@ -467,14 +459,20 @@ class TaskService:
     async def _check_for_available_task(
         self, agent_id: str, is_first_check: bool = True
     ) -> TaskResponse | None:
-        cached_issues_json = self.redis_client.get_value("open_issues")
+        issue_keys = self.redis_client.get_keys_by_pattern("issue:*")
 
-        if not cached_issues_json:
+        if not issue_keys:
             logger.warning("No issues found in Redis cache.")
             return None
 
+        cached_issues_json = self.redis_client.get_values(issue_keys)
+
         try:
-            all_issues = json.loads(cached_issues_json)
+            all_issues = [
+                json.loads(issue_json)
+                for issue_json in cached_issues_json
+                if issue_json is not None
+            ]
         except json.JSONDecodeError:
             logger.error(
                 "Failed to decode issues from Redis cache. The cache might be corrupted.",

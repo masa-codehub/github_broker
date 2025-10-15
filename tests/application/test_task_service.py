@@ -85,7 +85,7 @@ def create_mock_pr(number, created_at):
 def test_start_polling_fetches_and_caches_issues(
     task_service, mock_github_client, mock_redis_client
 ):
-    """start_pollingがIssueを取得し、単一キーでRedisにキャッシュすることをテストします。"""
+    """start_pollingがIssueを取得し、RedisClientのsync_issuesを呼び出すことをテストします。"""
     # Arrange
     issue1 = create_mock_issue(
         number=1, title="Poll Task 1", body="", labels=["bug", "P1"]
@@ -114,16 +114,14 @@ def test_start_polling_fetches_and_caches_issues(
 
     # Assert
     mock_github_client.get_open_issues.assert_called_once()
-    mock_redis_client.set_value.assert_called_once_with(
-        "open_issues", json.dumps(mock_issues)
-    )
+    mock_redis_client.sync_issues.assert_called_once_with(mock_issues)
 
 
 @pytest.mark.unit
 def test_start_polling_caches_empty_list_when_no_issues(
     task_service, mock_github_client, mock_redis_client
 ):
-    """start_pollingがIssueがない場合に空のリストをキャッシュすることをテストします。"""
+    """start_pollingがIssueがない場合に、空のリストでsync_issuesを呼び出すことをテストします。"""
     # Arrange
     mock_github_client.get_open_issues.return_value = []
     stop_event = threading.Event()
@@ -144,7 +142,7 @@ def test_start_polling_caches_empty_list_when_no_issues(
 
     # Assert
     mock_github_client.get_open_issues.assert_called_once()
-    mock_redis_client.set_value.assert_called_once_with("open_issues", json.dumps([]))
+    mock_redis_client.sync_issues.assert_called_once_with([])
 
 
 @pytest.mark.unit
@@ -164,7 +162,11 @@ async def test_request_task_selects_and_sets_required_role_from_cache(
         labels=["feature", "BACKENDCODER", "P1"],
     )
     cached_issues = [issue1, issue2]
-    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
+    issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
+    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
+    mock_redis_client.get_values.return_value = [
+        json.dumps(issue) for issue in cached_issues
+    ]
     mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = True
 
@@ -177,7 +179,8 @@ async def test_request_task_selects_and_sets_required_role_from_cache(
     assert result is not None
     assert result.issue_id == 2
     assert result.required_role == "BACKENDCODER"
-    mock_redis_client.get_value.assert_called_once_with("open_issues")
+    mock_redis_client.get_keys_by_pattern.assert_called_once_with("issue:*")
+    mock_redis_client.get_values.assert_called_once_with(issue_keys)
     mock_redis_client.acquire_lock.assert_called_once_with(
         "issue_lock_2", agent_id, timeout=600
     )
@@ -204,7 +207,11 @@ async def test_request_task_no_matching_role_label_issue(
         labels=["documentation", "P1"],
     )
     cached_issues = [issue1]
-    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
+    issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
+    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
+    mock_redis_client.get_values.return_value = [
+        json.dumps(issue) for issue in cached_issues
+    ]
     mock_github_client.find_issues_by_labels.return_value = []
     agent_id = "test-agent"
 
@@ -213,7 +220,7 @@ async def test_request_task_no_matching_role_label_issue(
 
     # Assert
     assert result is None
-    mock_redis_client.get_value.assert_called_once_with("open_issues")
+    mock_redis_client.get_keys_by_pattern.assert_called_once_with("issue:*")
 
 
 @pytest.mark.unit
@@ -237,7 +244,11 @@ async def test_request_task_completes_previous_task(
         labels=["BACKENDCODER", "P1"],
     )
     cached_issues = [new_issue]
-    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
+    issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
+    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
+    mock_redis_client.get_values.return_value = [
+        json.dumps(issue) for issue in cached_issues
+    ]
     mock_redis_client.acquire_lock.return_value = True
 
     # Setup GitHub API to return previous issue for completion
@@ -510,7 +521,13 @@ async def test_request_task_selects_issue_with_any_role_label(
         labels=["BACKENDCODER", "P1"],
     )
     cached_issues = [issue_other_role]
-    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
+    issue_keys = [
+        f"repo::owner::repo:issue:{issue['number']}" for issue in cached_issues
+    ]
+    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
+    mock_redis_client.get_values.return_value = [
+        json.dumps(issue) for issue in cached_issues
+    ]
     mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = True
 
@@ -593,7 +610,14 @@ async def test_request_task_stores_current_task_in_redis(
         body="""## 成果物\n- test.py""",
         labels=[agent_role, "P1"],
     )
-    mock_redis_client.get_value.return_value = json.dumps([issue])
+    cached_issues = [issue]
+    issue_keys = [
+        f"repo::owner::repo:issue:{issue['number']}" for issue in cached_issues
+    ]
+    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
+    mock_redis_client.get_values.return_value = [
+        json.dumps(issue) for issue in cached_issues
+    ]
     mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = True
 
@@ -620,7 +644,13 @@ async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
         labels=["BACKENDCODER", "needs-review"],
     )
     cached_issues = [issue]
-    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
+    issue_keys = [
+        f"repo::owner::repo:issue:{issue['number']}" for issue in cached_issues
+    ]
+    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
+    mock_redis_client.get_values.return_value = [
+        json.dumps(issue) for issue in cached_issues
+    ]
     mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = True
 
@@ -634,7 +664,7 @@ async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
     assert result.required_role == "BACKENDCODER"
     assert result.issue_id == 1
     assert result.task_type == TaskType.REVIEW
-    mock_redis_client.get_value.assert_called_once_with("open_issues")
+    mock_redis_client.get_keys_by_pattern.assert_called_once_with("issue:*")
     mock_redis_client.acquire_lock.assert_called_once_with(
         "issue_lock_1", agent_id, timeout=600
     )
@@ -656,7 +686,7 @@ async def test_request_task_long_polling_timeout(
 ):
     """ロングポーリングがタイムアウト時間に達した場合にNoneを返すことをテストします。"""
     # Arrange
-    mock_redis_client.get_value.return_value = json.dumps([])
+    mock_redis_client.get_keys_by_pattern.return_value = []
     mock_github_client.find_issues_by_labels.return_value = []
     mock_time.side_effect = [0, 6, 12, 16]
 
@@ -687,10 +717,10 @@ async def test_request_task_long_polling_finds_task_during_wait(
         labels=["BACKENDCODER", "P1"],
     )
 
-    mock_redis_client.get_value.side_effect = [
-        json.dumps([]),
-        json.dumps([issue]),
-    ]
+    issue_keys = [f"repo::owner::repo:issue:{issue['number']}"]
+    mock_redis_client.get_keys_by_pattern.side_effect = [[], issue_keys]
+    mock_redis_client.get_values.return_value = [json.dumps(issue)]
+
     mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = True
 
@@ -716,8 +746,7 @@ async def test_request_task_no_timeout_returns_immediately(
 ):
     """timeout=Noneの場合に即座にNoneを返すことをテストします。"""
     # Arrange
-    cached_issues = []
-    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
+    mock_redis_client.get_keys_by_pattern.return_value = []
     mock_github_client.find_issues_by_labels.return_value = []
 
     agent_id = "test-agent"
@@ -745,7 +774,13 @@ async def test_request_task_finds_task_immediately_no_polling(
         labels=["BACKENDCODER", "P1"],
     )
     cached_issues = [issue]
-    mock_redis_client.get_value.return_value = json.dumps(cached_issues)
+    issue_keys = [
+        f"repo::owner::repo:issue:{issue['number']}" for issue in cached_issues
+    ]
+    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
+    mock_redis_client.get_values.return_value = [
+        json.dumps(issue) for issue in cached_issues
+    ]
     mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = True
 
@@ -776,7 +811,14 @@ async def test_request_task_calls_gemini_executor_execute(
         body="""## 成果物\n- test.py""",
         labels=[agent_role, "P1"],
     )
-    mock_redis_client.get_value.return_value = json.dumps([issue])
+    cached_issues = [issue]
+    issue_keys = [
+        f"repo::owner::repo:issue:{issue['number']}" for issue in cached_issues
+    ]
+    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
+    mock_redis_client.get_values.return_value = [
+        json.dumps(issue) for issue in cached_issues
+    ]
     mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = True
 
