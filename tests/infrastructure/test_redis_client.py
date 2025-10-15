@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import pytest
 
@@ -144,6 +144,8 @@ def test_get_keys_by_pattern(redis_client, mock_redis_instance):
     result = redis_client.get_keys_by_pattern(pattern)
 
     # 検証
-    mock_redis_instance.scan.assert_any_call(0, match=prefixed_pattern)
-    mock_redis_instance.scan.assert_any_call(1, match=prefixed_pattern)
+    assert mock_redis_instance.scan.call_args_list == [
+        call(0, match=prefixed_pattern),
+        call(1, match=prefixed_pattern),
+    ]
     assert result == ["issue:1", "issue:2"]
