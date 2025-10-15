@@ -51,3 +51,7 @@ Accepted
 
 *   **リポジトリ設定:** `.github/ISSUE_TEMPLATE/` および `.github/workflows/` ディレクトリに、本決定に基づく新しい設定ファイルが追加・管理されます。
 *   **開発ワークフロー:** リポジトリでIssueを作成・編集するすべてのユーザーが、この新しいプロセスに従うことになります。
+
+## Implementation Status (実装状況)
+
+完了
