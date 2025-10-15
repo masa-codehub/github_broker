@@ -1,3 +1,5 @@
+import json
+from typing import Any
 from urllib.parse import quote
 
 import redis
@@ -62,25 +64,54 @@ class RedisClient:
     def get_keys_by_pattern(self, pattern: str) -> list[str]:
         """
         パターンに一致するすべてのキーを取得します。
+        パフォーマンスのため、KEYSの代わりにSCANを使用します。
+        戻り値のキーにはプレフィックスは含まれません。
         """
         prefixed_pattern = self._get_prefixed_key(pattern)
-        # The result of keys() is a list of bytes, so we need to decode them.
-        return [key.decode("utf-8") for key in self.client.keys(prefixed_pattern)]
+        prefix_to_remove = self._get_prefixed_key("")
+        keys = []
+        cursor = 0
+        while True:
+            cursor, found_keys = self.client.scan(cursor, match=prefixed_pattern)
+            keys.extend(found_keys)
+            if cursor == 0:
+                break
+        return [key.decode("utf-8").replace(prefix_to_remove, "") for key in keys]
 
     def get_values(self, keys: list[str]) -> list[str | None]:
         """
         複数のキーの値を取得します。
+        存在しないキーに対応する値はNoneになります。
+        キーにはプレフィックスを付けないでください。
         """
         if not keys:
             return []
-        # No need to prefix keys here as they are already prefixed from get_keys_by_pattern
-        return self.client.mget(keys)
+        prefixed_keys = [self._get_prefixed_key(key) for key in keys]
+        return self.client.mget(prefixed_keys)
 
     def delete_keys(self, keys: list[str]) -> None:
         """
         複数のキーを削除します。
+        キーにはプレフィックスを付けないでください。
         """
         if not keys:
             return
-        # No need to prefix keys here as they are already prefixed from get_keys_by_pattern
-        self.client.delete(*keys)
+        prefixed_keys = [self._get_prefixed_key(key) for key in keys]
+        self.client.delete(*prefixed_keys)
+
+    def sync_issues(self, issues: list[dict[str, Any]]):
+        """
+        提供されたIssueのリストとRedisキャッシュを同期します。
+        - 新しいIssueを追加/更新します。
+        - 存在しなくなったIssueをキャッシュから削除します。
+        """
+        open_issue_keys: set[str] = set()
+        for issue in issues:
+            issue_key = f"issue:{issue['number']}"
+            self.set_value(issue_key, json.dumps(issue))
+            open_issue_keys.add(issue_key)
+
+        existing_issue_keys = set(self.get_keys_by_pattern("issue:*"))
+        closed_issue_keys = list(existing_issue_keys - open_issue_keys)
+        if closed_issue_keys:
+            self.delete_keys(closed_issue_keys)
