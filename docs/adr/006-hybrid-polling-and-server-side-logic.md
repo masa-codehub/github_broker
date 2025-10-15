@@ -52,3 +52,7 @@ Accepted
     -   **ポーリングサービス:** `needs-review`状態のPRを監視し、一定時間経過後に`review-done`ラベルを自動付与する責務が追加されます。
     -   **TaskService:** `needs-review`のIssueの中から、PRに`review-done`ラベルが付いたものを「レビュータスク」として選択するロジックが必要になります。
     -   **GeminiExecutor:** 新規開発用とレビュー実施用の2種類のプロンプトを生成する機能が必要になります。
+
+## Implementation Status (実装状況)
+
+完了
