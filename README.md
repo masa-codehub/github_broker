@@ -48,9 +48,9 @@ graph TD
 
 本システムは、Clean Architectureに基づいた疎結合なコンポーネントで構成されています。全体のシステム構成やコンポーネント間の連携については、以下のC4モデル図を参照してください。
 
--   [**System Context Diagram**](./docs/architecture/system_context.md)
+-   [**System Context Diagram**](./docs/design-docs/system_context.md)
 
-詳細なコードの構成については、[Code Overview](./docs/architecture/code-overview.md)をご覧ください。
+詳細なコードの構成については、[Code Overview](./docs/design-docs/code-overview.md)をご覧ください。
 
 ## Getting Started
 
