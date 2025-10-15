@@ -76,7 +76,7 @@ class RedisClient:
             keys.extend(found_keys)
             if cursor == 0:
                 break
-        return [key.decode("utf-8").replace(prefix_to_remove, "") for key in keys]
+        return [key.replace(prefix_to_remove, "") for key in keys]
 
     def get_values(self, keys: list[str]) -> list[str | None]:
         """
