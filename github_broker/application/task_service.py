@@ -69,15 +69,40 @@ class TaskService:
             try:
                 logger.info(f"Fetching open issues from {self.repo_name}...")
                 issues = self.github_client.get_open_issues()
+
                 if issues:
                     logger.info(
-                        f"Found {len(issues)} open issues. Caching them in Redis."
+                        f"Found {len(issues)} open issues. Caching them individually in Redis."
                     )
-                    self.redis_client.set_value("open_issues", json.dumps(issues))
-                    logger.info("Finished caching all open issues under a single key.")
+                    open_issue_keys: set[str] = set()
+                    for issue in issues:
+                        issue_key = f"issue:{issue['number']}"
+                        self.redis_client.set_value(issue_key, json.dumps(issue))
+                        open_issue_keys.add(
+                            self.redis_client._get_prefixed_key(issue_key)
+                        )
+
+                    # クローズされたIssueをRedisから削除
+                    existing_issue_keys = set(
+                        self.redis_client.get_keys_by_pattern("issue:*")
+                    )
+                    closed_issue_keys: list[str] = list(
+                        existing_issue_keys - open_issue_keys
+                    )
+                    if closed_issue_keys:
+                        self.redis_client.delete_keys(closed_issue_keys)
+                        logger.info(
+                            f"Removed {len(closed_issue_keys)} closed issues from Redis cache."
+                        )
+
                 else:
-                    self.redis_client.set_value("open_issues", json.dumps([]))
-                    logger.info("No open issues found. Cached an empty list.")
+                    # オープンなIssueがない場合は、既存のIssueキャッシュをすべて削除
+                    keys_to_delete: list[str] = self.redis_client.get_keys_by_pattern(
+                        "issue:*"
+                    )
+                    if keys_to_delete:
+                        self.redis_client.delete_keys(keys_to_delete)
+                    logger.info("No open issues found. Cleared all issue caches.")
 
             except (GithubException, RedisError) as e:
                 logger.error(
@@ -467,14 +492,24 @@ class TaskService:
     async def _check_for_available_task(
         self, agent_id: str, is_first_check: bool = True
     ) -> TaskResponse | None:
-        cached_issues_json = self.redis_client.get_value("open_issues")
+        issue_keys = self.redis_client.get_keys_by_pattern("issue:*")
+
+        if not issue_keys:
+            logger.warning("No issues found in Redis cache.")
+            return None
+
+        cached_issues_json = self.redis_client.get_values(issue_keys)
 
         if not cached_issues_json:
             logger.warning("No issues found in Redis cache.")
             return None
 
         try:
-            all_issues = json.loads(cached_issues_json)
+            all_issues = [
+                json.loads(issue_json)
+                for issue_json in cached_issues_json
+                if issue_json
+            ]
         except json.JSONDecodeError:
             logger.error(
                 "Failed to decode issues from Redis cache. The cache might be corrupted.",

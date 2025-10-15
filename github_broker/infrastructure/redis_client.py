@@ -58,3 +58,29 @@ class RedisClient:
         """
         prefixed_key = self._get_prefixed_key(key)
         self.client.delete(prefixed_key)
+
+    def get_keys_by_pattern(self, pattern: str) -> list[str]:
+        """
+        パターンに一致するすべてのキーを取得します。
+        """
+        prefixed_pattern = self._get_prefixed_key(pattern)
+        # The result of keys() is a list of bytes, so we need to decode them.
+        return [key.decode("utf-8") for key in self.client.keys(prefixed_pattern)]
+
+    def get_values(self, keys: list[str]) -> list[str | None]:
+        """
+        複数のキーの値を取得します。
+        """
+        if not keys:
+            return []
+        # No need to prefix keys here as they are already prefixed from get_keys_by_pattern
+        return self.client.mget(keys)
+
+    def delete_keys(self, keys: list[str]) -> None:
+        """
+        複数のキーを削除します。
+        """
+        if not keys:
+            return
+        # No need to prefix keys here as they are already prefixed from get_keys_by_pattern
+        self.client.delete(*keys)
