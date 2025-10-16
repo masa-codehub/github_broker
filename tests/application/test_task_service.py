@@ -173,7 +173,7 @@ async def test_request_task_selects_and_sets_required_role_from_cache(
     agent_id = "test-agent"
 
     # Act
-    result = await task_service.request_task(agent_id=agent_id, timeout=0)
+    result = await task_service.request_task(agent_id=agent_id)
 
     # Assert
     assert result is not None
@@ -216,7 +216,7 @@ async def test_request_task_no_matching_role_label_issue(
     agent_id = "test-agent"
 
     # Act
-    result = await task_service.request_task(agent_id=agent_id, timeout=0)
+    result = await task_service.request_task(agent_id=agent_id)
 
     # Assert
     assert result is None
@@ -255,7 +255,7 @@ async def test_request_task_completes_previous_task(
     mock_github_client.find_issues_by_labels.return_value = [prev_issue]
 
     # Act
-    result = await task_service.request_task(agent_id=agent_id, timeout=0)
+    result = await task_service.request_task(agent_id=agent_id)
 
     # Assert
     mock_github_client.find_issues_by_labels.assert_called_once_with(
@@ -532,7 +532,7 @@ async def test_request_task_selects_issue_with_any_role_label(
     mock_redis_client.acquire_lock.return_value = True
 
     # Act
-    result = await task_service.request_task(agent_id="test-agent", timeout=0)
+    result = await task_service.request_task(agent_id="test-agent")
 
     # Assert
     assert result is not None
@@ -622,7 +622,7 @@ async def test_request_task_stores_current_task_in_redis(
     mock_redis_client.acquire_lock.return_value = True
 
     # Act
-    await task_service.request_task(agent_id=agent_id, timeout=0)
+    await task_service.request_task(agent_id=agent_id)
 
     # Assert
     mock_redis_client.set_value.assert_called_once_with(
@@ -657,7 +657,7 @@ async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
     agent_id = "test-agent"
 
     # Act
-    result = await task_service.request_task(agent_id=agent_id, timeout=0)
+    result = await task_service.request_task(agent_id=agent_id)
 
     # Assert
     assert result is not None
@@ -675,125 +675,6 @@ async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
     mock_redis_client.set_value.assert_called_once_with(
         f"agent_current_task:{agent_id}", str(issue["number"]), timeout=3600
     )
-
-
-@pytest.mark.unit
-@pytest.mark.anyio
-@patch("asyncio.sleep", new_callable=AsyncMock)
-@patch("time.monotonic")
-async def test_request_task_long_polling_timeout(
-    mock_time, mock_sleep, task_service, mock_redis_client, mock_github_client
-):
-    """ロングポーリングがタイムアウト時間に達した場合にNoneを返すことをテストします。"""
-    # Arrange
-    mock_redis_client.get_keys_by_pattern.return_value = []
-    mock_github_client.find_issues_by_labels.return_value = []
-    mock_time.side_effect = [0, 6, 12, 16]
-
-    agent_id = "test-agent"
-    timeout = 15
-
-    # Act
-    result = await task_service.request_task(agent_id=agent_id, timeout=timeout)
-
-    # Assert
-    assert result is None
-    assert mock_sleep.call_count == 2
-
-
-@pytest.mark.unit
-@pytest.mark.anyio
-@patch("asyncio.sleep", new_callable=AsyncMock)
-@patch("time.monotonic")
-async def test_request_task_long_polling_finds_task_during_wait(
-    mock_time, mock_sleep, task_service, mock_redis_client, mock_github_client
-):
-    """ロングポーリング中にタスクが見つかった場合に即座に返すことをテストします。"""
-    # Arrange
-    issue = create_mock_issue(
-        number=123,
-        title="Found Task",
-        body="""## 成果物\n- found.py""",
-        labels=["BACKENDCODER", "P1"],
-    )
-
-    issue_keys = [f"repo::owner::repo:issue:{issue['number']}"]
-    mock_redis_client.get_keys_by_pattern.side_effect = [[], issue_keys]
-    mock_redis_client.get_values.return_value = [json.dumps(issue)]
-
-    mock_github_client.find_issues_by_labels.return_value = []
-    mock_redis_client.acquire_lock.return_value = True
-
-    mock_time.side_effect = [0, 6]
-
-    agent_id = "test-agent"
-    timeout = 30
-
-    # Act
-    result = await task_service.request_task(agent_id=agent_id, timeout=timeout)
-
-    # Assert
-    assert result is not None
-    assert result.issue_id == 123
-    mock_sleep.assert_called_once()
-
-
-@pytest.mark.unit
-@pytest.mark.anyio
-@patch("asyncio.sleep", new_callable=AsyncMock)
-async def test_request_task_no_timeout_returns_immediately(
-    mock_sleep, task_service, mock_redis_client, mock_github_client
-):
-    """timeout=Noneの場合に即座にNoneを返すことをテストします。"""
-    # Arrange
-    mock_redis_client.get_keys_by_pattern.return_value = []
-    mock_github_client.find_issues_by_labels.return_value = []
-
-    agent_id = "test-agent"
-
-    # Act
-    result = await task_service.request_task(agent_id=agent_id, timeout=None)
-
-    # Assert
-    assert result is None
-    mock_sleep.assert_not_called()
-
-
-@pytest.mark.unit
-@pytest.mark.anyio
-@patch("asyncio.sleep", new_callable=AsyncMock)
-async def test_request_task_finds_task_immediately_no_polling(
-    mock_sleep, task_service, mock_redis_client, mock_github_client
-):
-    """最初のチェックでタスクが見つかった場合にポーリングせずに即座に返すことをテストします。"""
-    # Arrange
-    issue = create_mock_issue(
-        number=456,
-        title="Immediate Task",
-        body="""## 成果物\n- immediate.py""",
-        labels=["BACKENDCODER", "P1"],
-    )
-    cached_issues = [issue]
-    issue_keys = [
-        f"repo::owner::repo:issue:{issue['number']}" for issue in cached_issues
-    ]
-    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
-    mock_redis_client.get_values.return_value = [
-        json.dumps(issue) for issue in cached_issues
-    ]
-    mock_github_client.find_issues_by_labels.return_value = []
-    mock_redis_client.acquire_lock.return_value = True
-
-    agent_id = "test-agent"
-    timeout = 30
-
-    # Act
-    result = await task_service.request_task(agent_id=agent_id, timeout=timeout)
-
-    # Assert
-    assert result is not None
-    assert result.issue_id == 456
-    mock_sleep.assert_not_called()
 
 
 @pytest.mark.unit
@@ -826,7 +707,7 @@ async def test_request_task_calls_gemini_executor_execute(
     task_service.gemini_executor.execute.return_value = "Gemini Executor Output"
 
     # Act
-    result = await task_service.request_task(agent_id=agent_id, timeout=0)
+    result = await task_service.request_task(agent_id=agent_id)
 
     # Assert
     assert result is not None
@@ -1307,7 +1188,7 @@ async def test_request_task_logs_detailed_information(
 
     with caplog.at_level(logging.INFO):
         # Act
-        result = await task_service.request_task(agent_id=agent_id, timeout=0)
+        result = await task_service.request_task(agent_id=agent_id)
 
         # Assert
         assert result is not None
@@ -1368,3 +1249,24 @@ def test_find_candidates_for_any_role_review_candidate_no_pr_found(
     assert len(candidates) == 0
     mock_github_client.get_pr_for_issue.assert_called_once_with(issue_review["number"])
     mock_github_client.has_pr_label.assert_not_called()  # has_pr_label should not be called if no PR
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
+async def test_request_task_returns_none_immediately_if_no_task_available(
+    task_service, mock_redis_client, mock_github_client
+):
+    """
+    タスクが利用できない場合に、request_taskが即座にNoneを返すことをテストします。
+    """
+    # Arrange
+    mock_redis_client.get_keys_by_pattern.return_value = []
+    mock_github_client.find_issues_by_labels.return_value = []
+    agent_id = "test-agent"
+
+    # Act
+    result = await task_service.request_task(agent_id=agent_id)
+
+    # Assert
+    assert result is None
+    mock_redis_client.get_keys_by_pattern.assert_called_once_with("issue:*")
