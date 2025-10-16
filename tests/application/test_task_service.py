@@ -1299,8 +1299,11 @@ async def test_request_task_logs_detailed_information(
         json.dumps(issue) for issue in cached_issues
     ]
     mock_github_client.find_issues_by_labels.return_value = []
-    # Mock lock acquisition: False for locked issue, True for assignable issue
-    mock_redis_client.acquire_lock.side_effect = [False, True]
+
+    def acquire_lock_side_effect(key, *args, **kwargs):
+        return "issue_lock_1" not in key
+
+    mock_redis_client.acquire_lock.side_effect = acquire_lock_side_effect
 
     with caplog.at_level(logging.INFO):
         # Act
@@ -1310,27 +1313,32 @@ async def test_request_task_logs_detailed_information(
         assert result is not None
         assert result.issue_id == 4
 
-        log_text = caplog.text
+        log_messages = [record.message for record in caplog.records]
+
         # 1. Agent ID
-        assert f"Requesting task for agent_id={agent_id}" in log_text
+        assert f"タスクをリクエストしています: agent_id={agent_id}" in log_messages
         # 2. Candidate count
-        assert "Found 4 candidate issues for any role." in log_text
+        assert "役割に紐づく候補Issueが4件見つかりました。" in log_messages
         # 3. Sorted order
-        assert "Sorted candidate issues by priority: [3, 2, 1, 4]" in log_text
+        assert "候補Issueを優先度順にソートしました: [3, 2, 1, 4]" in log_messages
         # 4. Reasons for skipping
-        assert (
-            "[issue_id=3] Issue is not assignable (missing '成果物' section). Skipping."
-            in log_text
+        assert any(
+            "Issueは割り当て不可能です" in m and "issue_id=3" in m for m in log_messages
         )
-        assert (
-            "[issue_id=2] の本文にブランチ名が見つかりませんでした。このIssueはスキップされます。"
-            in log_text
+        assert any(
+            "ブランチ名が見つかりません" in m and "issue_id=2" in m
+            for m in log_messages
         )
-        assert "[issue_id=1] Issue is locked by another agent. Skipping." in log_text
+        assert any(
+            "Issue is locked by another agent" in m and "issue_id=1" in m
+            for m in log_messages
+        )
         # 5. Successful assignment
-        assert (
-            f"[issue_id=4, agent_id={agent_id}] Lock acquired for issue. Assigning task."
-            in log_text
+        assert any(
+            "Lock acquired for issue" in m
+            and "issue_id=4" in m
+            and f"agent_id={agent_id}" in m
+            for m in log_messages
         )
 
 
