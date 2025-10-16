@@ -423,13 +423,7 @@ class TaskService:
 
     async def request_task(self, agent_id: str) -> TaskResponse | None:
         logger.info("タスクをリクエストしています: agent_id=%s", agent_id)
-
-        task = await self._check_for_available_task(agent_id, is_first_check=True)
-        if task:
-            return task
-
-        logger.info(f"[agent_id={agent_id}] No assignable and unlocked issues found.")
-        return None
+        return await self._check_for_available_task(agent_id, is_first_check=True)
 
     async def _check_for_available_task(
         self, agent_id: str, is_first_check: bool = True
