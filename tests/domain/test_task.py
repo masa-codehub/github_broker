@@ -51,6 +51,13 @@ def test_is_assignable(body, expected):
         ),
         ("no branch name section", None),
         ("", None),
+        (
+            """
+            ## ブランチ戦略 (Branching Strategy)
+            - **作業ブランチ (Feature Branch):** my-new-branch
+            """,
+            "my-new-branch",
+        ),
     ],
 )
 def test_extract_branch_name(body, expected_branch_name):

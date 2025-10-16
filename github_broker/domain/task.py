@@ -35,10 +35,17 @@ class Task:
             # `([^\s`]+)`: 1個以上の空白文字またはバッククォート以外の文字にマッチし、これをキャプチャグループ1とする (ブランチ名本体)
             # ``?`: オプションのバッククォォートにマッチ
             match = re.search(
-                r"## ブランチ名(?: \(Branch name\))?\s*`?([^\s`]+)`?",
+                r"- \*\*作業ブランチ \(Feature Branch\):\*\* ([^\s`]+)",
                 self.body,
                 re.MULTILINE,
             )
+            if not match:
+                match = re.search(
+                    r"## ブランチ名(?: \(Branch name\))?\s*`?([^\s`]+)`?",
+                    self.body,
+                    re.MULTILINE,
+                )
+
             if match:
                 branch_name = match.group(1).strip()
                 return branch_name.replace("issue-xx", f"issue-{self.issue_id}")
