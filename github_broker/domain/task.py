@@ -28,18 +28,24 @@ class Task:
         """Issueの本文からブランチ名を抽出します。"""
         if self.body:
             # 正規表現パターン:
-            # `## ブランチ名`: リテラル文字列 "## ブランチ名" にマッチ
-            # `(?: \(Branch name\))?`: オプションの非キャプチャグループで、"(Branch name)" にマッチ (英語の注釈に対応)
-            # `\s*`: 0個以上の空白文字にマッチ
-            # ``?`: オプションのバッククォートにマッチ
-            # `([^\s`]+)`: 1個以上の空白文字またはバッククォート以外の文字にマッチし、これをキャプチャグループ1とする (ブランチ名本体)
-            # ``?`: オプションのバッククォォートにマッチ
+            # パターンA: `- **作業ブランチ (Feature Branch):** ([^\s`]+)`
+            #   - `- **作業ブランチ (Feature Branch):**`: リテラル文字列
+            #   - `([^\s`]+)`: 空白とバッククォート以外の1文字以上にマッチ（キャプチャグループ1）
+            # パターンB: `## ブランチ名(?: \(Branch name\))?\s*`?([^\s`]+)`?`
+            #   - `## ブランチ名`: リテラル文字列
+            #   - `(?: \(Branch name\))?`: オプションの英語注釈
+            #   - `\s*`?`: 空白文字
+            #   - ``?`: オプションのバッククォート
+            #   - `([^\s`]+)`: 空白とバッククォート以外の1文字以上にマッチ（キャプチャグループ2）
+            pattern = r"- \*\*作業ブランチ \(Feature Branch\):\*\* ([^\s`]+)|## ブランチ名(?: \(Branch name\))?\s*`?([^\s`]+)`?"
             match = re.search(
-                r"## ブランチ名(?: \(Branch name\))?\s*`?([^\s`]+)`?",
+                pattern,
                 self.body,
                 re.MULTILINE,
             )
+
             if match:
-                branch_name = match.group(1).strip()
+                # グループ1（パターンA）またはグループ2（パターンB）にマッチした方を取得
+                branch_name = (match.group(1) or match.group(2)).strip()
                 return branch_name.replace("issue-xx", f"issue-{self.issue_id}")
         return None
