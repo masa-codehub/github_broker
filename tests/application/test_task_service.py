@@ -1253,6 +1253,88 @@ def test_find_candidates_for_any_role_review_candidate_without_review_done_pr(
 
 
 @pytest.mark.unit
+@pytest.mark.anyio
+async def test_request_task_logs_detailed_information(
+    task_service, mock_redis_client, mock_github_client, caplog
+):
+    """タスク割り当てプロセス中に詳細なログが出力されることをテストします。"""
+    # Arrange
+    agent_id = "test-agent-for-logging"
+    issue_not_assignable = create_mock_issue(
+        number=3,
+        title="Not Assignable",
+        body="No deliverables section",
+        labels=["BACKENDCODER", "P0"],
+        has_branch_name=True,
+    )
+    issue_no_branch = create_mock_issue(
+        number=2,
+        title="No Branch",
+        body="## 成果物\n- work",
+        labels=["BACKENDCODER", "P1"],
+        has_branch_name=False,
+    )
+    issue_locked = create_mock_issue(
+        number=1,
+        title="Locked Issue",
+        body="## 成果物\n- work",
+        labels=["BACKENDCODER", "P2"],
+    )
+    issue_assignable = create_mock_issue(
+        number=4,
+        title="Assignable Task",
+        body="## 成果物\n- work",
+        labels=["BACKENDCODER", "P3"],
+    )
+
+    cached_issues = [
+        issue_locked,
+        issue_no_branch,
+        issue_not_assignable,
+        issue_assignable,
+    ]
+    issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
+    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
+    mock_redis_client.get_values.return_value = [
+        json.dumps(issue) for issue in cached_issues
+    ]
+    mock_github_client.find_issues_by_labels.return_value = []
+    # Mock lock acquisition: False for locked issue, True for assignable issue
+    mock_redis_client.acquire_lock.side_effect = [False, True]
+
+    with caplog.at_level(logging.INFO):
+        # Act
+        result = await task_service.request_task(agent_id=agent_id, timeout=0)
+
+        # Assert
+        assert result is not None
+        assert result.issue_id == 4
+
+        log_text = caplog.text
+        # 1. Agent ID
+        assert f"Requesting task for agent_id={agent_id}" in log_text
+        # 2. Candidate count
+        assert "Found 4 candidate issues for any role." in log_text
+        # 3. Sorted order
+        assert "Sorted candidate issues by priority: [3, 2, 1, 4]" in log_text
+        # 4. Reasons for skipping
+        assert (
+            "[issue_id=3] Issue is not assignable (missing '成果物' section). Skipping."
+            in log_text
+        )
+        assert (
+            "[issue_id=2] の本文にブランチ名が見つかりませんでした。このIssueはスキップされます。"
+            in log_text
+        )
+        assert "[issue_id=1] Issue is locked by another agent. Skipping." in log_text
+        # 5. Successful assignment
+        assert (
+            f"[issue_id=4, agent_id={agent_id}] Lock acquired for issue. Assigning task."
+            in log_text
+        )
+
+
+@pytest.mark.unit
 def test_find_candidates_for_any_role_review_candidate_no_pr_found(
     task_service, mock_github_client
 ):
