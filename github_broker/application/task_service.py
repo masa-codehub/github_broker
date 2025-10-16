@@ -292,7 +292,12 @@ class TaskService:
         self, candidate_issues: list, agent_id: str
     ) -> TaskResponse | None:
         assert self.repo_name is not None
-        for issue_obj in self._sort_issues_by_priority(candidate_issues):
+        sorted_issues = self._sort_issues_by_priority(candidate_issues)
+        logger.info(
+            "候補Issueを優先度順にソートしました: %s",
+            [issue["number"] for issue in sorted_issues],
+        )
+        for issue_obj in sorted_issues:
             task = Task(
                 issue_id=issue_obj["number"],
                 title=issue_obj["title"],
@@ -303,7 +308,8 @@ class TaskService:
 
             if not task.is_assignable():
                 logger.info(
-                    f"[issue_id={task.issue_id}] Issue is not assignable (missing '成果物' section). Skipping."
+                    "[issue_id=%s] Issueは割り当て不可能です（'成果物'セクションがありません）。スキップします。",
+                    task.issue_id,
                 )
                 continue
 
@@ -419,6 +425,7 @@ class TaskService:
     async def request_task(
         self, agent_id: str, timeout: int | None = 120
     ) -> TaskResponse | None:
+        logger.info("タスクをリクエストしています: agent_id=%s", agent_id)
         start_time = time.monotonic()
         check_interval = self.long_polling_check_interval
 
@@ -485,8 +492,8 @@ class TaskService:
 
         candidate_issues = self._find_candidates_for_any_role(all_issues)
         if candidate_issues:
-            logger.debug(
-                f"Found {len(candidate_issues)} candidate issues for any role."
+            logger.info(
+                "役割に紐づく候補Issueが%d件見つかりました。", len(candidate_issues)
             )
             task = await self._find_first_assignable_task(candidate_issues, agent_id)
             if task:
