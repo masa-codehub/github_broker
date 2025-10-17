@@ -49,7 +49,6 @@ async def test_request_task_success(client, mock_task_service):
     mock_task_service.request_task.return_value = expected_task
     request_body = {
         "agent_id": "test-agent",
-        "timeout": 60,
     }
 
     # Act
@@ -60,7 +59,6 @@ async def test_request_task_success(client, mock_task_service):
     assert response.json() == expected_task.model_dump(mode="json")
     mock_task_service.request_task.assert_awaited_once_with(
         agent_id=request_body["agent_id"],
-        timeout=request_body["timeout"],
     )
 
 
@@ -72,7 +70,6 @@ async def test_request_task_no_task_available(client, mock_task_service):
     mock_task_service.request_task.return_value = None
     request_body = {
         "agent_id": "test-agent",
-        "timeout": 10,
     }
 
     # Act
@@ -82,7 +79,6 @@ async def test_request_task_no_task_available(client, mock_task_service):
     assert response.status_code == 204
     mock_task_service.request_task.assert_awaited_once_with(
         agent_id=request_body["agent_id"],
-        timeout=request_body["timeout"],
     )
 
 
@@ -105,7 +101,6 @@ async def test_request_task_lock_error(client, mock_task_service):
     assert response.json() == {"message": error_message}
     mock_task_service.request_task.assert_awaited_once_with(
         agent_id=request_body["agent_id"],
-        timeout=120,
     )
 
 

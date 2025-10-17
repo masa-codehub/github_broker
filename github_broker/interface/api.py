@@ -35,10 +35,7 @@ async def request_task_endpoint(
     task_service: TaskService = Depends(get_task_service),
 ):
     logger.info(f"Received task request from agent: {task_request.agent_id}")
-    task = await task_service.request_task(
-        agent_id=task_request.agent_id,
-        timeout=task_request.timeout,
-    )
+    task = await task_service.request_task(agent_id=task_request.agent_id)
     if task:
         return task
     return Response(status_code=status.HTTP_204_NO_CONTENT)

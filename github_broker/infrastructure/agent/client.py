@@ -31,13 +31,10 @@ class AgentClient:
         self.endpoint = "/request-task"
         self.headers = {"Content-Type": "application/json"}
 
-    def request_task(self, timeout: int = 120) -> dict[str, Any] | None:
+    def request_task(self) -> dict[str, Any] | None:
         """
         GitHubタスクブローカーサーバーに新しいタスクをリクエストします。
         これは、以前のタスクが完了したことをサーバーに暗黙的に通知します。
-
-        Args:
-            timeout (int): リクエストのタイムアウト（秒）。デフォルトは120秒。
 
         Returns:
             Optional[Dict[str, Any]]: 割り当てられたタスク情報、または利用可能なタスクがない場合はNone。
@@ -45,9 +42,7 @@ class AgentClient:
         payload = {"agent_id": self.agent_id}
         url = f"http://{self.host}:{self.port}{self.endpoint}"
         try:
-            response = requests.post(
-                url, json=payload, headers=self.headers, timeout=timeout
-            )
+            response = requests.post(url, json=payload, headers=self.headers)
 
             logging.info(f"Server response: {response.status_code} {response.reason}")
 
