@@ -37,7 +37,7 @@ class Task:
             #   - `\s*`?`: 空白文字
             #   - ``?`: オプションのバッククォート
             #   - `([^\s`]+)`: 空白とバッククォート以外の1文字以上にマッチ（キャプチャグループ2）
-            pattern = r"- \*\*作業ブランチ \(Feature Branch\):\*\* `?([^`\s]+)`?|## ブランチ名(?: \(Branch name\))?\s*`?([^\s`]+)`?"
+            pattern = r"- \*\*作業ブランチ \(Feature Branch\):\*\* `?([^\s`]+)`?|## ブランチ名(?: \(Branch name\))?\s*`?([^\s`]+)`?"
             match = re.search(
                 pattern,
                 self.body,

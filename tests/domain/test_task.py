@@ -58,6 +58,13 @@ def test_is_assignable(body, expected):
             """,
             "my-new-branch",
         ),
+        (
+            """
+            ## ブランチ戦略 (Branching Strategy)
+            - **作業ブランチ (Feature Branch):** `test/broker-verification-123`
+            """,
+            "test/broker-verification-123",
+        ),
     ],
 )
 def test_extract_branch_name(body, expected_branch_name):
