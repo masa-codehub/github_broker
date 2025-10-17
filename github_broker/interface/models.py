@@ -7,10 +7,6 @@ from github_broker.domain.task import TaskCandidateStatus
 
 class AgentTaskRequest(BaseModel):
     agent_id: str
-    timeout: int | None = Field(
-        default=120,
-        description="リクエストのタイムアウト（秒）。クライアント側で指定するためのオプションです。",
-    )
 
 
 class TaskType(str, Enum):

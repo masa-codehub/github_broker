@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 import threading
@@ -422,46 +421,9 @@ class TaskService:
         logger.info(f"[agent_id={agent_id}] No assignable and unlocked issues found.")
         return None
 
-    async def request_task(
-        self, agent_id: str, timeout: int | None = 120
-    ) -> TaskResponse | None:
+    async def request_task(self, agent_id: str) -> TaskResponse | None:
         logger.info("タスクをリクエストしています: agent_id=%s", agent_id)
-        start_time = time.monotonic()
-        check_interval = self.long_polling_check_interval
-
-        task = await self._check_for_available_task(agent_id, is_first_check=True)
-        if task:
-            return task
-
-        if timeout is None:
-            logger.info("No timeout specified, returning immediately.")
-            return None
-
-        logger.info(
-            f"No task found initially. Starting long polling for {timeout} seconds..."
-        )
-
-        while True:
-            elapsed_time = time.monotonic() - start_time
-
-            if elapsed_time >= timeout:
-                logger.info(
-                    f"Long polling timeout ({timeout}s) reached. No task found."
-                )
-                return None
-
-            remaining_time = timeout - elapsed_time
-            wait_time = min(check_interval, remaining_time)
-
-            logger.debug(
-                f"Waiting {wait_time}s before next check (elapsed: {elapsed_time:.1f}s)"
-            )
-            await asyncio.sleep(wait_time)
-
-            task = await self._check_for_available_task(agent_id, is_first_check=False)
-            if task:
-                logger.info(f"Task found during long polling after {elapsed_time:.1f}s")
-                return task
+        return await self._check_for_available_task(agent_id, is_first_check=True)
 
     async def _check_for_available_task(
         self, agent_id: str, is_first_check: bool = True

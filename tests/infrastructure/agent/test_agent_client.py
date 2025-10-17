@@ -15,41 +15,6 @@ def agent_client():
 
 @pytest.mark.unit
 @patch("requests.post")
-def test_request_task_with_custom_timeout(mock_post, agent_client):
-    """
-    カスタムタイムアウト値を使用してタスクリクエストが成功するケースをテストします。
-    """
-    # Arrange
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "issue_id": 2,
-        "title": "Custom Timeout Test",
-        "prompt": "",
-    }
-    mock_post.return_value = mock_response
-    custom_timeout = 60
-
-    # Act
-    agent_client.request_task(timeout=custom_timeout)
-
-    # Assert
-    expected_url = (
-        f"http://{agent_client.host}:{agent_client.port}{agent_client.endpoint}"
-    )
-    expected_payload = {
-        "agent_id": agent_client.agent_id,
-    }
-    mock_post.assert_called_once_with(
-        expected_url,
-        json=expected_payload,
-        headers=agent_client.headers,
-        timeout=custom_timeout,
-    )
-
-
-@pytest.mark.unit
-@patch("requests.post")
 def test_request_task_no_content(mock_post, agent_client):
     """
     利用可能なコンテンツがない場合（204 No Content）のタスクリクエストをテストします。
