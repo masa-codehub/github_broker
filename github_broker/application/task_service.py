@@ -428,6 +428,9 @@ class TaskService:
     async def _check_for_available_task(
         self, agent_id: str, is_first_check: bool = True
     ) -> TaskResponse | None:
+        if is_first_check:
+            self.complete_previous_task(agent_id)
+
         issue_keys = self.redis_client.get_keys_by_pattern("issue:*")
 
         if not issue_keys:
@@ -448,9 +451,6 @@ class TaskService:
                 exc_info=True,
             )
             return None
-
-        if is_first_check:
-            self.complete_previous_task(agent_id)
 
         candidate_issues = self._find_candidates_for_any_role(all_issues)
         if candidate_issues:

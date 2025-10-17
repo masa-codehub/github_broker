@@ -1257,11 +1257,14 @@ async def test_request_task_returns_none_immediately_if_no_task_available(
     task_service, mock_redis_client, mock_github_client
 ):
     """
-    タスクが利用できない場合に、request_taskが即座にNoneを返すことをテストします。
+    タスクがロックされている場合に、request_taskが即座にNoneを返すことをテストします。
     """
     # Arrange
-    mock_redis_client.get_keys_by_pattern.return_value = []
+    issue = create_mock_issue(1, "test_title", "test_body", ["BACKENDCODER", "P1"])
+    mock_redis_client.get_keys_by_pattern.return_value = ["issue:1"]
+    mock_redis_client.get_values.return_value = [json.dumps(issue)]
     mock_github_client.find_issues_by_labels.return_value = []
+    mock_redis_client.acquire_lock.return_value = False  # Make the issue locked
     agent_id = "test-agent"
 
     # Act
@@ -1269,4 +1272,7 @@ async def test_request_task_returns_none_immediately_if_no_task_available(
 
     # Assert
     assert result is None
+    mock_github_client.find_issues_by_labels.assert_called_once_with(
+        labels=["in-progress", agent_id]
+    )
     mock_redis_client.get_keys_by_pattern.assert_called_once_with("issue:*")
