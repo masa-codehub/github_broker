@@ -25,20 +25,33 @@ DEFAULT_REQUIRED_ROLE = "BACKENDCODER"
 # --------------------
 
 
+def _handle_subprocess_error(e: subprocess.CalledProcessError, run_once: bool) -> bool:
+    """Subprocess実行時のエラーをハンドリングし、リトライするかどうかを決定する。"""
+    logging.error(f"コマンド '{e.cmd}' の実行中にエラーが発生しました: {e}")
+    if e.stdout:
+        logging.error(f"stdout: {e.stdout}")
+    if e.stderr:
+        logging.error(f"stderr: {e.stderr}")
+
+    if run_once:
+        return False  # break
+
+    logging.info(f"{ERROR_SLEEP_SECONDS}秒待機して、次のタスクリクエストに進みます。")
+    time.sleep(ERROR_SLEEP_SECONDS)
+    return True  # continue
+
+
 def main(run_once=False):
     # --- エージェントの設定 ---
     agent_id = os.getenv("AGENT_NAME", "sample-agent-001")
-    # AgentClientとmain.pyの仕様に合わせ、hostとportで接続先を指定
     host = os.getenv("BROKER_HOST", "localhost")
     port = int(os.getenv("BROKER_PORT", 8080))
 
-    # AgentClientを初期化
     client = AgentClient(agent_id=agent_id, host=host, port=port)
 
     while True:
         try:
             logging.info("サーバーに新しいタスクをリクエストしています...")
-            # agent_idとcapabilitiesは初期化時に渡しているため、引数は不要
             assigned_task = client.request_task()
 
             if assigned_task:
@@ -48,7 +61,6 @@ def main(run_once=False):
 
                 prompt = assigned_task.get("prompt")
                 if prompt:
-                    # タスクタイプと必須ロールを取得し、使用するGeminiモデルを決定
                     task_type = assigned_task.get("task_type", DEFAULT_TASK_TYPE)
                     required_role = assigned_task.get(
                         "required_role", DEFAULT_REQUIRED_ROLE
@@ -57,7 +69,6 @@ def main(run_once=False):
                     if task_type == "review":
                         gemini_model = "gemini-2.5-pro"
                     else:
-                        # development またはその他のタスクタイプ
                         gemini_model = "gemini-2.5-flash"
 
                     logging.info(
@@ -65,12 +76,11 @@ def main(run_once=False):
                     )
 
                     try:
-                        # 1. コンテキスト更新スクリプトの実行
-                        # エージェントの役割に応じて、LLMに渡すコンテキストを更新する
+                        # 1. コンテキスト更新
                         logging.info("コンテキスト更新スクリプトを実行しています...")
                         env = os.environ.copy()
                         env["AGENT_ROLE"] = required_role
-                        subprocess.run(
+                        result = subprocess.run(
                             ["/app/.build/update_gemini_context.sh"],
                             text=True,
                             check=True,
@@ -79,6 +89,14 @@ def main(run_once=False):
                             timeout=CONTEXT_UPDATE_TIMEOUT_SECONDS,
                         )
                         logging.info("コンテキスト更新完了。")
+                        if result.stdout:
+                            logging.info(
+                                f"コンテキスト更新スクリプトの出力:\n{result.stdout}"
+                            )
+                        if result.stderr:
+                            logging.warning(
+                                f"コンテキスト更新スクリプトのエラー出力:\n{result.stderr}"
+                            )
 
                         # 2. プロンプトの書き込み
                         safe_prompt = re.sub(r"[\x00]+", "", prompt).strip()
@@ -89,7 +107,6 @@ def main(run_once=False):
                         command = (
                             f"cat context.md | gemini --model {gemini_model} --yolo"
                         )
-
                         logging.info(f"プロンプトを実行しています: {command}")
                         result = subprocess.run(
                             command,
@@ -103,12 +120,11 @@ def main(run_once=False):
                             logging.warning(
                                 f"gemini cli 実行結果 (stderr):\n{result.stderr}"
                             )
+
                     except subprocess.CalledProcessError as e:
-                        logging.error(
-                            f"コマンド '{e.cmd}' の実行中にエラーが発生しました: {e}"
-                        )
-                        logging.error(f"stdout: {e.stdout}")
-                        logging.error(f"stderr: {e.stderr}")
+                        if _handle_subprocess_error(e, run_once):
+                            continue
+                        break
                     except Exception as e:
                         logging.error(
                             f"タスク実行中に予期せぬエラーが発生しました: {e}"
@@ -121,14 +137,14 @@ def main(run_once=False):
                 logging.info("タスクの実行プロセスが完了しました。")
                 if run_once:
                     break
-                time.sleep(SUCCESS_SLEEP_SECONDS)  # 短い待機時間
+                time.sleep(SUCCESS_SLEEP_SECONDS)
             else:
                 logging.info(
                     f"利用可能なタスクがありません。{NO_TASK_SLEEP_SECONDS // 60}分後に再試行します。"
                 )
                 if run_once:
                     break
-                time.sleep(NO_TASK_SLEEP_SECONDS)  # 5分待機
+                time.sleep(NO_TASK_SLEEP_SECONDS)
 
         except Exception as e:
             logging.error(
@@ -136,7 +152,7 @@ def main(run_once=False):
             )
             if run_once:
                 break
-            time.sleep(ERROR_SLEEP_SECONDS)  # 10分待機
+            time.sleep(ERROR_SLEEP_SECONDS)
 
 
 if __name__ == "__main__":
