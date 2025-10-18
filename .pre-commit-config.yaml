@@ -14,7 +14,7 @@ repos:
     -   id: pytest
         name: pytest
         entry: pytest
-        args: [-k, "not trio"]
+        args: [-k, "not trio", -n, "auto"]
         language: system
         types: [python]
         pass_filenames: false
