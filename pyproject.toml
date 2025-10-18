@@ -61,6 +61,7 @@ dev = [
     "types-requests",
     "types-redis",
     "trio",
+    "commitizen",
 ]
 ml = [
     "scikit-learn",  # 機械学習ライブラリ
@@ -180,3 +181,10 @@ ignore_missing_imports = false
 [[tool.mypy.overrides]]
 module = "punq"
 ignore_missing_imports = true
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "v$version"
+version_scheme = "semver"
+version_provider = "commitizen"
+major_version_zero = true
