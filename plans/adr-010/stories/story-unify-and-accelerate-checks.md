@@ -23,3 +23,5 @@ A single, unified CI step runs all quality checks in parallel, significantly red
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `epic/implement-adr-010`
 - **作業ブランチ (Feature Branch):** `story/unify-and-accelerate-checks`
+
+# Issue: #1456

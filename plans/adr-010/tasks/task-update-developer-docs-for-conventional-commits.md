@@ -18,3 +18,11 @@
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/automate-release-process`
 - **作業ブランチ (Feature Branch):** `task/update-developer-docs-for-conventional-commits`
+
+## 担当エージェント (Agent)
+- CONTENTS_WRITER
+
+## 優先度 (Priority)
+- P0
+
+# Issue: #1463

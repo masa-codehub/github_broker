@@ -18,3 +18,11 @@ CIワークフローがリファクタリングされ、`pre-commit run --all-fi
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/unify-and-accelerate-checks`
 - **作業ブランチ (Feature Branch):** `task/refactor-ci-workflow-to-use-pre-commit`
+
+## 担当エージェント (Agent)
+- BACKENDCODER
+
+## 優先度 (Priority)
+- P0
+
+# Issue: #1460

@@ -61,6 +61,7 @@ dev = [
     "types-requests",
     "types-redis",
     "trio",
+    "python-semantic-release",
 ]
 ml = [
     "scikit-learn",  # 機械学習ライブラリ
@@ -180,3 +181,16 @@ ignore_missing_imports = false
 [[tool.mypy.overrides]]
 module = "punq"
 ignore_missing_imports = true
+
+[tool.semantic_release]
+version_variable = "pyproject.toml:version"
+branch = "main"
+upload_to_pypi = false
+upload_to_release = true
+build_command = "pip install build && python -m build"
+commit_parser = "semantic_release.commit_parser.scipy_parser"
+
+[tool.semantic_release.commit_parser_options]
+allowed_tags = ["build", "chore", "ci", "docs", "feat", "fix", "perf", "style", "refactor", "test", "epic", "story"]
+minor_tags = ["feat", "epic"]
+patch_tags = ["fix", "story"]

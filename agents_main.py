@@ -81,7 +81,7 @@ def main(run_once=False):
                         env = os.environ.copy()
                         env["AGENT_ROLE"] = required_role
                         result = subprocess.run(
-                            ["/app/.build/update_gemini_context.sh"],
+                            ["bash", ".build/update_gemini_context.sh"],
                             text=True,
                             check=True,
                             capture_output=True,
