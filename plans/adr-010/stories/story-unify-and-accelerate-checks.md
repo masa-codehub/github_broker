@@ -10,9 +10,10 @@ CI runs linting, formatting, and testing in separate, slow steps.
 A single, unified CI step runs all quality checks in parallel, significantly reducing feedback time.
 
 ## 完了条件 (Acceptance Criteria)
-- [ ] `pytest-xdist` is added as a development dependency.
-- [ ] The `.pre-commit-config.yaml` is updated to run `pytest` with the `-n auto` option.
-- [ ] The `.github/workflows/ci.yml` file is refactored to use a single `pre-commit run --all-files` command for all checks.
+- このStoryを構成する全てのTaskが完了すること。
+  - [ ] Task: Add pytest-xdist dependency
+  - [ ] Task: Update pre-commit for parallel testing
+  - [ ] Task: Refactor CI workflow to use pre-commit
 
 ## 成果物 (Deliverables)
 - `pyproject.toml` (or `requirements.in`)

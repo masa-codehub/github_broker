@@ -10,10 +10,9 @@ The current CI/CD process involves multiple, slow, and separate steps for lintin
 A streamlined, fast, and automated CI/CD pipeline. A single, fast `pre-commit` job validates all code changes, and the release process is fully automated based on Conventional Commits.
 
 ## 完了条件 (Acceptance Criteria)
-- The CI workflow log shows that `pre-commit run --all-files` is executed, and lint, format, type, and test checks are successful.
-- The CI test execution step log confirms that tests are run in parallel by `pytest-xdist`.
-- Merging a PR with a `feat:` or `fix:` commit to `main` automatically creates a new versioned GitHub release via `python-semantic-release`.
-- Merging a commit with `epic:` increments the minor version, and `story:` increments the patch version.
+- このEpicを構成する全てのStoryが完了すること。
+  - [ ] Story: Unify and Accelerate Quality Checks
+  - [ ] Story: Automate Release Process
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `main`

@@ -10,10 +10,10 @@ The release process, including version bumping, CHANGELOG generation, and GitHub
 The release process is fully automated using `python-semantic-release`, triggered by merges to the `main` branch.
 
 ## 完了条件 (Acceptance Criteria)
-- [ ] `python-semantic-release` is added as a development dependency.
-- [ ] The project is configured to use `python-semantic-release`, including custom rules for `epic:` (minor) and `story:` (patch) commit types.
-- [ ] The CI workflow is updated to include a step for validating commit messages against the Conventional Commits standard.
-- [ ] Developer documentation is updated to explain the new requirement for Conventional Commits.
+- このStoryを構成する全てのTaskが完了すること。
+  - [ ] Task: Add and configure python-semantic-release
+  - [ ] Task: Add commit message validation to CI
+  - [ ] Task: Update developer docs for Conventional Commits
 
 ## 成果物 (Deliverables)
 - `pyproject.toml` (or equivalent configuration file)

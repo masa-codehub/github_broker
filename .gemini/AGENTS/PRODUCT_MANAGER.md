@@ -66,7 +66,10 @@
     └── tasks/
         └── <task-branch-name>.md
     ```
-- 各Markdownファイルには、`Issueテンプレート`に基づいた内容（As-is, To-be, 完了条件、ブランチ戦略など）を記述します。
+- 各Markdownファイルには、`Issueテンプレート`に基づいた内容を記述します。特に`完了条件`は、以下の通り階層的に定義します。
+    - **Epicの完了条件:** Epicが内包する全てのStoryの完了を持って、Epicが完了したとみなします。完了条件には、各Storyのタイトルをリストアップします。（例: `- [ ] Story: Aを実装する`, `- [ ] Story: Bをリファクタリングする`）
+    - **Storyの完了条件:** Storyが内包する全てのTaskの完了を持って、Storyが完了したとみなします。完了条件には、各Taskのタイトルをリストアップします。（例: `- [ ] Task: AのAPIエンドポイントを作成する`, `- [ ] Task: Aの単体テストを記述する`）
+    - **Taskの完了条件:** Taskは、それ以上分割できない単一の具体的な作業を表します。完了条件は、その作業が完了したことを客観的に検証できる単一の基準でなければなりません。（例: `- [ ] `pytest`が全てパスすること`）
 
 ### 3. Decide (意思決定): どのアクションを優先するか？
 
@@ -80,9 +83,9 @@
 
 - **同期Pull Requestの作成:**
     1. `git checkout -b chore/sync-plan-status-TIMESTAMP` のように、同期用の新しいブランチを作成します。
-    2. `plan.md`に基づき、`create_issue`で未起票のIssueを作成します。その際、Issueの本文に**As-is/To-be、成果物、ブランチ戦略（ベースブランチと作業ブランチ）**を記述し、適切な**優先度ラベル**を付与します。
-    3. Issue作成後、`add_sub_issue`ツールを使い、計画に基づいた親子関係を設定します。
-    4. `replace`を使い、対応する`plan.md`のステータスを更新します。
+    2. `plans/ADR-XXX/`配下の各Markdownファイルに基づき、`create_issue`で未起票のIssue（Epic, Story, Task）を作成します。その際、Issueの本文にMarkdownファイルの内容を転記し、適切な**優先度ラベル**と**担当エージェントのラベル**を付与します。
+    3. Issue作成後、`add_sub_issue`ツールを使い、計画の階層構造（Epic -> Story -> Task）をGitHub Issues上で再現します。
+    4. `replace`を使い、対応する各Markdownファイルに作成したIssue番号と`Status: Open`を追記します。
     5. `git add .`、`git commit -m "chore(plans): Sync plan status with GitHub Issues"`、`git push` を実行します。
     6. `create_pull_request`を使い、ステータス同期のためのPRを作成します。
 - **新規計画Pull Requestの作成:**
@@ -148,9 +151,11 @@ app/
 ```
 # 【(Epic|Story|Task)】Issueタイトル
 
-## 関連Issue (Relation)
-- (例: このTaskは Story #123 の一部です)
-- (例: このStoryは Epic #10 の一部です)
+## 親Issue (Parent Issue)
+- (例: #10)
+
+## 子Issue (Sub-Issues)
+- (起票後に追記)
 
 ## As-is (現状)
 (現状のシステムの振る舞いや状態を記述します)
@@ -159,10 +164,14 @@ app/
 (このIssueが完了した後の、システムの理想的な振る舞いや状態を記述します)
 
 ## 完了条件 (Acceptance Criteria)
-- **Epicの場合:** (対応するADR/Design Docの「検証基準」をここに転記します)
-- **Story/Taskの場合:**
-    - [ ] (例: `user_service.py`に対する単体テストが追加され、カバレッジが95%以上になること)
-    - [ ] (例: `POST /api/v1/users`エンドポイントが、指定されたリクエストに対して`201 Created`を返すこと)
+- **Epicの場合:** このEpicを構成する全てのStoryが完了すること。
+  - [ ] Story: (Storyのタイトル1)
+  - [ ] Story: (Storyのタイトル2)
+- **Storyの場合:** このStoryを構成する全てのTaskが完了すること。
+  - [ ] Task: (Taskのタイトル1)
+  - [ ] Task: (Taskのタイトル2)
+- **Taskの場合:** これ以上分割不可能な単一の検証可能な項目。
+  - [ ] (例: `user_service.py`に対する単体テストが追加され、カバレッジが95%以上になること)
 
 ## 成果物 (Deliverables)
 - (例: `project/application/services/user_service.py`)
