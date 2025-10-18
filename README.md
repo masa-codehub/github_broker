@@ -70,3 +70,7 @@ graph TD
 ## License
 
 このプロジェクトは [MIT License](./LICENSE) の下で公開されています。
+
+---
+
+This issue has been processed by the Broker.
