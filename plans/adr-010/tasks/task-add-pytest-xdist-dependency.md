@@ -18,3 +18,11 @@
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/unify-and-accelerate-checks`
 - **作業ブランチ (Feature Branch):** `task/add-pytest-xdist-dependency`
+
+## 担当エージェント (Agent)
+- BACKENDCODER
+
+## 優先度 (Priority)
+- P0
+
+# Issue: #1458

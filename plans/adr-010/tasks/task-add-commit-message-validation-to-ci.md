@@ -18,3 +18,11 @@ CIワークフローにコミットメッセージを検証するステップが
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/automate-release-process`
 - **作業ブランチ (Feature Branch):** `task/add-commit-message-validation-to-ci`
+
+## 担当エージェント (Agent)
+- BACKENDCODER
+
+## 優先度 (Priority)
+- P0
+
+# Issue: #1462

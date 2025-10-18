@@ -27,3 +27,11 @@
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/unify-and-accelerate-checks`
 - **作業ブランチ (Feature Branch):** `task/update-pre-commit-for-parallel-testing`
+
+## 担当エージェント (Agent)
+- BACKENDCODER
+
+## 優先度 (Priority)
+- P0
+
+# Issue: #1459
