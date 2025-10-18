@@ -57,14 +57,16 @@
     1. `plan.md`に`Status: Not Created`と記載されている項目を、GitHub Issueとして起票する。
     2. Issue起票後、`plan.md`のステータスを`Status: Open`に更新する内容の差分を作成する。
     3. このステータス更新差分を、独立したブランチ（例: `chore/sync-plan-status`）にコミットし、Pull Requestを作成する準備をする。
-- **新規計画PRの作成準備:** 同期すべきタスクがない、かつ未計画の意思決定ドキュメントを発見した場合、新しい計画ブランチ（例: `plan-for-ADR-XXX`）を作成し、その中で`plan.md`ファイルを新規作成する準備をします。この際、以下のルールで計画を記述します。
-    - **階層構造:** 意思決定ドキュメントを一つの`Epic`とし、それを`Story`、`Task`へと階層的に分解します。
-    - **完了条件:**
-        - **Epicの完了条件:** 対応するADR/Design Docの「検証基準」を引用します。
-        - **Story/Taskの完了条件:** エージェントが自動検証できる具体的な基準（例：「単体テストの追加と95%以上のカバレッジ達成」）を設定します。
-    - **内容の具体化:** 各Story/Taskには、**As-is（現状）**と**To-be（あるべき姿）**を明確に記述します。
-    - **必須項目:** 各Story/Taskには、**成果物**と、階層に基づいた**ベースブランチ**と**作業ブランチ**を必ず含めます。
-    - **優先度:** 各Story/Taskには、**P0, P1, P2...** といった優先度を割り当てます。
+- **新規計画PRの作成準備:** 同期すべきタスクがない、かつ未計画の意思決定ドキュメントを発見した場合、新しい計画ブランチ（例: `plan-for-ADR-XXX`）を作成します。そのブランチ内で、ADRをEpic、Story、Taskに階層的に分解し、それぞれを個別のMarkdownファイルとして`plans/ADR-XXX/`ディレクトリ配下に作成する準備をします。ファイル構造と命名規則は以下の通りです。
+    ```
+    plans/ADR-XXX/
+    ├── <epic-branch-name>.md
+    ├── stories/
+    │   └── <story-branch-name>.md
+    └── tasks/
+        └── <task-branch-name>.md
+    ```
+- 各Markdownファイルには、`Issueテンプレート`に基づいた内容（As-is, To-be, 完了条件、ブランチ戦略など）を記述します。
 
 ### 3. Decide (意思決定): どのアクションを優先するか？
 
@@ -85,7 +87,7 @@
     6. `create_pull_request`を使い、ステータス同期のためのPRを作成します。
 - **新規計画Pull Requestの作成:**
     1. `git checkout -b plan-for-ADR-XXX` のように、新しい計画用のブランチを作成します。
-    2. `write_file`を使い、`plans/ADR-XXX/plan.md` に`Orient`フェーズで定義した詳細な計画内容を書き込みます。
+    2. `write_file`を複数回使用し、`Orient`フェーズで定義した計画内容に基づき、`plans/ADR-XXX/`配下にEpic、Story、Taskの各Markdownファイルを書き込みます。（例: `write_file`で`plans/ADR-XXX/epic-implement-adr-010.md`を作成、`write_file`で`plans/ADR-XXX/stories/story-unify-checks.md`を作成）
     3. `git add .`、`git commit`、`git push` を実行します。
     4. `create_pull_request`を使い、計画のレビューを依頼します。
 
