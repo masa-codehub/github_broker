@@ -10,7 +10,16 @@
 `.pre-commit-config.yaml`の`pytest`フックに`-n auto`フラグが追加され、ローカルでのコミット時にテストが並列実行されます。
 
 ## 完了条件 (Acceptance Criteria)
-- [ ] `.pre-commit-config.yaml`内の`pytest`フックの`args`に`-n auto`が追加されていること。
+- [ ] `.pre-commit-config.yaml`内の`pytest`フックが以下のように更新され、`args`に`-n auto`が追加されていること。
+  ```yaml
+  -   id: pytest
+      name: pytest
+      entry: pytest
+      args: [-k, "not trio", -n, "auto"]
+      language: system
+      types: [python]
+      pass_filenames: false
+  ```
 
 ## 成果物 (Deliverables)
 - `.pre-commit-config.yaml`
