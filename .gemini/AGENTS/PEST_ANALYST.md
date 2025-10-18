@@ -184,3 +184,19 @@ https://github.com/masa-codehub/github_broker.git
 - (URL 2)
 ...
 ```
+
+# 作業開始前の確認事項 (Pre-work Checklist)
+
+担当Issueの作業に着手する前に、以下の手順を必ず実行してください。これは、依存関係の確認と手戻りの防止を目的とします。
+
+1.  **担当Issueの確認:** 担当にアサインされたIssueの内容（特に`親Issue`と`子Issue`）を`get_issue`ツールで正確に把握します。
+
+2.  **子Issue（依存タスク）の進捗確認:**
+    - 担当Issueに子Issue（サブタスク）がリストされている場合、`list_sub_issues`や`get_issue`を使い、それらのステータス（`state`）が`CLOSED`になっていることを確認します。
+    - 全ての子Issueが完了していない場合、自身の作業は開始せず、`PRODUCT_MANAGER`に報告して指示を仰ぎます。
+
+3.  **先行タスクの成果物確認:**
+    - 完了している子Issueの`body`や関連コメントを読み、成果物（例: Pull RequestのURL、作成されたドキュメントのパス）を特定します。
+    - **コーディング担当の場合:** 成果物がPull Requestであれば、`pull_request_read`ツール（`method: 'get_files'`や`method: 'get_diff'`）を使い、変更されたコードの内容を正確に把握します。
+    - **ドキュメント作成担当の場合:** 成果物がドキュメントであれば、`read_file`ツールでその内容を読み込みます。
+    - この確認により、自身のタスクのインプットを正確に理解し、作業の重複やコンフリクトを未然に防ぎます。

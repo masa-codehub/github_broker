@@ -57,14 +57,19 @@
     1. `plan.md`に`Status: Not Created`と記載されている項目を、GitHub Issueとして起票する。
     2. Issue起票後、`plan.md`のステータスを`Status: Open`に更新する内容の差分を作成する。
     3. このステータス更新差分を、独立したブランチ（例: `chore/sync-plan-status`）にコミットし、Pull Requestを作成する準備をする。
-- **新規計画PRの作成準備:** 同期すべきタスクがない、かつ未計画の意思決定ドキュメントを発見した場合、新しい計画ブランチ（例: `plan-for-ADR-XXX`）を作成し、その中で`plan.md`ファイルを新規作成する準備をします。この際、以下のルールで計画を記述します。
-    - **階層構造:** 意思決定ドキュメントを一つの`Epic`とし、それを`Story`、`Task`へと階層的に分解します。
-    - **完了条件:**
-        - **Epicの完了条件:** 対応するADR/Design Docの「検証基準」を引用します。
-        - **Story/Taskの完了条件:** エージェントが自動検証できる具体的な基準（例：「単体テストの追加と95%以上のカバレッジ達成」）を設定します。
-    - **内容の具体化:** 各Story/Taskには、**As-is（現状）**と**To-be（あるべき姿）**を明確に記述します。
-    - **必須項目:** 各Story/Taskには、**成果物**と、階層に基づいた**ベースブランチ**と**作業ブランチ**を必ず含めます。
-    - **優先度:** 各Story/Taskには、**P0, P1, P2...** といった優先度を割り当てます。
+- **新規計画PRの作成準備:** 同期すべきタスクがない、かつ未計画の意思決定ドキュメントを発見した場合、新しい計画ブランチ（例: `plan-for-ADR-XXX`）を作成します。そのブランチ内で、ADRをEpic、Story、Taskに階層的に分解し、それぞれを個別のMarkdownファイルとして`plans/ADR-XXX/`ディレクトリ配下に作成する準備をします。ファイル構造と命名規則は以下の通りです。
+    ```
+    plans/ADR-XXX/
+    ├── <epic-branch-name>.md
+    ├── stories/
+    │   └── <story-branch-name>.md
+    └── tasks/
+        └── <task-branch-name>.md
+    ```
+- 各Markdownファイルには、`Issueテンプレート`に基づいた内容を記述します。特に`完了条件`は、以下の通り階層的に定義します。
+    - **Epicの完了条件:** Epicが内包する全てのStoryの完了を持って、Epicが完了したとみなします。完了条件には、各Storyのタイトルをリストアップします。（例: `- [ ] Story: Aを実装する`, `- [ ] Story: Bをリファクタリングする`）
+    - **Storyの完了条件:** Storyが内包する全てのTaskの完了を持って、Storyが完了したとみなします。完了条件には、各Taskのタイトルをリストアップします。（例: `- [ ] Task: AのAPIエンドポイントを作成する`, `- [ ] Task: Aの単体テストを記述する`）
+    - **Taskの完了条件:** Taskは、それ以上分割できない単一の具体的な作業を表します。完了条件は、その作業が完了したことを客観的に検証できる単一の基準でなければなりません。（例: `- [ ] `pytest`が全てパスすること`）
 
 ### 3. Decide (意思決定): どのアクションを優先するか？
 
@@ -78,14 +83,15 @@
 
 - **同期Pull Requestの作成:**
     1. `git checkout -b chore/sync-plan-status-TIMESTAMP` のように、同期用の新しいブランチを作成します。
-    2. `plan.md`に基づき、`create_issue`で未起票のIssueを作成します。その際、Issueの本文に**As-is/To-be、成果物、ブランチ戦略（ベースブランチと作業ブランチ）**を記述し、適切な**優先度ラベル**を付与します。
-    3. Issue作成後、`add_sub_issue`ツールを使い、計画に基づいた親子関係を設定します。
-    4. `replace`を使い、対応する`plan.md`のステータスを更新します。
-    5. `git add .`、`git commit -m "chore(plans): Sync plan status with GitHub Issues"`、`git push` を実行します。
-    6. `create_pull_request`を使い、ステータス同期のためのPRを作成します。
+    2. `plans/ADR-XXX/`配下の各Markdownファイルに基づき、`create_issue`で未起票のIssue（Epic, Story, Task）を作成します。その際、Issueの本文にMarkdownファイルの内容を転記し、適切な**優先度ラベル**と**担当エージェントのラベル**を付与します。
+    3. Issue作成と同時に、計画ファイルに記載された`ブランチ戦略`に基づき、`create_branch`ツールを使用して**作業ブランチ (Feature Branch)** を**ベースブランチ (Base Branch)** から作成します。これにより、開発エージェントはすぐに作業を開始できます。
+    4. Issue作成後、`add_sub_issue`ツールを使い、計画の階層構造（Epic -> Story -> Task）をGitHub Issues上で再現します。
+    5. `replace`を使い、対応する各Markdownファイルに作成したIssue番号と`Status: Open`を追記します。
+    6. `git add .`、`git commit -m "chore(plans): Sync plan status with GitHub Issues"`、`git push` を実行します。
+    7. `create_pull_request`を使い、ステータス同期のためのPRを作成します。
 - **新規計画Pull Requestの作成:**
     1. `git checkout -b plan-for-ADR-XXX` のように、新しい計画用のブランチを作成します。
-    2. `write_file`を使い、`plans/ADR-XXX/plan.md` に`Orient`フェーズで定義した詳細な計画内容を書き込みます。
+    2. `write_file`を複数回使用し、`Orient`フェーズで定義した計画内容に基づき、`plans/ADR-XXX/`配下にEpic、Story、Taskの各Markdownファイルを書き込みます。（例: `write_file`で`plans/ADR-XXX/epic-implement-adr-010.md`を作成、`write_file`で`plans/ADR-XXX/stories/story-unify-checks.md`を作成）
     3. `git add .`、`git commit`、`git push` を実行します。
     4. `create_pull_request`を使い、計画のレビューを依頼します。
 
@@ -146,9 +152,11 @@ app/
 ```
 # 【(Epic|Story|Task)】Issueタイトル
 
-## 関連Issue (Relation)
-- (例: このTaskは Story #123 の一部です)
-- (例: このStoryは Epic #10 の一部です)
+## 親Issue (Parent Issue)
+- (例: #10)
+
+## 子Issue (Sub-Issues)
+- (起票後に追記)
 
 ## As-is (現状)
 (現状のシステムの振る舞いや状態を記述します)
@@ -157,10 +165,14 @@ app/
 (このIssueが完了した後の、システムの理想的な振る舞いや状態を記述します)
 
 ## 完了条件 (Acceptance Criteria)
-- **Epicの場合:** (対応するADR/Design Docの「検証基準」をここに転記します)
-- **Story/Taskの場合:**
-    - [ ] (例: `user_service.py`に対する単体テストが追加され、カバレッジが95%以上になること)
-    - [ ] (例: `POST /api/v1/users`エンドポイントが、指定されたリクエストに対して`201 Created`を返すこと)
+- **Epicの場合:** このEpicを構成する全てのStoryが完了すること。
+  - [ ] Story: (Storyのタイトル1)
+  - [ ] Story: (Storyのタイトル2)
+- **Storyの場合:** このStoryを構成する全てのTaskが完了すること。
+  - [ ] Task: (Taskのタイトル1)
+  - [ ] Task: (Taskのタイトル2)
+- **Taskの場合:** これ以上分割不可能な単一の検証可能な項目。
+  - [ ] (例: `user_service.py`に対する単体テストが追加され、カバレッジが95%以上になること)
 
 ## 成果物 (Deliverables)
 - (例: `project/application/services/user_service.py`)
