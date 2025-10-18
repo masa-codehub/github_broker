@@ -59,8 +59,8 @@ dev = [
     "httpx",
     "types-PyYAML",
     "types-requests",
-    "types-redis",
     "trio",
+    "pytest-xdist",
 ]
 ml = [
     "scikit-learn",  # 機械学習ライブラリ
