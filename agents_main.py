@@ -70,7 +70,7 @@ def main(run_once=False):
                         logging.info("コンテキスト更新スクリプトを実行しています...")
                         env = os.environ.copy()
                         env["AGENT_ROLE"] = required_role
-                        subprocess.run(
+                        result = subprocess.run(
                             ["/app/.build/update_gemini_context.sh"],
                             text=True,
                             check=True,
@@ -79,6 +79,14 @@ def main(run_once=False):
                             timeout=CONTEXT_UPDATE_TIMEOUT_SECONDS,
                         )
                         logging.info("コンテキスト更新完了。")
+                        if result.stdout:
+                            logging.info(
+                                f"コンテキスト更新スクリプトの出力:\n{result.stdout}"
+                            )
+                        if result.stderr:
+                            logging.warning(
+                                f"コンテキスト更新スクリプトのエラー出力:\n{result.stderr}"
+                            )
 
                         # 2. プロンプトの書き込み
                         safe_prompt = re.sub(r"[\x00]+", "", prompt).strip()
@@ -109,6 +117,15 @@ def main(run_once=False):
                         )
                         logging.error(f"stdout: {e.stdout}")
                         logging.error(f"stderr: {e.stderr}")
+                        # コンテキスト更新やプロンプト実行に失敗した場合、
+                        # タスクを完了させずに次のループで再試行するために continue する
+                        if run_once:
+                            break
+                        logging.info(
+                            f"{ERROR_SLEEP_SECONDS}秒待機して、次のタスクリクエストに進みます。"
+                        )
+                        time.sleep(ERROR_SLEEP_SECONDS)
+                        continue
                     except Exception as e:
                         logging.error(
                             f"タスク実行中に予期せぬエラーが発生しました: {e}"
