@@ -53,7 +53,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . /app
 
 # update_gemini_context.shに実行権限を付与
-RUN chmod +x .build/update_gemini_context.sh
+RUN chmod +x /app/.build/update_gemini_context.sh
 
 # Pythonが.pycファイルを生成しないようにします。
 ENV PYTHONDONTWRITEBYTECODE=1

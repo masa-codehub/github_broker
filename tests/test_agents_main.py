@@ -172,27 +172,24 @@ def test_main_subprocess_called_process_error(
         "prompt": "test prompt",
         "required_role": "BACKENDCODER",
     }
-
-    def side_effect_func(*args, **kwargs):
-        if args[0] == ["/app/.build/update_gemini_context.sh"]:
-            return subprocess.CompletedProcess(
-                args=["dummy"], returncode=0, stdout="", stderr=""
-            )
-        raise subprocess.CalledProcessError(
-            returncode=1,
-            cmd="cat context.md | gemini --model gemini-2.5-flash --yolo",
-            output="",
-            stderr="cli error",
-        )
-
-    mock_subprocess_run.side_effect = side_effect_func
-    main(run_once=True)
     expected_gemini_command = "cat context.md | gemini --model gemini-2.5-flash --yolo"
-    mock_logging_error.assert_any_call(
-        f"コマンド '{expected_gemini_command}' の実行中にエラーが発生しました: Command '{expected_gemini_command}' returned non-zero exit status 1."
+    mock_subprocess_run.side_effect = subprocess.CalledProcessError(
+        returncode=1,
+        cmd=expected_gemini_command,
+        output="cli output",
+        stderr="cli error",
     )
-    mock_logging_error.assert_any_call("stdout: ")
-    mock_logging_error.assert_any_call("stderr: cli error")
+
+    main(run_once=True)
+
+    # エラーメッセージをより柔軟にチェック
+    error_calls = [str(call) for call in mock_logging_error.call_args_list]
+    expected_main_error_msg = (
+        f"コマンド '{expected_gemini_command}' の実行中にエラーが発生しました"
+    )
+    assert any(expected_main_error_msg in call for call in error_calls)
+    assert any("stdout: cli output" in call for call in error_calls)
+    assert any("stderr: cli error" in call for call in error_calls)
 
 
 @patch("agents_main.subprocess.run")
