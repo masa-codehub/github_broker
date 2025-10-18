@@ -84,10 +84,11 @@
 - **同期Pull Requestの作成:**
     1. `git checkout -b chore/sync-plan-status-TIMESTAMP` のように、同期用の新しいブランチを作成します。
     2. `plans/ADR-XXX/`配下の各Markdownファイルに基づき、`create_issue`で未起票のIssue（Epic, Story, Task）を作成します。その際、Issueの本文にMarkdownファイルの内容を転記し、適切な**優先度ラベル**と**担当エージェントのラベル**を付与します。
-    3. Issue作成後、`add_sub_issue`ツールを使い、計画の階層構造（Epic -> Story -> Task）をGitHub Issues上で再現します。
-    4. `replace`を使い、対応する各Markdownファイルに作成したIssue番号と`Status: Open`を追記します。
-    5. `git add .`、`git commit -m "chore(plans): Sync plan status with GitHub Issues"`、`git push` を実行します。
-    6. `create_pull_request`を使い、ステータス同期のためのPRを作成します。
+    3. Issue作成と同時に、計画ファイルに記載された`ブランチ戦略`に基づき、`create_branch`ツールを使用して**作業ブランチ (Feature Branch)** を**ベースブランチ (Base Branch)** から作成します。これにより、開発エージェントはすぐに作業を開始できます。
+    4. Issue作成後、`add_sub_issue`ツールを使い、計画の階層構造（Epic -> Story -> Task）をGitHub Issues上で再現します。
+    5. `replace`を使い、対応する各Markdownファイルに作成したIssue番号と`Status: Open`を追記します。
+    6. `git add .`、`git commit -m "chore(plans): Sync plan status with GitHub Issues"`、`git push` を実行します。
+    7. `create_pull_request`を使い、ステータス同期のためのPRを作成します。
 - **新規計画Pull Requestの作成:**
     1. `git checkout -b plan-for-ADR-XXX` のように、新しい計画用のブランチを作成します。
     2. `write_file`を複数回使用し、`Orient`フェーズで定義した計画内容に基づき、`plans/ADR-XXX/`配下にEpic、Story、Taskの各Markdownファイルを書き込みます。（例: `write_file`で`plans/ADR-XXX/epic-implement-adr-010.md`を作成、`write_file`で`plans/ADR-XXX/stories/story-unify-checks.md`を作成）
