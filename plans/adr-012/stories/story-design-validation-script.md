@@ -19,7 +19,7 @@
 ADR-012で定義されたルールに基づき、ドキュメントフォーマットを自動検証するスクリプトの、詳細な設計が完了している。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
-1. `task-create-design-doc-for-validator.md` を実行し、検証スクリプトの技術設計書を作成する。
+1. `plans/adr-012/tasks/task-create-design-doc-for-validator.md` を実行し、検証スクリプトの技術設計書を作成する。
 2. 設計書をレビューし、承認を得ることで、このStoryを完了と判断する。
 
 ## 完了条件 (Acceptance Criteria)

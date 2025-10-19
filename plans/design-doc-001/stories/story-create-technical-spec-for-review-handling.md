@@ -21,7 +21,7 @@
 レビューIssueの遅延処理に関するシーケンス図と、使用するRedisのデータ構造（スキーマ）が定義され、ドキュメント化されている。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
-1. `task-create-sequence-diagram-and-redis-schema.md` を実行し、シーケンス図の作成とRedisスキーマの定義を行う。
+1. `plans/design-doc-001/tasks/task-create-sequence-diagram-and-redis-schema.md` を実行し、シーケンス図の作成とRedisスキーマの定義を行う。
 2. 作成されたドキュメントをレビューし、承認を得ることで、このStoryを完了と判断する。
 
 ## 完了条件 (Acceptance Criteria)

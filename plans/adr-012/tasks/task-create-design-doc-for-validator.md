@@ -11,6 +11,8 @@
 
 ## 実装の参照資料 (Implementation Reference Documents)
 - `docs/adr/012-document-format-validation.md`
+- `.pre-commit-config.yaml`
+- `.github/workflows/ci.yml`
 
 ## As-is (現状)
 検証スクリプトの具体的な設計書が存在しない。
@@ -24,7 +26,7 @@
 3. 設計書が完了条件を満たしていることを確認し、このTaskを完了とする。
 
 ## 完了条件 (Acceptance Criteria)
-- TDD（この場合は設計駆動開発）の考え方に基づき、設計が完了していること。
+- 設計駆動開発の考え方に基づき、設計が完了していること。
 - 設計書には、スクリプトの目的、ファイル構造、主要コンポーネント（関数、クラス）の責務、エラー出力の仕様、pre-commitへの統合方法が明記されていること。
 
 ## 成果物 (Deliverables)

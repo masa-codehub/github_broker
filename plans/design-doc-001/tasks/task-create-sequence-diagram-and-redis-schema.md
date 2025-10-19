@@ -12,6 +12,8 @@
 ## 実装の参照資料 (Implementation Reference Documents)
 - `docs/design-docs/001-update-gemini-model-and-review-issue-handling.md`
 - `github_broker/application/task_service.py`
+- `github_broker/infrastructure/redis_client.py`
+- `github_broker/infrastructure/github_client.py`
 
 ## As-is (現状)
 レビューIssueの遅延処理に関する、詳細なシーケンス図とRedisのデータ構造定義が存在しない。
@@ -27,7 +29,7 @@
 4. 更新されたドキュメントが完了条件を満たしていることを確認し、このTaskを完了とする。
 
 ## 完了条件 (Acceptance Criteria)
-- TDD（この場合は設計駆動開発）の考え方に基づき、設計が完了していること。
+- 設計駆動開発の考え方に基づき、設計が完了していること。
 - シーケンス図には、`TaskService`、`RedisClient`、`GitHubClient`間のインタラクションが正確に記述されていること。
 - Redisスキーマ定義には、キー名、データ型（例: Hash, Sorted Set）、フィールド、値の具体例が明記されていること。
 

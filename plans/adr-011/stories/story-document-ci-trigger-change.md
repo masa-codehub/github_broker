@@ -20,7 +20,7 @@ CI/CD環境に関するドキュメントが、CIが全てのPull Requestでト�
 CI/CD環境に関するドキュメントが更新され、現在のCIトリガーの仕様と一致している。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
-1. `task-update-cicd-documentation.md` を実行し、CI/CD環境のドキュメントを更新する。
+1. `plans/adr-011/tasks/task-update-cicd-documentation.md` を実行し、CI/CD環境のドキュメントを更新する。
 2. 更新されたドキュメントをレビューし、承認を得ることで、このStoryを完了と判断する。
 
 ## 完了条件 (Acceptance Criteria)
