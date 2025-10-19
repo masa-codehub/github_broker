@@ -26,6 +26,12 @@ repos:
         entry: mypy
         language: system
         types: [python]
+    -   id: doc-validation
+        name: Document Validation
+        entry: python scripts/validate_docs.py
+        language: system
+        files: \.(md|yaml|yml)$
+        pass_filenames: false
 -   repo: https://github.com/commitizen-tools/commitizen
     rev: 'v3.27.0'
     hooks:
