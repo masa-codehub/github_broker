@@ -11,10 +11,15 @@ repos:
     -   id: pytest
         name: pytest
         entry: pytest
-        args: [-k, "not trio", -n, "auto"]
+        args: []
         language: system
         types: [python]
         pass_filenames: false
+    -   id: document-validator
+        name: Document Validator
+        entry: python github_broker/infrastructure/document_validation/document_validator.py
+        language: system
+        files: \.md$
     -   id: mypy
         name: mypy
         entry: mypy
