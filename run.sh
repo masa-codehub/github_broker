@@ -10,7 +10,7 @@ bash ./.build/setup_gemini_auth.sh
 npm update && npm install -g @google/gemini-cli
 
 # 外部モジュールのインストール
-pip install -U -r .build/repositories.txt && pip install -e .
+pip install -e .[dev]
 
 # エージェント切り替え変更
 bash .build/update_gemini_context.sh
