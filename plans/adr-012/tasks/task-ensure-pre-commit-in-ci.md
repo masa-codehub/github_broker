@@ -1,7 +1,9 @@
+# Issue: #1513
+Status: Open
 # 【Task】CIワークフローでpre-commitが実行されることを確認する
 
 ## 親Issue (Parent Issue)
-- (起票後に追記)
+- #1507
 
 ## 子Issue (Sub-Issues)
 - (なし)

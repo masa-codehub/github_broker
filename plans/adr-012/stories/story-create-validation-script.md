@@ -1,7 +1,9 @@
+# Issue: #1508
+Status: Open
 # 【Story】ドキュメントフォーマット検証スクリプトを作成する
 
 ## 親Issue (Parent Issue)
-- (起票後に追記)
+- #1506
 
 ## 子Issue (Sub-Issues)
 - (起票後に追記)
