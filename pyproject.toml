@@ -61,6 +61,9 @@ dev = [
     "types-requests",
     "types-redis",
     "trio",
+    "commitizen",
+    "python-semantic-release",
+    "build",
 ]
 ml = [
     "scikit-learn",  # 機械学習ライブラリ
@@ -77,7 +80,7 @@ ml = [
 line-length = 88
 target-version = ["py313"]
 include = ".pyi?$"
-extend-exclude = '''
+extend-exclude = """
 /( 
   # ディレクトリを除外
   \\.eggs
@@ -86,11 +89,11 @@ extend-exclude = '''
   | \\.mypy_cache
   | \\.tox
   | \\.venv
-  | _build
+  | \\_build
   | buck-out
   | build
   | dist
-)/'''
+)/"""
 
 # --- Ruff (高速リンター) の設定 ---
 [tool.ruff]
@@ -169,8 +172,8 @@ junit_family = "xunit2"
 # --- setuptoolsの設定 (パッケージを自動検出させる) ---
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["github_broker*"]  # "github_broker"で始まるディレクトリをパッケージとして含める
-exclude = ["tests*"]  # "tests"ディレクトリはパッケージに含めない
+include = ["github_broker*"]
+exclude = ["tests*"]
 
 # --- mypyの設定 ---
 [tool.mypy]

@@ -17,3 +17,5 @@ A streamlined, fast, and automated CI/CD pipeline. A single, fast `pre-commit` j
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `main`
 - **作業ブランチ (Feature Branch):** `epic/implement-adr-010`
+
+# Issue: #1455

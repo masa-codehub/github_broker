@@ -82,7 +82,7 @@ def test_main_task_assigned_dynamic_logic(
 
     mock_agent_client.return_value.request_task.assert_called_once()
 
-    expected_update_args = ["/app/.build/update_gemini_context.sh"]
+    expected_update_args = ["bash", "/app/.build/update_gemini_context.sh"]
     expected_env = os.environ.copy()
     expected_env["AGENT_ROLE"] = required_role
     call_args_list = mock_subprocess_run.call_args_list

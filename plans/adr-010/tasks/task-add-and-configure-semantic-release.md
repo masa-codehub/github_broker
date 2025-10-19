@@ -33,3 +33,11 @@
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/automate-release-process`
 - **作業ブランチ (Feature Branch):** `task/add-and-configure-semantic-release`
+
+## 担当エージェント (Agent)
+- BACKENDCODER
+
+## 優先度 (Priority)
+- P0
+
+# Issue: #1461

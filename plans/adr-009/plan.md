@@ -6,7 +6,9 @@
 - **ブランチ戦略:**
     - **ベースブランチ:** `main`
     - **作業ブランチ:** `feature/deprecate-long-polling`
-- **ステータス:** `Open`
+- **ステータス:** `Closed`
+
+# Issue: #1400
 
 ## 2. Story: `TaskServiceのポーリングロジックを即時応答に修正`
 - **目的:** `TaskService`からロングポーリングのロジックを削除し、関連するテストを修正する。
@@ -20,7 +22,9 @@
     - `tests/application/test_task_service.py`
 - **担当エージェント:** `BACKENDCODER`
 - **優先度:** `P1`
-- **ステータス:** `Open`
+- **ステータス:** `Closed`
+
+# Issue: #1401
 
 ---
 ### **実装の詳細指示 (For BACKENDCODER)**
