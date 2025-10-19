@@ -43,14 +43,9 @@ RUN curl -sSL https://deb.nodesource.com/setup_24.x | bash - && \
 RUN npm update && npm install -g @google/gemini-cli@latest
 
 # 必要なPythonパッケージのインストール
+COPY ./pyproject.toml .
 RUN pip install --upgrade pip
-COPY requirements.in .
-RUN pip install pip-tools
-RUN pip-compile requirements.in
-RUN pip install --no-cache-dir -r requirements.txt
-
-# アプリケーションコードをコンテナにコピー
-COPY . /app
+RUN pip install --no-cache-dir .[dev]
 
 # Pythonが.pycファイルを生成しないようにします。
 ENV PYTHONDONTWRITEBYTECODE=1
