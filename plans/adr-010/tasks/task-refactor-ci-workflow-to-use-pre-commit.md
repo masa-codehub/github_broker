@@ -1,5 +1,8 @@
 # Task: Refactor CI workflow to use pre-commit
 
+## Status
+**COMPLETED** on 2025-10-19
+
 ## 親Issue (Parent Issue)
 - Story: Unify and Accelerate Quality Checks
 
@@ -10,7 +13,7 @@ CIワークフローは、lint、format、testを個別のステップとして�
 CIワークフローがリファクタリングされ、`pre-commit run --all-files`を実行する単一のジョブに集約されます。これにより、ローカルとCIのチェックが完全に一致します。
 
 ## 完了条件 (Acceptance Criteria)
-- [ ] `.github/workflows/ci.yml`から、lint、format、testの個別ステップが削除され、`pre-commit run --all-files`を実行するステップに置き換えられていること。
+- [x] `.github/workflows/ci.yml`から、lint、format、testの個別ステップが削除され、`pre-commit run --all-files`を実行するステップに置き換えられていること。
 
 ## 成果物 (Deliverables)
 - `.github/workflows/ci.yml`

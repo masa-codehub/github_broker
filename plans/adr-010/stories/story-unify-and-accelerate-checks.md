@@ -1,5 +1,8 @@
 # Story: Unify and Accelerate Quality Checks
 
+## Status
+**COMPLETED** on 2025-10-19
+
 ## 関連Issue (Relation)
 - This Story is part of **Epic: Implement ADR-010 CI/CD Process Improvements**
 
@@ -11,9 +14,9 @@ A single, unified CI step runs all quality checks in parallel, significantly red
 
 ## 完了条件 (Acceptance Criteria)
 - このStoryを構成する全てのTaskが完了すること。
-  - [ ] Task: Add pytest-xdist dependency
-  - [ ] Task: Update pre-commit for parallel testing
-  - [ ] Task: Refactor CI workflow to use pre-commit
+  - [x] Task: Add pytest-xdist dependency
+  - [x] Task: Update pre-commit for parallel testing
+  - [x] Task: Refactor CI workflow to use pre-commit
 
 ## 成果物 (Deliverables)
 - `pyproject.toml` (or `requirements.in`)

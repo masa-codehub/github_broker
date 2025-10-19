@@ -1,5 +1,8 @@
 # Story: Automate Release Process
 
+## Status
+**COMPLETED** on 2025-10-19
+
 ## 関連Issue (Relation)
 - This Story is part of **Epic: Implement ADR-010 CI/CD Process Improvements**
 
@@ -11,9 +14,9 @@ The release process is fully automated using `python-semantic-release`, triggere
 
 ## 完了条件 (Acceptance Criteria)
 - このStoryを構成する全てのTaskが完了すること。
-  - [ ] Task: Add and configure python-semantic-release
-  - [ ] Task: Add commit message validation to CI
-  - [ ] Task: Update developer docs for Conventional Commits
+  - [x] Task: Add and configure python-semantic-release
+  - [x] Task: Add commit message validation to CI
+  - [x] Task: Update developer docs for Conventional Commits
 
 ## 成果物 (Deliverables)
 - `pyproject.toml` (or equivalent configuration file)

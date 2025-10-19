@@ -1,5 +1,8 @@
 # Task: Add commit message validation to CI
 
+## Status
+**COMPLETED** on 2025-10-19
+
 ## 親Issue (Parent Issue)
 - Story: Automate Release Process
 
@@ -10,7 +13,7 @@ CIはコミットメッセージがConventional Commits規約に準拠してい�
 CIワークフローにコミットメッセージを検証するステップが追加され、規約違反のコミットがマージされるのを防ぎます。
 
 ## 完了条件 (Acceptance Criteria)
-- [ ] `.github/workflows/ci.yml`に、コミットメッセージがConventional Commits規約に従っているかをチェックするステップ（例: `commitlint`を使用）が追加されていること。
+- [x] `.github/workflows/ci.yml`に、コミットメッセージがConventional Commits規約に従っているかをチェックするステップ（例: `commitlint`を使用）が追加されていること。
 
 ## 成果物 (Deliverables)
 - `.github/workflows/ci.yml`
