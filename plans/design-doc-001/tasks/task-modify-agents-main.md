@@ -1,7 +1,9 @@
+# Issue: #1526
+Status: Open
 # 【Task】`agents_main.py`を修正し、`development`タスクのモデルを`gemini-flash-latest`に変更する
 
 ## 親Issue (Parent Issue)
-- (Story `story-update-gemini-model` のIssue番号)
+- #1522
 
 ## 子Issue (Sub-Issues)
 - (なし)
