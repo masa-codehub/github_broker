@@ -59,6 +59,7 @@ dev = [
     "httpx",
     "types-PyYAML",
     "types-requests",
+    "types-redis",
     "trio",
     "pytest-xdist",
 ]
