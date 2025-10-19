@@ -1,5 +1,8 @@
 # 008-issue-branch-name-validation
 
+- **Status**: Completed
+- **Completed Date**: 2025-10-19
+
 ## 決定 (Decision)
 
 Issueの品質を向上させ、開発プロセスの手戻りを削減するため、`story`または`epic`ラベルが付与されていないすべてのIssueに対して、Issue本文に`## ブランチ名`セクションの存在を必須とする。この検証はGitHub Actionsワークフロー`issue_validator.yml`の`validate-issue-body`ジョブに組み込む。
@@ -33,3 +36,6 @@ Issueの品質を向上させ、開発プロセスの手戻りを削減するた
 *   `story`または`epic`ラベルを持たないIssueで`## ブランチ名`セクションが欠落している場合、`needs-more-info`ラベルが付与され、修正を促すコメントが自動的に投稿される。
 *   ワークフローはエラーとして終了し、Issue作成者に修正を促す。
 *   開発者はIssue作成時にブランチ名の記載を意識するようになり、Issueの品質が向上する。
+
+## Implementation Status (実装状況)
+完了
