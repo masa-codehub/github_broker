@@ -62,6 +62,7 @@ dev = [
     "types-redis",
     "trio",
     "python-semantic-release",
+    "build",
 ]
 ml = [
     "scikit-learn",  # 機械学習ライブラリ
@@ -187,7 +188,7 @@ version_variable = "pyproject.toml:version"
 branch = "main"
 upload_to_pypi = false
 upload_to_release = true
-build_command = "pip install build && python -m build"
+build_command = "python -m build"
 commit_parser = "semantic_release.commit_parser.scipy_parser"
 
 [tool.semantic_release.commit_parser_options]
