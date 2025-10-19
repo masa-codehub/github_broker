@@ -66,10 +66,10 @@ def main(run_once=False):
                         "required_role", DEFAULT_REQUIRED_ROLE
                     )
 
-                    if task_type == "review":
-                        gemini_model = "gemini-2.5-pro"
-                    else:
-                        gemini_model = "gemini-flash-latest"
+                    model_map = {
+                        "review": "gemini-2.5-pro",
+                    }
+                    gemini_model = model_map.get(task_type, "gemini-flash-latest")
 
                     logging.info(
                         f"タスクタイプ: {task_type}, 必須ロール: {required_role}, 使用モデル: {gemini_model}"

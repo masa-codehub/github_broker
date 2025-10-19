@@ -172,7 +172,9 @@ def test_main_subprocess_called_process_error(
         "prompt": "test prompt",
         "required_role": "BACKENDCODER",
     }
-    expected_gemini_command = "cat context.md | gemini --model gemini-2.5-flash --yolo"
+    expected_gemini_command = (
+        "cat context.md | gemini --model gemini-flash-latest --yolo"
+    )
     mock_subprocess_run.side_effect = subprocess.CalledProcessError(
         returncode=1,
         cmd=expected_gemini_command,
