@@ -1,5 +1,8 @@
 # Task: Add pytest-xdist dependency
 
+## Status
+**COMPLETED** on 2025-10-19
+
 ## 親Issue (Parent Issue)
 - Story: Unify and Accelerate Quality Checks
 
@@ -10,7 +13,7 @@
 `pytest-xdist`が依存関係に追加され、テストを並列で実行する準備が整っています。
 
 ## 完了条件 (Acceptance Criteria)
-- [ ] `pytest-xdist`が`pyproject.toml`の`[tool.poetry.group.dev.dependencies]`セクションに追加されていること。
+- [x] `pytest-xdist`が`pyproject.toml`の`[tool.poetry.group.dev.dependencies]`セクションに追加されていること。
 
 ## 成果物 (Deliverables)
 - `pyproject.toml`

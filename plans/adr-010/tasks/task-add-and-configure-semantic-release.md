@@ -1,5 +1,8 @@
 # Task: Add and configure python-semantic-release
 
+## Status
+**COMPLETED** on 2025-10-19
+
 ## 親Issue (Parent Issue)
 - Story: Automate Release Process
 
@@ -10,8 +13,8 @@
 `python-semantic-release`が導入され、Conventional Commitsの規約に基づいてリリースプロセスを自動化する準備が整っています。特に、`epic:`と`story:`コミットタイプでバージョンが上がるようにカスタム設定が適用されています。
 
 ## 完了条件 (Acceptance Criteria)
-- [ ] `python-semantic-release`が`pyproject.toml`の`[project.optional-dependencies.dev]`に追加されていること。
-- [ ] `pyproject.toml`に以下の`[tool.semantic_release]`設定が追加され、`epic`と`feat`がマイナー、`story`と`fix`がパッチバージョンアップに対応付けられていること。
+- [x] `python-semantic-release`が`pyproject.toml`の`[project.optional-dependencies.dev]`に追加されていること。
+- [x] `pyproject.toml`に以下の`[tool.semantic_release]`設定が追加され、`epic`と`feat`がマイナー、`story`と`fix`がパッチバージョンアップに対応付けられていること。
   ```toml
   [tool.semantic_release]
   version_variable = "pyproject.toml:version"

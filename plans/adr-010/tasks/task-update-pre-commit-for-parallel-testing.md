@@ -1,5 +1,8 @@
 # Task: Update pre-commit for parallel testing
 
+## Status
+**COMPLETED** on 2025-10-19
+
 ## 親Issue (Parent Issue)
 - Story: Unify and Accelerate Quality Checks
 
@@ -10,7 +13,7 @@
 `.pre-commit-config.yaml`の`pytest`フックに`-n auto`フラグが追加され、ローカルでのコミット時にテストが並列実行されます。
 
 ## 完了条件 (Acceptance Criteria)
-- [ ] `.pre-commit-config.yaml`内の`pytest`フックが以下のように更新され、`args`に`-n auto`が追加されていること。
+- [x] `.pre-commit-config.yaml`内の`pytest`フックが以下のように更新され、`args`に`-n auto`が追加されていること。
   ```yaml
   -   id: pytest
       name: pytest
