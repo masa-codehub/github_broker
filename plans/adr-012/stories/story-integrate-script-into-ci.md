@@ -1,7 +1,9 @@
+# Issue: #1507
+Status: Open
 # 【Story】検証スクリプトをpre-commitとCIに統合する
 
 ## 親Issue (Parent Issue)
-- (起票後に追記)
+- #1506
 
 ## 子Issue (Sub-Issues)
 - (起票後に追記)
