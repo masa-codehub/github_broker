@@ -48,9 +48,9 @@ def test_main_no_task_assigned(
 @pytest.mark.parametrize(
     "task_type, required_role, expected_model",
     [
-        ("development", "BACKENDCODER", "gemini-2.5-flash"),
+        ("development", "BACKENDCODER", "gemini-flash-latest"),
         ("review", "CODE_REVIEWER", "gemini-2.5-pro"),
-        (None, "BACKENDCODER", "gemini-2.5-flash"),
+        (None, "BACKENDCODER", "gemini-flash-latest"),
     ],
     ids=["development", "review", "default"],
 )
