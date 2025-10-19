@@ -49,7 +49,7 @@ test = [
     "pytest-cov", # テストカバレッジを計測するツール
     "httpx",
     "trio",
-    "pytest-xdist", # 並列テスト用
+    "pytest-xdist", # テストの並列実行を可能にする
 ]
 dev = [
     "ruff==0.6.0",          # 高速なリンター兼フォーマッター
@@ -62,7 +62,7 @@ dev = [
     "types-requests",
     "types-redis",
     "trio",
-    "pytest-xdist", # 並列テスト用
+    "pytest-xdist",
 ]
 ml = [
     "scikit-learn",  # 機械学習ライブラリ
@@ -82,12 +82,12 @@ include = ".pyi?$"
 extend-exclude = '''
 /( 
   # ディレクトリを除外
-  \\.eggs
-  | \\.git
-  | \\.hg
-  | \\.mypy_cache
-  | \\.tox
-  | \\.venv
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
   | _build
   | buck-out
   | build
@@ -155,7 +155,7 @@ filterwarnings = [
 ]
 
 # 出力設定
-addopts = "-v --tb=short --strict-markers --cov=github_broker --cov-report=term-missing"
+addopts = "-v --tb=short --strict-markers --cov=github_broker --cov-report=term-missing -n auto"
 asyncio_mode = "auto"
 
 # カスタムマーカーの定義
