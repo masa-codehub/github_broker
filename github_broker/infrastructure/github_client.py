@@ -29,6 +29,22 @@ class GitHubClient:
             )
             raise
 
+    def get_review_issues(self):
+        """
+        レビュー待ちのIssueを取得します。
+        """
+        try:
+            query = f'repo:{self._repo_name} is:issue label:needs-review linked:pr is:open'
+            logging.info(f"クエリ: {query} でレビューIssueを検索中")
+            issues = self._client.search_issues(query=query)
+            logging.info(f"レビューIssueが {issues.totalCount} 件見つかりました。")
+            return [issue.raw_data for issue in issues]
+        except GithubException as e:
+            logging.error(
+                f"リポジトリ {self._repo_name} のレビューIssue検索中にエラーが発生しました: {e}"
+            )
+            raise
+
     def find_issues_by_labels(self, labels: list[str], extra_query: str = ""):
         """
         指定されたすべてのラベルを持つIssueを検索します。
