@@ -49,18 +49,19 @@ test = [
     "pytest-cov", # テストカバレッジを計測するツール
     "httpx",
     "trio",
+    "pytest-xdist", # テストの並列実行を可能にする
 ]
 dev = [
+    "github_broker[test]",  # testの依存関係をすべて含める
     "ruff==0.6.0",          # 高速なリンター兼フォーマッター
     "mypy==1.10.1",          # 型チェッカー
-    "pytest",
-    "pytest-cov",
     "pre-commit",    # Git フック管理
-    "httpx",
     "types-PyYAML",
     "types-requests",
     "types-redis",
-    "trio",
+    "commitizen",
+    "python-semantic-release",
+    "build",
 ]
 ml = [
     "scikit-learn",  # 機械学習ライブラリ
@@ -153,7 +154,7 @@ filterwarnings = [
 ]
 
 # 出力設定
-addopts = "-v --tb=short --strict-markers --cov=github_broker --cov-report=term-missing"
+addopts = "-v --tb=short --strict-markers --cov=github_broker --cov-report=term-missing -n auto"
 asyncio_mode = "auto"
 
 # カスタムマーカーの定義

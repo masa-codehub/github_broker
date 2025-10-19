@@ -36,23 +36,10 @@ jobs:
         run: python -m pip install --upgrade pip
 
       # 毎回依存関係をインストールする
-      - name: Install dependencies
+      - name: Install Python dependencies (including pre-commit hooks)
         run: pip install -e .[test,dev]
-      - name: Lint with ruff and auto-fix
-        run: |
-          ruff check --fix .
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          if ! git diff --quiet; then
-            git commit -am "style: Auto-fix ruff issues [skip ci]"
-            git push
-          fi
-      - name: Format with ruff
-        run: ruff format --check .
-      - name: Type check with mypy
-        run: mypy . --ignore-missing-imports
-      - name: Run unit tests
-        run: pytest -m "not integration" --cov=. --cov-report=xml
+      - name: Run unified quality checks (lint, format, test, type-check)
+        run: pre-commit run --all-files
       - name: Server startup test
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
