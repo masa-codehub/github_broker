@@ -4,7 +4,7 @@
 - (起票後に追記)
 
 ## 子Issue (Sub-Issues)
-- (起票後に追記)
+- [Task: ci.ymlのトリガー設定からmainブランチ指定を削除する](../tasks/task-remove-branch-filter-from-ci.md)
 
 ## As-is (現状)
 `.github/workflows/ci.yml`には`main`ブランチを対象とする`branches`フィルタが設定されている。
@@ -13,7 +13,7 @@
 `.github/workflows/ci.yml`から`branches`フィルタが削除され、すべてのPull RequestでCIが実行される。
 
 ## 完了条件 (Acceptance Criteria)
-- [ ] Task: ci.ymlのトリガー設定からmainブランチ指定を削除する
+- [ ] [Task: ci.ymlのトリガー設定からmainブランチ指定を削除する](../tasks/task-remove-branch-filter-from-ci.md)
 
 ## 成果物 (Deliverables)
 - `.github/workflows/ci.yml`

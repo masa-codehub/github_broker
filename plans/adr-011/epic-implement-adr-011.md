@@ -4,7 +4,7 @@
 - (なし)
 
 ## 子Issue (Sub-Issues)
-- (起票後に追記)
+- [Story: CIワークフローが全ブランチへのPRでトリガーされるようにする](stories/story-update-ci-trigger.md)
 
 ## As-is (現状)
 CIワークフローは`main`ブランチに対するPull Requestでのみ実行される。
