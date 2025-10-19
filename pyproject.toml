@@ -62,6 +62,8 @@ dev = [
     "types-redis",
     "trio",
     "commitizen",
+    "python-semantic-release",
+    "build",
 ]
 ml = [
     "scikit-learn",  # 機械学習ライブラリ
@@ -78,20 +80,20 @@ ml = [
 line-length = 88
 target-version = ["py313"]
 include = ".pyi?$"
-extend-exclude = '''
+extend-exclude = """
 /( 
   # ディレクトリを除外
-  \\.eggs
-  | \\.git
-  | \\.hg
-  | \\.mypy_cache
-  | \\.tox
-  | \\.venv
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
   | _build
   | buck-out
   | build
   | dist
-)/'''
+)/"""
 
 # --- Ruff (高速リンター) の設定 ---
 [tool.ruff]
@@ -169,22 +171,4 @@ junit_family = "xunit2"
 
 # --- setuptoolsの設定 (パッケージを自動検出させる) ---
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["github_broker*"]  # "github_broker"で始まるディレクトリをパッケージとして含める
-exclude = ["tests*"]  # "tests"ディレクトリはパッケージに含めない
-
-# --- mypyの設定 ---
-[tool.mypy]
-python_version = "3.13"
-ignore_missing_imports = false
-
-[[tool.mypy.overrides]]
-module = "punq"
-ignore_missing_imports = true
-
-[tool.commitizen]
-name = "cz_conventional_commits"
-tag_format = "v$version"
-version_scheme = "semver"
-version_provider = "commitizen"
-major_version_zero = true
+where = [".

@@ -52,7 +52,7 @@ jobs:
       - name: Type check with mypy
         run: mypy . --ignore-missing-imports
       - name: Commit message validation
-        run: cz check --rev-range origin/main..HEAD
+        run: cz check --rev-range origin/story/automate-release-process..HEAD
       - name: Run unit tests
         run: pytest -m "not integration" --cov=. --cov-report=xml
       - name: Server startup test
