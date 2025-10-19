@@ -21,6 +21,8 @@
 ## 成果物 (Deliverables)
 - `github_broker/application/task_service.py`
 - `agents_main.py`
+- `docs/architecture/redis-schema.md`
+- `docs/architecture/request-task-sequence.md`
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `main`

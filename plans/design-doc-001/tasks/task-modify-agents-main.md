@@ -14,10 +14,11 @@
 
 ## 完了条件 (Acceptance Criteria)
 - `agents_main.py`内の`gemini_model`を指定する箇所で、`task_type`が`development`の場合に`"gemini-flash-latest"`が設定されるようになっていること。
-- 関連する単体テストがすべてパスすること。
+- 関連する単体テストを更新し、すべてパスすること。
 
 ## 成果物 (Deliverables)
 - `agents_main.py`
+- `tests/test_agents_main.py`
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/update-gemini-model`
