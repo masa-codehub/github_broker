@@ -23,3 +23,5 @@ The release process is fully automated using `python-semantic-release`, triggere
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `epic/implement-adr-010`
 - **作業ブランチ (Feature Branch):** `story/automate-release-process`
+
+# Issue: #1457

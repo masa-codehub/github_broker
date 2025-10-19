@@ -70,6 +70,10 @@
     - **Epicの完了条件:** Epicが内包する全てのStoryの完了を持って、Epicが完了したとみなします。完了条件には、各Storyのタイトルをリストアップします。（例: `- [ ] Story: Aを実装する`, `- [ ] Story: Bをリファクタリングする`）
     - **Storyの完了条件:** Storyが内包する全てのTaskの完了を持って、Storyが完了したとみなします。完了条件には、各Taskのタイトルをリストアップします。（例: `- [ ] Task: AのAPIエンドポイントを作成する`, `- [ ] Task: Aの単体テストを記述する`）
     - **Taskの完了条件:** Taskは、それ以上分割できない単一の具体的な作業を表します。完了条件は、その作業が完了したことを客観的に検証できる単一の基準でなければなりません。（例: `- [ ] `pytest`が全てパスすること`）
+- **優先度の割り当て:** Issueの優先度は、その階層に基づいて以下のように割り当てます。これにより、具体的な作業が最も優先されることを明確にします。
+    - **Tasks:** `P0` (最優先)
+    - **Stories:** `P1`
+    - **Epic:** `P2` (相対的に低い)
 
 ### 3. Decide (意思決定): どのアクションを優先するか？
 
@@ -86,7 +90,7 @@
     2. `plans/ADR-XXX/`配下の各Markdownファイルに基づき、`create_issue`で未起票のIssue（Epic, Story, Task）を作成します。その際、Issueの本文にMarkdownファイルの内容を転記し、適切な**優先度ラベル**と**担当エージェントのラベル**を付与します。
     3. Issue作成と同時に、計画ファイルに記載された`ブランチ戦略`に基づき、`create_branch`ツールを使用して**作業ブランチ (Feature Branch)** を**ベースブランチ (Base Branch)** から作成します。これにより、開発エージェントはすぐに作業を開始できます。
     4. Issue作成後、`add_sub_issue`ツールを使い、計画の階層構造（Epic -> Story -> Task）をGitHub Issues上で再現します。
-    5. `replace`を使い、対応する各Markdownファイルに作成したIssue番号と`Status: Open`を追記します。
+    5. `replace`を使い、対応する各Markdownファイルに、起票したIssueの番号を示すヘッダー（例: `# Issue: #123`）と、ステータスが`Open`であることを示す記述（例: `Status: Open`）を追記し、起票済みであることを明確に記録します。
     6. `git add .`、`git commit -m "chore(plans): Sync plan status with GitHub Issues"`、`git push` を実行します。
     7. `create_pull_request`を使い、ステータス同期のためのPRを作成します。
 - **新規計画Pull Requestの作成:**
