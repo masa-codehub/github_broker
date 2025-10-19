@@ -69,7 +69,7 @@ def main(run_once=False):
                     if task_type == "review":
                         gemini_model = "gemini-2.5-pro"
                     else:
-                        gemini_model = "gemini-2.5-flash"
+                        gemini_model = "gemini-flash-latest"
 
                     logging.info(
                         f"タスクタイプ: {task_type}, 必須ロール: {required_role}, 使用モデル: {gemini_model}"
