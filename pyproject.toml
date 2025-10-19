@@ -82,12 +82,12 @@ include = ".pyi?$"
 extend-exclude = '''
 /( 
   # ディレクトリを除外
-  \\.eggs
-  | \\.git
-  | \\.hg
-  | \\.mypy_cache
-  | \\.tox
-  | \\.venv
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
   | _build
   | buck-out
   | build
