@@ -1,7 +1,9 @@
+# Issue: #1527
+Status: Open
 # 【Task】`TaskService`を修正し、レビューIssueの検索クエリを更新し、遅延処理を実装する
 
 ## 親Issue (Parent Issue)
-- (Story `story-implement-review-issue-handling` のIssue番号)
+- #1523
 
 ## 子Issue (Sub-Issues)
 - (なし)

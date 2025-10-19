@@ -1,10 +1,13 @@
+# Issue: #1521
+Status: Open
 # 【Epic】Geminiモデルの更新とレビューIssue処理の改善
 
 ## 親Issue (Parent Issue)
 - (なし)
 
 ## 子Issue (Sub-Issues)
-- (起票後に追記)
+- #1522
+- #1523
 
 ## As-is (現状)
 - `development`タスクを実行するエージェントは `gemini-2.5-flash` モデルを使用している。
