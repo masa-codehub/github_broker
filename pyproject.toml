@@ -83,13 +83,13 @@ include = ".pyi?$"
 extend-exclude = """
 /( 
   # ディレクトリを除外
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
+  \\.eggs
+  | \\.git
+  | \\.hg
+  | \\.mypy_cache
+  | \\.tox
+  | \\.venv
+  | \\_build
   | buck-out
   | build
   | dist
@@ -171,4 +171,15 @@ junit_family = "xunit2"
 
 # --- setuptoolsの設定 (パッケージを自動検出させる) ---
 [tool.setuptools.packages.find]
-where = [".
+where = ["."]
+include = ["github_broker*"]
+exclude = ["tests*"]
+
+# --- mypyの設定 ---
+[tool.mypy]
+python_version = "3.13"
+ignore_missing_imports = false
+
+[[tool.mypy.overrides]]
+module = "punq"
+ignore_missing_imports = true
