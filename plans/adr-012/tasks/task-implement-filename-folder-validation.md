@@ -13,7 +13,7 @@
 `plans`配下のファイルがADR-012で定義された命名規則とフォルダ構成に従っているかを検証するPython関数が実装される。
 
 ## 完了条件 (Acceptance Criteria)
-- [ ] `plans/**/*.md`を探索する関数が実装されていること。
+- [ ] ADR-012で定義された全対象ファイル (`docs/adr/*.md`, `docs/design-docs/*.md`, `plans/**/*.md`) を探索する関数が実装されていること。
 - [ ] ファイル名が`epic-`, `story-`, `task-`で始まることを検証する関数が実装されていること。
 - [ ] `story-*.md`が`stories/`内に、`task-*.md`が`tasks/`内にあることを検証する関数が実装されていること。
 

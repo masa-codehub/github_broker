@@ -19,6 +19,7 @@
 ## 成果物 (Deliverables)
 - 検証スクリプトファイル
 - `.pre-commit-config.yaml`
+- `.github/workflows/ci.yml`
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `main`
