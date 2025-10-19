@@ -63,6 +63,9 @@ dev = [
     "types-redis",
     "trio",
     "pytest-xdist",
+    "commitizen",
+    "python-semantic-release",
+    "build",
 ]
 ml = [
     "scikit-learn",  # 機械学習ライブラリ
@@ -82,12 +85,12 @@ include = ".pyi?$"
 extend-exclude = '''
 /( 
   # ディレクトリを除外
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
+  \\.eggs
+  | \\.git
+  | \\.hg
+  | \\.mypy_cache
+  | \\.tox
+  | \\.venv
   | _build
   | buck-out
   | build
@@ -171,8 +174,8 @@ junit_family = "xunit2"
 # --- setuptoolsの設定 (パッケージを自動検出させる) ---
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["github_broker*"]  # "github_broker"で始まるディレクトリをパッケージとして含める
-exclude = ["tests*"]  # "tests"ディレクトリはパッケージに含めない
+include = ["github_broker*"]
+exclude = ["tests*"]
 
 # --- mypyの設定 ---
 [tool.mypy]
