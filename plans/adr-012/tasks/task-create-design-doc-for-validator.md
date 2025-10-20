@@ -1,10 +1,12 @@
+# Issue: #1580
+Status: Open
 # 【Task】検証スクリプトの設計書を作成する
 
 ## 親Issue (Parent Issue)
-- (起票後に追記)
+- #1579
 
 ## 子Issue (Sub-Issues)
-- (起票後に追記)
+- (なし)
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/012-document-format-validation.md`

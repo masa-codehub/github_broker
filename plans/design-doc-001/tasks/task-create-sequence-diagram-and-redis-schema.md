@@ -1,10 +1,12 @@
+# Issue: #1582
+Status: Open
 # 【Task】シーケンス図とRedisスキーマを定義する
 
 ## 親Issue (Parent Issue)
-- (起票後に追記)
+- #1581
 
 ## 子Issue (Sub-Issues)
-- (起票後に追記)
+- (なし)
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/design-docs/001-update-gemini-model-and-review-issue-handling.md`

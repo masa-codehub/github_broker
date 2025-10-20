@@ -1,10 +1,12 @@
+# Issue: #1577
+Status: Open
 # 【Story】CIトリガーの変更をドキュメント化する
 
 ## 親Issue (Parent Issue)
-- (起票後に追記)
+- #1516
 
 ## 子Issue (Sub-Issues)
-- (起票後に追記)
+- #1578
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/011-trigger-ci-on-all-branches.md`
