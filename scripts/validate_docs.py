@@ -1,26 +1,26 @@
-
 import os
-import re
 import sys
 
 # ADR-012で定義されたルール
-TARGET_PATHS = [
-    "docs/adr",
-    "docs/design-docs",
-    "plans"
-]
+TARGET_PATHS = ["docs/adr", "docs/design-docs", "plans"]
 
 FILENAME_PREFIXES = {
     "epic-": "plans",
     "story-": "plans/stories",
-    "task-": "plans/tasks"
+    "task-": "plans/tasks",
 }
 
 REQUIRED_SECTIONS = {
     "docs/adr": ["# 概要", "## 決定", "## 状況", "## 結果"],
     "docs/design-docs": ["# 概要", "## ゴール", "## 設計", "## 考慮事項"],
-    "plans": ["# 目的とゴール", "## 実施内容", "## 検証結果", "## 影響範囲と今後の課題"]
+    "plans": [
+        "# 目的とゴール",
+        "## 実施内容",
+        "## 検証結果",
+        "## 影響範囲と今後の課題",
+    ],
 }
+
 
 def validate_filename_and_folder_structure(filepath):
     errors = []
@@ -33,48 +33,56 @@ def validate_filename_and_folder_structure(filepath):
         if basename.startswith(prefix):
             matched_prefix = True
             # story-*.md と task-*.md のフォルダ構造検証
-            if prefix == "story-" and not dirname.endswith(expected_dir_suffix):
-                errors.append(f"File '{filepath}' with prefix '{prefix}' must be in '{expected_dir_suffix}/' directory.")
-            elif prefix == "task-" and not dirname.endswith(expected_dir_suffix):
-                errors.append(f"File '{filepath}' with prefix '{prefix}' must be in '{expected_dir_suffix}/' directory.")
+            if prefix in ("story-", "task-") and not dirname.endswith(
+                expected_dir_suffix
+            ):
+                errors.append(
+                    f"File '{filepath}' with prefix '{prefix}' must be in '{expected_dir_suffix}/' directory."
+                )
             break
-    
-    if not matched_prefix and dirname.startswith('plans'):
+
+    if not matched_prefix and dirname.startswith("plans"):
         # plans 配下でプレフィックスがないファイルはエラー
-        errors.append(f"File '{filepath}' in 'plans/' must start with one of {list(FILENAME_PREFIXES.keys())}.")
+        errors.append(
+            f"File '{filepath}' in 'plans/' must start with one of {list(FILENAME_PREFIXES.keys())}."
+        )
 
     return errors
 
-def validate_required_sections(filepath):
+
+def validate_required_sections(filepath, sections):
     errors = []
-    with open(filepath, 'r', encoding='utf-8') as f:
+    with open(filepath, encoding="utf-8") as f:
         content = f.read()
-    
-    for target_path_prefix, sections in REQUIRED_SECTIONS.items():
-        if filepath.startswith(target_path_prefix):
-            for section in sections:
-                if section not in content:
-                    errors.append(f"File '{filepath}' is missing required section: '{section}'.")
-            break
+
+    for section in sections:
+        if section not in content:
+            errors.append(
+                f"File '{filepath}' is missing required section: '{section}'."
+            )
     return errors
+
 
 def main():
     all_errors = []
-    for target_path in TARGET_PATHS:
+    for target_path, sections in REQUIRED_SECTIONS.items():
+        if not os.path.isdir(target_path):
+            continue
         for root, _, files in os.walk(target_path):
             for file in files:
                 if file.endswith(".md"):
                     filepath = os.path.join(root, file)
                     all_errors.extend(validate_filename_and_folder_structure(filepath))
-                    all_errors.extend(validate_required_sections(filepath))
-    
+                    all_errors.extend(validate_required_sections(filepath, sections))
+
     if all_errors:
         for error in all_errors:
-            print(f"ERROR: {error}")
+            print(f"ERROR: {error}", file=sys.stderr)  # noqa: T201
         sys.exit(1)
     else:
-        print("Document validation successful!")
+        print("Document validation successful!")  # noqa: T201
         sys.exit(0)
+
 
 if __name__ == "__main__":
     main()
