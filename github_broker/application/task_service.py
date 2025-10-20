@@ -36,6 +36,10 @@ class TaskService:
     LABEL_REVIEW_DONE = "review-done"
     LABEL_IN_PROGRESS = "in-progress"
 
+    # Review constants
+    REVIEW_ISSUE_TIMESTAMP_KEY_FORMAT = "review_issue_detected_timestamp:{issue_id}"
+    REVIEW_ASSIGNMENT_DELAY_MINUTES = 5
+
     AGENT_ROLES = {
         "BACKENDCODER",
         "CONTENTS_WRITER",
@@ -70,6 +74,9 @@ class TaskService:
                 issues = self.github_client.get_open_issues()
                 self.redis_client.sync_issues(issues)
 
+                # レビューIssueの検索とタイムスタンプの保存
+                self._find_review_task()
+
             except (GithubException, RedisError) as e:
                 logger.error(
                     f"An error occurred during issue polling: {e}", exc_info=True
@@ -95,6 +102,33 @@ class TaskService:
             time.sleep(self.polling_interval_seconds)
 
         logger.info("Polling stopped.")
+
+    def _find_review_task(self) -> None:
+        """
+        レビュー待ちのIssueを検索し、Redisにタイムスタンプを保存します。
+        """
+        logger.info("Searching for review issues...")
+        try:
+            review_issues = self.github_client.get_review_issues()
+            for issue in review_issues:
+                issue_id = issue.get("number")
+                if issue_id:
+                    timestamp_key = self.REVIEW_ISSUE_TIMESTAMP_KEY_FORMAT.format(
+                        issue_id=issue_id
+                    )
+                    # Redisに存在しない場合のみタイムスタンプを保存
+                    if not self.redis_client.get_value(timestamp_key):
+                        self.redis_client.set_value(
+                            timestamp_key, datetime.now(UTC).isoformat()
+                        )
+                        logger.info(
+                            f"[issue_id={issue_id}] Detected review issue and stored timestamp in Redis."
+                        )
+        except GithubException as e:
+            logger.error(
+                f"An error occurred while searching for review issues: {e}",
+                exc_info=True,
+            )
 
     def poll_and_process_reviews(self):
         """
@@ -248,14 +282,29 @@ class TaskService:
                     )
                     continue
 
-                pr = self.github_client.get_pr_for_issue(issue_id)
-                if pr and self.github_client.has_pr_label(
-                    pr.number, self.LABEL_REVIEW_DONE
-                ):
-                    candidate_issues.append(issue)
+                # Redisに保存されたタイムスタンプを確認
+                timestamp_key = self.REVIEW_ISSUE_TIMESTAMP_KEY_FORMAT.format(
+                    issue_id=issue_id
+                )
+                detected_timestamp_str = self.redis_client.get_value(timestamp_key)
+
+                if detected_timestamp_str:
+                    detected_timestamp = datetime.fromisoformat(detected_timestamp_str)
+                    time_since_detection = datetime.now(UTC) - detected_timestamp
+                    if time_since_detection >= timedelta(
+                        minutes=self.REVIEW_ASSIGNMENT_DELAY_MINUTES
+                    ):
+                        logger.info(
+                            f"[issue_id={issue_id}] Review issue detected more than {self.REVIEW_ASSIGNMENT_DELAY_MINUTES} minutes ago. Adding to candidates."
+                        )
+                        candidate_issues.append(issue)
+                    else:
+                        logger.info(
+                            f"[issue_id={issue_id}] Review issue detected less than {self.REVIEW_ASSIGNMENT_DELAY_MINUTES} minutes ago. Skipping for now."
+                        )
                 else:
                     logger.info(
-                        f"[issue_id={issue_id}] Skipping review candidate because no associated PR with '{self.LABEL_REVIEW_DONE}' label was found."
+                        f"[issue_id={issue_id}] Review issue has no detection timestamp in Redis. Skipping."
                     )
 
         if not candidate_issues:

@@ -3,6 +3,8 @@ import logging
 from github import Github, GithubException
 from github.PullRequest import PullRequest
 
+logger = logging.getLogger(__name__)
+
 
 class GitHubClient:
     """
@@ -19,13 +21,31 @@ class GitHubClient:
         """
         try:
             query = f'repo:{self._repo_name} is:issue is:open -label:"needs-review"'
-            logging.info(f"クエリ: {query} でオープンなIssueを検索中")
+            logger.info(f"クエリ: {query} でオープンなIssueを検索中")
             issues = self._client.search_issues(query=query)
-            logging.info(f"オープンなIssueが {issues.totalCount} 件見つかりました。")
+            logger.info(f"オープンなIssueが {issues.totalCount} 件見つかりました。")
             return [issue.raw_data for issue in issues]
         except GithubException as e:
-            logging.error(
+            logger.error(
                 f"リポジトリ {self._repo_name} のIssue検索中にエラーが発生しました: {e}"
+            )
+            raise
+
+    def get_review_issues(self):
+        """
+        レビュー待ちのIssueを取得します。
+        """
+        try:
+            query = (
+                f"repo:{self._repo_name} is:issue label:needs-review linked:pr is:open"
+            )
+            logger.info(f"クエリ: {query} でレビューIssueを検索中")
+            issues = self._client.search_issues(query=query)
+            logger.info(f"レビューIssueが {issues.totalCount} 件見つかりました。")
+            return [issue.raw_data for issue in issues]
+        except GithubException as e:
+            logger.error(
+                f"リポジトリ {self._repo_name} のレビューIssue検索中にエラーが発生しました: {e}"
             )
             raise
 
@@ -39,12 +59,12 @@ class GitHubClient:
             query = (
                 f"repo:{self._repo_name} is:issue {labels_query} {extra_query}".strip()
             )
-            logging.info(f"クエリ: {query} でIssueを検索中")
+            logger.info(f"クエリ: {query} でIssueを検索中")
             issues = self._client.search_issues(query=query)
-            logging.info(f"{issues.totalCount} 件のIssueが見つかりました。")
+            logger.info(f"{issues.totalCount} 件のIssueが見つかりました。")
             return [issue.raw_data for issue in issues]
         except GithubException as e:
-            logging.error(
+            logger.error(
                 f"An error occurred while searching for issues by labels in repo {self._repo_name}: {e}"
             )
             raise
@@ -59,7 +79,7 @@ class GitHubClient:
             issue.add_to_labels(label)
             return True
         except GithubException as e:
-            logging.error(
+            logger.error(
                 f"リポジトリ {self._repo_name} のIssue #{issue_id} にラベルを追加中にエラーが発生しました: {e}"
             )
             raise
@@ -81,12 +101,12 @@ class GitHubClient:
                 for label_name in remove_labels:
                     try:
                         issue.remove_from_labels(label_name)
-                        logging.info(
+                        logger.info(
                             f"Issue #{issue_id} からラベル '{label_name}' を削除しました。"
                         )
                     except GithubException as e:
                         if e.status == 404:
-                            logging.warning(
+                            logger.warning(
                                 f"削除中にIssue #{issue_id} にラベル '{label_name}' が見つかりませんでした。スキップします。"
                             )
                         else:
@@ -95,12 +115,12 @@ class GitHubClient:
             if add_labels:
                 for label_name in add_labels:
                     issue.add_to_labels(label_name)
-                    logging.info(
+                    logger.info(
                         f"Issue #{issue_id} にラベル '{label_name}' を追加しました。"
                     )
             return True
         except GithubException as e:
-            logging.error(
+            logger.error(
                 f"リポジトリ {self._repo_name} のIssue #{issue_id} のラベル更新中にエラーが発生しました: {e}"
             )
             raise
@@ -114,17 +134,17 @@ class GitHubClient:
             repo = self._client.get_repo(self._repo_name)
             issue = repo.get_issue(number=issue_id)
             issue.remove_from_labels(label)
-            logging.info(
+            logger.info(
                 f"Issue #{issue_id} からラベル '{label}' を正常に削除しました。"
             )
             return True
         except GithubException as e:
             if e.status == 404:
-                logging.warning(
+                logger.warning(
                     f"削除中にIssue #{issue_id} にラベル '{label}' が見つかりませんでした。これは致命的なエラーではないため、続行します。"
                 )
                 return True
-            logging.error(
+            logger.error(
                 f"リポジトリ {self._repo_name} のIssue #{issue_id} からラベルを削除中にエラーが発生しました: {e}"
             )
             raise
@@ -140,11 +160,11 @@ class GitHubClient:
             return True
         except GithubException as e:
             if e.status == 422 and "Reference already exists" in str(e.data):
-                logging.warning(
+                logger.warning(
                     f"リポジトリ {self._repo_name} にブランチ '{branch_name}' は既に存在します。続行します。"
                 )
                 return True
-            logging.error(
+            logger.error(
                 f"リポジトリ {self._repo_name} にブランチ {branch_name} を作成中にエラーが発生しました: {e}"
             )
             raise
@@ -157,20 +177,20 @@ class GitHubClient:
         try:
             # Issue番号が本文に含まれるオープンなPRを検索
             query = f"repo:{self._repo_name} is:pr is:open in:body {issue_number}"
-            logging.info(f"クエリ: {query} でPRを検索中")
+            logger.info(f"クエリ: {query} でPRを検索中")
             pull_requests = self._client.search_issues(query=query)
 
             if pull_requests.totalCount > 0:
                 # 最初のPRを返す（通常、Issueに紐づくPRは1つと想定）
                 pr = pull_requests[0]
-                logging.info(
+                logger.info(
                     f"Issue #{issue_number} に紐づくPR #{pr.number} が見つかりました。"
                 )
                 return pr.raw_data
-            logging.info(f"Issue #{issue_number} に紐づくPRは見つかりませんでした。")
+            logger.info(f"Issue #{issue_number} に紐づくPRは見つかりませんでした。")
             return None
         except GithubException as e:
-            logging.error(
+            logger.error(
                 f"リポジトリ {self._repo_name} のIssue #{issue_number} に紐づくPRの検索中にエラーが発生しました: {e}"
             )
             raise
@@ -188,7 +208,7 @@ class GitHubClient:
             pr_issue = prs[0]
             return pr_issue.as_pull_request()
         except GithubException as e:
-            logging.error(
+            logger.error(
                 f"Error getting PR for issue {issue_number} in repo {self._repo_name}: {e}"
             )
             raise
@@ -200,9 +220,9 @@ class GitHubClient:
         """
         try:
             query = f'repo:{self._repo_name} is:pr is:open label:"needs-review"'
-            logging.info(f"クエリ: {query} でレビュー待ちのPRを検索中")
+            logger.info(f"クエリ: {query} でレビュー待ちのPRを検索中")
             results = self._client.search_issues(query=query)
-            logging.info(f"レビュー待ちのPRが {results.totalCount} 件見つかりました。")
+            logger.info(f"レビュー待ちのPRが {results.totalCount} 件見つかりました。")
 
             pr_map: dict[int, PullRequest] = {}
             for item in results:
@@ -210,12 +230,12 @@ class GitHubClient:
                     pr = item.as_pull_request()
                     pr_map[pr.number] = pr
                 except GithubException as e:
-                    logging.warning(f"Failed to convert item to PullRequest: {e}")
+                    logger.warning(f"Failed to convert item to PullRequest: {e}")
                     continue
 
             return pr_map
         except GithubException as e:
-            logging.error(
+            logger.error(
                 f"リポジトリ {self._repo_name} のレビュー待ちPR検索中にエラーが発生しました: {e}"
             )
             raise
@@ -228,9 +248,9 @@ class GitHubClient:
             repo = self._client.get_repo(self._repo_name)
             issue = repo.get_issue(number=pr_number)
             issue.add_to_labels(label)
-            logging.info(f"Added label '{label}' to PR #{pr_number}")
+            logger.info(f"Added label '{label}' to PR #{pr_number}")
         except GithubException as e:
-            logging.error(
+            logger.error(
                 f"Error adding label to PR #{pr_number} in repo {self._repo_name}: {e}"
             )
             raise
@@ -244,7 +264,7 @@ class GitHubClient:
             issue = repo.get_issue(number=issue_number)
             return issue.raw_data
         except GithubException as e:
-            logging.error(
+            logger.error(
                 f"リポジトリ {self._repo_name} からIssue #{issue_number} の取得中にエラーが発生しました: {e}"
             )
             raise
@@ -267,12 +287,12 @@ class GitHubClient:
             repo = self._client.get_repo(self._repo_name)
             pull = repo.get_pull(number=pull_number)
             comments = pull.get_review_comments()
-            logging.info(
+            logger.info(
                 f"Pull Request #{pull_number} から {len(list(comments))} 件のレビューコメントを取得しました。"
             )
             return [comment.raw_data for comment in comments]
         except GithubException as e:
-            logging.error(
+            logger.error(
                 f"リポジトリ {self._repo_name} のPull Request #{pull_number} のレビューコメント取得中にエラーが発生しました: {e}"
             )
             raise
@@ -286,7 +306,7 @@ class GitHubClient:
             pull = repo.get_pull(number=pr_number)
             return label in [pr_label.name for pr_label in pull.labels]
         except GithubException as e:
-            logging.error(
+            logger.error(
                 f"リポジトリ {self._repo_name} のPR #{pr_number} のラベル '{label}' を確認中にエラーが発生しました: {e}"
             )
             raise
