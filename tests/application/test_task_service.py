@@ -653,6 +653,11 @@ async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
     ]
     mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = True
+    # Set the timestamp to be older than the delay
+    old_timestamp = datetime.now(UTC) - timedelta(
+        minutes=task_service.REVIEW_ASSIGNMENT_DELAY_MINUTES + 1
+    )
+    mock_redis_client.get_value.return_value = old_timestamp.isoformat()
 
     agent_id = "test-agent"
 
@@ -942,7 +947,7 @@ def test_find_candidates_for_any_role_filters_no_priority(task_service):
     ],
 )
 def test_find_candidates_for_any_role_filters_story_and_epic_labels(
-    task_service, case, labels
+    task_service, mock_redis_client, case, labels
 ):
     """_find_candidates_for_any_roleが'story'または'epic'ラベルを持つIssueを除外することをテストします。"""
     # Arrange
@@ -955,12 +960,18 @@ def test_find_candidates_for_any_role_filters_story_and_epic_labels(
     issue_task = create_mock_issue(number=3, title="Task Issue", body="", labels=labels)
     issues = [issue_story, issue_epic, issue_task]
 
+    if case == "review":
+        mock_redis_client.get_value.return_value = None
+
     # Act
     candidates = task_service._find_candidates_for_any_role(issues)
 
     # Assert
-    assert len(candidates) == 1
-    assert candidates[0]["number"] == issue_task["number"]
+    if case == "review":
+        assert len(candidates) == 0
+    else:
+        assert len(candidates) == 1
+        assert candidates[0]["number"] == issue_task["number"]
 
 
 @pytest.mark.unit
@@ -1066,7 +1077,7 @@ async def test_create_fix_task_creates_task_and_builds_prompt(task_service):
 
 @pytest.mark.unit
 def test_find_candidates_for_any_role_review_candidate_with_review_done_pr(
-    task_service, mock_github_client
+    task_service, mock_github_client, mock_redis_client
 ):
     """
     _find_candidates_for_any_roleが、needs-reviewラベルとreview-doneラベルを持つPRを持つIssueを
@@ -1081,10 +1092,10 @@ def test_find_candidates_for_any_role_review_candidate_with_review_done_pr(
     )
     issues = [issue_review]
 
-    mock_pr = MagicMock()
-    mock_pr.number = 101
-    mock_github_client.get_pr_for_issue.return_value = mock_pr
-    mock_github_client.has_pr_label.return_value = True  # PR has review-done label
+    old_timestamp = datetime.now(UTC) - timedelta(
+        minutes=task_service.REVIEW_ASSIGNMENT_DELAY_MINUTES + 1
+    )
+    mock_redis_client.get_value.return_value = old_timestamp.isoformat()
 
     # Act
     candidates = task_service._find_candidates_for_any_role(issues)
@@ -1092,15 +1103,11 @@ def test_find_candidates_for_any_role_review_candidate_with_review_done_pr(
     # Assert
     assert len(candidates) == 1
     assert candidates[0]["number"] == issue_review["number"]
-    mock_github_client.get_pr_for_issue.assert_called_once_with(issue_review["number"])
-    mock_github_client.has_pr_label.assert_called_once_with(
-        mock_pr.number, task_service.LABEL_REVIEW_DONE
-    )
 
 
 @pytest.mark.unit
 def test_find_candidates_for_any_role_review_candidate_without_review_done_pr(
-    task_service, mock_github_client
+    task_service, mock_github_client, mock_redis_client
 ):
     """
     _find_candidates_for_any_roleが、needs-reviewラベルを持つがreview-doneラベルがないPRを持つIssueを
@@ -1115,22 +1122,13 @@ def test_find_candidates_for_any_role_review_candidate_without_review_done_pr(
     )
     issues = [issue_review]
 
-    mock_pr = MagicMock()
-    mock_pr.number = 101
-    mock_github_client.get_pr_for_issue.return_value = mock_pr
-    mock_github_client.has_pr_label.return_value = (
-        False  # PR does NOT have review-done label
-    )
+    mock_redis_client.get_value.return_value = None
 
     # Act
     candidates = task_service._find_candidates_for_any_role(issues)
 
     # Assert
     assert len(candidates) == 0
-    mock_github_client.get_pr_for_issue.assert_called_once_with(issue_review["number"])
-    mock_github_client.has_pr_label.assert_called_once_with(
-        mock_pr.number, task_service.LABEL_REVIEW_DONE
-    )
 
 
 @pytest.mark.unit
@@ -1225,7 +1223,7 @@ async def test_request_task_logs_detailed_information(
 
 @pytest.mark.unit
 def test_find_candidates_for_any_role_review_candidate_no_pr_found(
-    task_service, mock_github_client
+    task_service, mock_github_client, mock_redis_client
 ):
     """
     _find_candidates_for_any_roleが、needs-reviewラベルを持つが関連するPRが見つからないIssueを
@@ -1240,15 +1238,13 @@ def test_find_candidates_for_any_role_review_candidate_no_pr_found(
     )
     issues = [issue_review]
 
-    mock_github_client.get_pr_for_issue.return_value = None  # No PR found
+    mock_redis_client.get_value.return_value = None
 
     # Act
     candidates = task_service._find_candidates_for_any_role(issues)
 
     # Assert
     assert len(candidates) == 0
-    mock_github_client.get_pr_for_issue.assert_called_once_with(issue_review["number"])
-    mock_github_client.has_pr_label.assert_not_called()  # has_pr_label should not be called if no PR
 
 
 @pytest.mark.unit
