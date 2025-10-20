@@ -1,63 +1,84 @@
-import re
+import argparse
 import os
+import re
+import sys
+
 
 def extract_headers(markdown_content: str) -> list[str]:
     """
     Markdownコンテンツからヘッダー（##で始まる行）を抽出する。
     """
-    headers = re.findall(r'^##\s*([^#].*)$', markdown_content, re.MULTILINE)
+    headers = re.findall(r"^##\s*([^#].*)$", markdown_content, re.MULTILINE)
     return [header.strip() for header in headers]
+
 
 def define_required_headers(doc_type: str) -> list[str]:
     """
     ドキュメントタイプごとに必須ヘッダーのリストを定義する。
     """
-    if doc_type == "adr":
-        return ["Status", "Context", "Decision", "Consequences"]
-    elif doc_type == "design_doc":
-        return ["Purpose", "Goals", "Non-Goals", "Architecture", "Components", "Data Model", "Security", "Future Considerations"]
-    elif doc_type == "plan":
-        return ["Purpose & Goal", "Implementation Details", "Verification", "Impact & Next Steps"]
-    else:
-        return []
+    required_headers_map = {
+        "adr": ["Status", "Context", "Decision", "Consequences"],
+        "design_doc": [
+            "Purpose",
+            "Goals",
+            "Non-Goals",
+            "Architecture",
+            "Components",
+            "Data Model",
+            "Security",
+            "Future Considerations",
+        ],
+        "plan": [
+            "Purpose & Goal",
+            "Implementation Details",
+            "Verification",
+            "Impact & Next Steps",
+        ],
+    }
+    return required_headers_map.get(doc_type, [])
+
 
 def validate_document_headers(file_path: str, doc_type: str) -> bool:
     """
     ファイルのMarkdownコンテンツを読み込み、必須ヘッダーがすべて含まれているか検証する。
     """
     if not os.path.exists(file_path):
-        print(f"Error: File not found at {file_path}")
+        print(f"Error: File not found at {file_path}", file=sys.stderr)  # noqa: T201
         return False
 
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, encoding="utf-8") as f:
         content = f.read()
 
     extracted_headers = extract_headers(content)
     required_headers = define_required_headers(doc_type)
 
-    missing_headers = [header for header in required_headers if header not in extracted_headers]
+    missing_headers = [
+        header for header in required_headers if header not in extracted_headers
+    ]
 
     if missing_headers:
-        print(f"Validation failed for {file_path} ({doc_type} type). Missing headers: {', '.join(missing_headers)}")
+        print(  # noqa: T201
+            f"Validation failed for {file_path} ({doc_type} type). Missing headers: {', '.join(missing_headers)}",
+            file=sys.stderr,
+        )
         return False
-    else:
-        print(f"Validation passed for {file_path} ({doc_type} type). All required headers are present.")
-        return True
+    print(  # noqa: T201
+        f"Validation passed for {file_path} ({doc_type} type). All required headers are present."
+    )
+    return True
+
 
 if __name__ == "__main__":
-    # テスト用の使用例
-    # 実際のファイルパスとドキュメントタイプに合わせて変更してください
-    # 例:
-    # adr_file = "/app/docs/adr/001-example-adr.md"
-    # design_doc_file = "/app/docs/design-docs/001-example-design-doc.md"
-    # plan_file = "/app/plans/example-plan.md"
+    parser = argparse.ArgumentParser(
+        description="Validate headers of a given markdown document."
+    )
+    parser.add_argument("file_path", help="Path to the markdown file.")
+    parser.add_argument(
+        "doc_type",
+        choices=["adr", "design_doc", "plan"],
+        help="Type of the document.",
+    )
+    args = parser.parse_args()
 
-    # print("\n--- ADR Validation ---")
-    # validate_document_headers(adr_file, "adr")
-
-    # print("\n--- Design Doc Validation ---")
-    # validate_document_headers(design_doc_file, "design_doc")
-
-    # print("\n--- Plan Validation ---")
-    # validate_document_headers(plan_file, "plan")
-    pass
+    if not validate_document_headers(args.file_path, args.doc_type):
+        sys.exit(1)
