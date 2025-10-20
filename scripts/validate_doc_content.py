@@ -38,13 +38,13 @@ def define_required_headers(doc_type: str) -> list[str]:
     return required_headers_map.get(doc_type, [])
 
 
-def validate_document_headers(file_path: str, doc_type: str) -> bool:
+def validate_document_headers(file_path: str, doc_type: str) -> list[str]:
     """
     ファイルのMarkdownコンテンツを読み込み、必須ヘッダーがすべて含まれているか検証する。
+    見つからないヘッダーのリストを返す。
     """
     if not os.path.exists(file_path):
-        print(f"Error: File not found at {file_path}", file=sys.stderr)  # noqa: T201
-        return False
+        return ["File not found"]
 
     with open(file_path, encoding="utf-8") as f:
         content = f.read()
@@ -52,20 +52,7 @@ def validate_document_headers(file_path: str, doc_type: str) -> bool:
     extracted_headers = extract_headers(content)
     required_headers = define_required_headers(doc_type)
 
-    missing_headers = [
-        header for header in required_headers if header not in extracted_headers
-    ]
-
-    if missing_headers:
-        print(  # noqa: T201
-            f"Validation failed for {file_path} ({doc_type} type). Missing headers: {', '.join(missing_headers)}",
-            file=sys.stderr,
-        )
-        return False
-    print(  # noqa: T201
-        f"Validation passed for {file_path} ({doc_type} type). All required headers are present."
-    )
-    return True
+    return [header for header in required_headers if header not in extracted_headers]
 
 
 if __name__ == "__main__":
@@ -80,5 +67,13 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    if not validate_document_headers(args.file_path, args.doc_type):
+    missing = validate_document_headers(args.file_path, args.doc_type)
+    if missing:
+        if "File not found" in missing:
+            print(f"Error: File not found at {args.file_path}", file=sys.stderr)  # noqa: T201
+        else:
+            print(  # noqa: T201
+                f"Validation failed for {args.file_path} ({args.doc_type} type). Missing headers: {', '.join(missing)}",
+                file=sys.stderr,
+            )
         sys.exit(1)
