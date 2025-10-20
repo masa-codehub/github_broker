@@ -1,23 +1,18 @@
-import glob
-import os
 import re
+from pathlib import Path
 
 
 def find_target_files(base_path: str) -> list[str]:
     """
     ADR-012で定義された対象ファイルを探索し、絶対パスのリストを返します。
     """
-    target_patterns = [
-        os.path.join(base_path, "docs", "adr", "*.md"),
-        os.path.join(base_path, "docs", "design-docs", "*.md"),
-        os.path.join(base_path, "plans", "**", "*.md"),
-    ]
+    p = Path(base_path)
+    files: list[Path] = []
+    files.extend(p.joinpath("docs", "adr").glob("*.md"))
+    files.extend(p.joinpath("docs", "design-docs").glob("*.md"))
+    files.extend(p.joinpath("plans").rglob("*.md"))
 
-    found_files = []
-    for pattern in target_patterns:
-        found_files.extend(glob.glob(pattern, recursive=True))
-
-    return sorted(set(found_files))
+    return sorted([str(f) for f in set(files)])
 
 
 def validate_filename_prefix(file_path: str, base_path: str) -> bool:
@@ -26,12 +21,17 @@ def validate_filename_prefix(file_path: str, base_path: str) -> bool:
     始まっていることを検証します。
     plans配下以外のファイルは常にTrueを返します。
     """
-    relative_path = os.path.relpath(file_path, base_path)
-    if not relative_path.startswith("plans"):
+    p = Path(file_path)
+    base = Path(base_path)
+    try:
+        relative_path = p.relative_to(base)
+    except ValueError:
+        return True  # Not a subpath, so ignore.
+
+    if not str(relative_path).startswith("plans"):
         return True
 
-    filename = os.path.basename(file_path)
-    return bool(re.match(r"^(epic-|story-|task-).+\.md$", filename))
+    return bool(re.match(r"^(epic-|story-|task-).+\.md$", p.name))
 
 
 def validate_folder_structure(file_path: str, base_path: str) -> bool:
@@ -41,14 +41,22 @@ def validate_folder_structure(file_path: str, base_path: str) -> bool:
     - task-*.md という名前のファイルは、必ず tasks/ サブディレクトリ内に配置されなければならない。
     plans配下以外のファイルは常にTrueを返します。
     """
-    relative_path = os.path.relpath(file_path, base_path)
-    if not relative_path.startswith("plans"):
+    p = Path(file_path)
+    base = Path(base_path)
+    try:
+        relative_path = p.relative_to(base)
+    except ValueError:
+        return True  # Not a subpath, so ignore.
+
+    if not str(relative_path).startswith("plans"):
         return True
 
-    filename = os.path.basename(file_path)
-    dirname = os.path.dirname(relative_path)
+    filename = p.name
+    dirname = p.parent.name
 
-    return not (
-        (filename.startswith("story-") and not dirname.endswith("stories"))
-        or (filename.startswith("task-") and not dirname.endswith("tasks"))
-    )
+    # "story-"で始まるファイルは親ディレクトリが"stories"である必要がある
+    is_story_ok = (not filename.startswith("story-")) or (dirname == "stories")
+    # "task-"で始まるファイルは親ディレクトリが"tasks"である必要がある
+    is_task_ok = (not filename.startswith("task-")) or (dirname == "tasks")
+
+    return is_story_ok and is_task_ok
