@@ -1,10 +1,12 @@
+# Issue: #1581
+Status: Open
 # 【Story】レビュー処理遅延機能の技術仕様を作成する
 
 ## 親Issue (Parent Issue)
-- (起票後に追記)
+- #1521
 
 ## 子Issue (Sub-Issues)
-- (起票後に追記)
+- #1582
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/design-docs/001-update-gemini-model-and-review-issue-handling.md`

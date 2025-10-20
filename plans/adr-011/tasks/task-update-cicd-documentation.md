@@ -1,10 +1,12 @@
+# Issue: #1578
+Status: Open
 # 【Task】CI/CD環境のドキュメントを更新する
 
 ## 親Issue (Parent Issue)
-- (起票後に追記)
+- #1577
 
 ## 子Issue (Sub-Issues)
-- (起票後に追記)
+- (なし)
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/011-trigger-ci-on-all-branches.md`
