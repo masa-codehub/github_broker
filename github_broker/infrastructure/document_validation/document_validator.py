@@ -1,5 +1,37 @@
 import re
+from enum import Enum, auto
 from pathlib import Path
+
+
+class DocumentType(Enum):
+    ADR = auto()
+    DESIGN_DOC = auto()
+    PLAN = auto()
+
+
+REQUIRED_HEADERS = {
+    DocumentType.ADR: [
+        "背景 (Context)",
+        "意思決定 (Decision)",
+        "結果 (Consequences)",
+    ],
+    DocumentType.DESIGN_DOC: [
+        "目的と背景 (Purpose and Background)",
+        "目標 (Goals)",
+        "非目標 (Non-Goals)",
+        "設計 (Design)",
+        "代替案 (Alternatives)",
+    ],
+    DocumentType.PLAN: [
+        "親Issue (Parent Issue)",
+        "子Issue (Sub-Issues)",
+        "As-is (現状)",
+        "To-be (あるべき姿)",
+        "完了条件 (Acceptance Criteria)",
+        "成果物 (Deliverables)",
+        "ブランチ戦略 (Branching Strategy)",
+    ],
+}
 
 
 def find_target_files(base_path: str) -> list[str]:
@@ -60,3 +92,26 @@ def validate_folder_structure(file_path: str, base_path: str) -> bool:
     is_task_ok = (not filename.startswith("task-")) or (dirname == "tasks")
 
     return is_story_ok and is_task_ok
+
+
+def _extract_headers_from_content(content: str) -> list[str]:
+    """Markdownコンテンツから `## ` で始まるヘッダーを抽出します。"""
+    headers = re.findall(r"^##\s+(.*)$", content, re.MULTILINE)
+    return [header.strip() for header in headers]
+
+
+def validate_sections(content: str, required_headers: list[str]) -> list[str]:
+    """ドキュメントに必要なセクションが含まれているか検証します。"""
+    if not required_headers:
+        return []
+
+    present_headers = _extract_headers_from_content(content)
+    return [
+        header for header in required_headers if header not in present_headers
+    ]
+
+
+def get_required_headers(doc_type: DocumentType) -> list[str]:
+    """ドキュメントタイプに応じた必須ヘッダーのリストを返します。"""
+    return REQUIRED_HEADERS.get(doc_type, [])
+
