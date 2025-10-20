@@ -1,7 +1,9 @@
+# Issue: #1511
+Status: Open
 # 【Task】検証エラー時の詳細な出力と終了コードを実装する
 
 ## 親Issue (Parent Issue)
-- (起票後に追記)
+- #1508
 
 ## 子Issue (Sub-Issues)
 - (なし)

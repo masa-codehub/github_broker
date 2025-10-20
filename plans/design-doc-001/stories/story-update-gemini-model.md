@@ -1,7 +1,9 @@
+# Issue: #1522
+Status: Open
 # 【Story】`development`タスクのGeminiモデルを`gemini-flash-latest`に更新する
 
 ## 親Issue (Parent Issue)
-- (EpicのIssue番号)
+- #1521
 
 ## 子Issue (Sub-Issues)
 - (起票後に追記)

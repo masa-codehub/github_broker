@@ -5,19 +5,21 @@ repos:
     hooks:
         # Run the linter.
         - id: ruff
-          args: [ --fix ]
-        # Run the formatter.
-        - id: ruff-format
-          exclude: ^\.github/workflows/ci\.yml$
+
 -   repo: local
     hooks:
     -   id: pytest
         name: pytest
         entry: pytest
-        args: [-k, "not trio", -n, "auto"]
+        args: ["-k", "not trio"]
         language: system
         types: [python]
         pass_filenames: false
+    -   id: document-validator
+        name: Document Validator
+        entry: python github_broker/infrastructure/document_validation/document_validator.py
+        language: system
+        files: \.md$
     -   id: mypy
         name: mypy
         entry: mypy

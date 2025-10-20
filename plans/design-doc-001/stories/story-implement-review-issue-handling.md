@@ -1,7 +1,9 @@
+# Issue: #1523
+Status: Open
 # 【Story】レビュー対象Issueの検索ロジックと遅延処理を実装する
 
 ## 親Issue (Parent Issue)
-- (EpicのIssue番号)
+- #1521
 
 ## 子Issue (Sub-Issues)
 - (起票後に追記)

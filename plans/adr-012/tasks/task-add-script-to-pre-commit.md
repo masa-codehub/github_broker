@@ -1,7 +1,9 @@
+# Issue: #1512
+Status: Open
 # 【Task】検証スクリプトをpre-commitフックに追加する
 
 ## 親Issue (Parent Issue)
-- (起票後に追記)
+- #1507
 
 ## 子Issue (Sub-Issues)
 - (なし)

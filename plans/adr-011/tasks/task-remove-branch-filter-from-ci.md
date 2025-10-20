@@ -1,7 +1,9 @@
+# Issue: #1518
+Status: Open
 # 【Task】ci.ymlのトリガー設定からmainブランチ指定を削除する
 
 ## 親Issue (Parent Issue)
-- (起票後に追記)
+- #1517
 
 ## 子Issue (Sub-Issues)
 - (なし)

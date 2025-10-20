@@ -1,10 +1,12 @@
+# Issue: #1516
+Status: Open
 # 【Epic】すべてのブランチへのPull RequestでCIをトリガーする
 
 ## 親Issue (Parent Issue)
 - (なし)
 
 ## 子Issue (Sub-Issues)
-- [Story: CIワークフローが全ブランチへのPRでトリガーされるようにする](stories/story-update-ci-trigger.md)
+- #1517
 
 ## As-is (現状)
 CIワークフローは`main`ブランチに対するPull Requestでのみ実行される。

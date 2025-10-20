@@ -1,7 +1,9 @@
+# Issue: #1517
+Status: Open
 # 【Story】CIワークフローが全ブランチへのPRでトリガーされるようにする
 
 ## 親Issue (Parent Issue)
-- (起票後に追記)
+- #1516
 
 ## 子Issue (Sub-Issues)
 - [Task: ci.ymlのトリガー設定からmainブランチ指定を削除する](../tasks/task-remove-branch-filter-from-ci.md)

@@ -1,7 +1,9 @@
+# Issue: #1510
+Status: Open
 # 【Task】必須セクションの検証ロジックを実装する
 
 ## 親Issue (Parent Issue)
-- (起票後に追記)
+- #1508
 
 ## 子Issue (Sub-Issues)
 - (なし)
