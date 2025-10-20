@@ -6,7 +6,7 @@ Status: Open
 - #1521
 
 ## 子Issue (Sub-Issues)
-- (起票後に追記)
+- #1526
 
 ## As-is (現状)
 `agents_main.py`では、`development`タスクタイプに対して`gemini-2.5-flash`モデルが使用されている。

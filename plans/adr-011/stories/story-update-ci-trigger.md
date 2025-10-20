@@ -6,7 +6,7 @@ Status: Open
 - #1516
 
 ## 子Issue (Sub-Issues)
-- [Task: ci.ymlのトリガー設定からmainブランチ指定を削除する](../tasks/task-remove-branch-filter-from-ci.md)
+- #1518
 
 ## As-is (現状)
 `.github/workflows/ci.yml`には`main`ブランチを対象とする`branches`フィルタが設定されている。
