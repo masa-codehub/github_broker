@@ -36,6 +36,10 @@ class TaskService:
     LABEL_REVIEW_DONE = "review-done"
     LABEL_IN_PROGRESS = "in-progress"
 
+    # Review constants
+    REVIEW_ISSUE_TIMESTAMP_KEY_FORMAT = "review_issue_detected_timestamp:{issue_id}"
+    REVIEW_ASSIGNMENT_DELAY_MINUTES = 5
+
     AGENT_ROLES = {
         "BACKENDCODER",
         "CONTENTS_WRITER",
@@ -99,7 +103,7 @@ class TaskService:
 
         logger.info("Polling stopped.")
 
-    def _find_review_task(self):
+    def _find_review_task(self) -> None:
         """
         レビュー待ちのIssueを検索し、Redisにタイムスタンプを保存します。
         """
@@ -109,7 +113,9 @@ class TaskService:
             for issue in review_issues:
                 issue_id = issue.get("number")
                 if issue_id:
-                    timestamp_key = f"review_issue_detected_timestamp:{issue_id}"
+                    timestamp_key = self.REVIEW_ISSUE_TIMESTAMP_KEY_FORMAT.format(
+                        issue_id=issue_id
+                    )
                     # Redisに存在しない場合のみタイムスタンプを保存
                     if not self.redis_client.get_value(timestamp_key):
                         self.redis_client.set_value(
@@ -118,13 +124,11 @@ class TaskService:
                         logger.info(
                             f"[issue_id={issue_id}] Detected review issue and stored timestamp in Redis."
                         )
-            return review_issues
         except GithubException as e:
             logger.error(
                 f"An error occurred while searching for review issues: {e}",
                 exc_info=True,
             )
-            return []
 
     def poll_and_process_reviews(self):
         """
@@ -279,20 +283,24 @@ class TaskService:
                     continue
 
                 # Redisに保存されたタイムスタンプを確認
-                timestamp_key = f"review_issue_detected_timestamp:{issue_id}"
+                timestamp_key = self.REVIEW_ISSUE_TIMESTAMP_KEY_FORMAT.format(
+                    issue_id=issue_id
+                )
                 detected_timestamp_str = self.redis_client.get_value(timestamp_key)
 
                 if detected_timestamp_str:
                     detected_timestamp = datetime.fromisoformat(detected_timestamp_str)
                     time_since_detection = datetime.now(UTC) - detected_timestamp
-                    if time_since_detection >= timedelta(minutes=5):
+                    if time_since_detection >= timedelta(
+                        minutes=self.REVIEW_ASSIGNMENT_DELAY_MINUTES
+                    ):
                         logger.info(
-                            f"[issue_id={issue_id}] Review issue detected more than 5 minutes ago. Adding to candidates."
+                            f"[issue_id={issue_id}] Review issue detected more than {self.REVIEW_ASSIGNMENT_DELAY_MINUTES} minutes ago. Adding to candidates."
                         )
                         candidate_issues.append(issue)
                     else:
                         logger.info(
-                            f"[issue_id={issue_id}] Review issue detected less than 5 minutes ago. Skipping for now."
+                            f"[issue_id={issue_id}] Review issue detected less than {self.REVIEW_ASSIGNMENT_DELAY_MINUTES} minutes ago. Skipping for now."
                         )
                 else:
                     logger.info(

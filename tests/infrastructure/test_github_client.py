@@ -500,7 +500,9 @@ def test_update_issue_remove_nonexistent_label_handles_404(mock_github):
     remove_labels = ["nonexistent-label"]
 
     # Act
-    with patch("logging.warning") as mock_log_warning:
+    with patch(
+        "github_broker.infrastructure.github_client.logger.warning"
+    ) as mock_log_warning:
         result = client.update_issue(issue_id, remove_labels=remove_labels)
 
     # Assert
