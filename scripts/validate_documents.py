@@ -1,3 +1,4 @@
+import logging
 import sys
 from pathlib import Path
 
@@ -9,6 +10,9 @@ from github_broker.infrastructure.document_validation.document_validator import 
     validate_folder_structure,
     validate_sections,
 )
+
+logging.basicConfig(level=logging.ERROR, stream=sys.stderr, format='%(message)s')
+logger = logging.getLogger(__name__)
 
 
 def get_doc_type(file_path: str) -> DocumentType | None:
@@ -30,17 +34,15 @@ def main() -> int:
     for file_path in target_files:
         # Validate filename prefix
         if not validate_filename_prefix(file_path, str(base_path)):
-            print(  # noqa: T201
+            logger.error(
                 f"ERROR: {file_path} - Invalid filename prefix. Must be one of 'epic-', 'story-', 'task-'.",
-                file=sys.stderr,
             )
             error_found = True
 
         # Validate folder structure
         if not validate_folder_structure(file_path, str(base_path)):
-            print(  # noqa: T201
+            logger.error(
                 f"ERROR: {file_path} - Invalid folder structure. 'story-*.md' must be in 'stories/' and 'task-*.md' must be in 'tasks/'.",
-                file=sys.stderr,
             )
             error_found = True
 
@@ -52,9 +54,8 @@ def main() -> int:
                 content = f.read()
             missing_headers = validate_sections(content, required_headers)
             if missing_headers:
-                print(  # noqa: T201
+                logger.error(
                     f"ERROR: {file_path} - Missing required sections: {', '.join(missing_headers)}",
-                    file=sys.stderr,
                 )
                 error_found = True
 
