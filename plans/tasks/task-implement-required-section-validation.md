@@ -1,3 +1,4 @@
+# 目的とゴール
 # Issue: #1510
 Status: Open
 # 【Task】必須セクションの検証ロジックを実装する
@@ -19,8 +20,14 @@ Status: Open
 - [ ] ドキュメントタイプごとに必須ヘッダーのリストを定義していること。
 - [ ] ファイルの内容に必須ヘッダーがすべて含まれているか検証する関数が実装されていること。
 
+## 実施内容
+
+## 検証結果
+
 ## 成果物 (Deliverables)
 - Python検証スクリプトの一部
+
+## 影響範囲と今後の課題
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/create-doc-validation-script`

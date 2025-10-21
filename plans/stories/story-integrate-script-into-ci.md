@@ -1,3 +1,4 @@
+# 目的とゴール
 # Issue: #1507
 Status: Open
 # 【Story】検証スクリプトをpre-commitとCIに統合する
@@ -19,9 +20,15 @@ Status: Open
 - [ ] Task: 検証スクリプトをpre-commitフックに追加する
 - [ ] Task: CIワークフローでpre-commitが実行されることを確認する
 
+## 実施内容
+
+## 検証結果
+
 ## 成果物 (Deliverables)
 - `.pre-commit-config.yaml`
 - `.github/workflows/ci.yml`
+
+## 影響範囲と今後の課題
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `epic/implement-adr-012`

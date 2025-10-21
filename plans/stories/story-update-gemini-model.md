@@ -1,3 +1,4 @@
+# 目的とゴール
 # Issue: #1522
 Status: Open
 # 【Story】`development`タスクのGeminiモデルを`gemini-flash-latest`に更新する
@@ -17,8 +18,14 @@ Status: Open
 ## 完了条件 (Acceptance Criteria)
 - [ ] Task: `agents_main.py`を修正し、`development`タスクのモデルを`gemini-flash-latest`に変更する
 
+## 実施内容
+
+## 検証結果
+
 ## 成果物 (Deliverables)
 - `agents_main.py`
+
+## 影響範囲と今後の課題
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `epic/implement-design-doc-001`

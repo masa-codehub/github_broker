@@ -1,3 +1,4 @@
+# 目的とゴール
 # Issue: #1521
 Status: Open
 # 【Epic】Geminiモデルの更新とレビューIssue処理の改善
@@ -21,11 +22,17 @@ Status: Open
 - [ ] Story: `development`タスクのGeminiモデルを`gemini-flash-latest`に更新する
 - [ ] Story: レビュー対象Issueの検索ロジックと遅延処理を実装する
 
+## 実施内容
+
+## 検証結果
+
 ## 成果物 (Deliverables)
 - `github_broker/application/task_service.py`
 - `agents_main.py`
 - `docs/architecture/redis-schema.md`
 - `docs/architecture/request-task-sequence.md`
+
+## 影響範囲と今後の課題
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `main`

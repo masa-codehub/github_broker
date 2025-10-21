@@ -1,3 +1,4 @@
+# 目的とゴール
 # Issue: #1506
 Status: Open
 # 【Epic】主要ドキュメントのフォーマット検証をCIに統合する
@@ -19,10 +20,16 @@ Status: Open
 - [ ] Story: ドキュメントフォーマット検証スクリプトを作成する
 - [ ] Story: 検証スクリプトをpre-commitとCIに統合する
 
+## 実施内容
+
+## 検証結果
+
 ## 成果物 (Deliverables)
 - 検証スクリプトファイル
 - `.pre-commit-config.yaml`
 - `.github/workflows/ci.yml`
+
+## 影響範囲と今後の課題
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `main`
