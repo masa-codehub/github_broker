@@ -40,7 +40,7 @@ sequenceDiagram
 
                 alt Delay Recordが存在しない
                     Note over TaskService: 遅延時間(5分)の計測を開始
-                    TaskService->>+RedisClient: set_value(review_delay_{issue_id}, {found_at})
+                    TaskService->>+RedisClient: set_value(review_delay_{issue_id}, {found_at, pr_number, status})
                     RedisClient-->>-TaskService: OK
                     TaskService->>TaskService: 次の候補Issueへ
                 else Delay Recordが存在し、遅延時間(5分)が経過
@@ -113,13 +113,14 @@ sequenceDiagram
 
 4.  **タスク候補の選定:**
     *   **キャッシュ取得:** `RedisClient`を介して、バックグラウンドで定期的にキャッシュされているオープンなIssueのリスト (`open_issues`) を取得します。
-    *   **候補フィルタリング:** Redisから取得したIssueリストから、`in-progress`や`needs-review`ラベルが付いていないタスクを候補としてフィルタリングします。さらに、各Issueに付与された役割ラベル（例: `BACKENDCODER`）を解釈し、タスクを絞り込みます。
+    *   **候補フィルタリング:** Redisから取得したIssueリストから、`in-progress`ラベルが付いていないタスクを候補としてフィルタリングします。この候補には、開発タスク（ラベルなし）とレビュータスク（`needs-review`ラベル付き）の両方が含まれます。さらに、各Issueに付与された役割ラベル（例: `BACKENDCODER`）を解釈し、タスクを絞り込みます。
     *   **ソート:** 候補Issueを**優先度順**でソートします。
 
 5.  **タスク割り当て処理:**
     *   ソートされた順に各候補Issueをチェックします。
     *   **レビュータスクの遅延処理:** `needs-review`ラベルが付いているIssueの場合、`RedisClient`を介して遅延管理キー(`review_delay_{issue_id}`)の存在を確認します。
         *   キーが存在しない場合、現在の時刻を記録してキーを作成し、遅延計測を開始します。このIssueはスキップされ、次の候補Issueのチェックに移ります。
+        *   キーが存在するものの、設定された遅延時間（例: 5分）が経過していない場合は、このIssueをスキップして次の候補に進みます。
         *   キーが存在し、設定された遅延時間（例: 5分）が経過している場合のみ、タスク割り当てに進みます。
     *   **ロック取得:** 割り当て試行中の競合を防ぐため、`RedisClient`を介してIssueごとの分散ロック (`issue_lock_{issue_id}`) の取得を試みます。
     *   **前提条件チェック:** ロック取得後、Issue本文に「成果物」セクションが定義されているかなどの前提条件をチェックします。
