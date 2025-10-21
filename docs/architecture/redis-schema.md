@@ -33,7 +33,7 @@
 - **説明:** `TaskService`が`needs-review`ラベルの付いたIssueを検出した際に作成されます。このキーの存在と値により、遅延時間が経過したかどうかを判断します。
 - **フィールド:**
     - **`found_at` (String):** Issueが最初に検出された時刻（ISO 8601形式）。この時刻と設定された遅延時間（例: 5分）を比較し、タスク割り当ての可否を判断します。
-    - **`pr_number` (String):** 関連するPull Requestの番号。
+    - **`pr_number` (String):** 関連するPull Requestの番号。**（必須フィールド）** `needs-review`ラベルが付与されたIssueは必ずPull Requestに関連付けられているため、このフィールドにはPull Requestの番号が格納されます。
     - **`status` (String):** 遅延処理の状態。例: `PENDING`, `READY_FOR_ASSIGNMENT`。**（注: 現在のロジックは `found_at` のタイムスタンプのみで判定しており、このフィールドは将来的な拡張のために予約されています。）**
 - **有効期限 (TTL):** 86400秒 (24時間)
 - **例:** Issue番号が `1582` の場合、キーは `review_delay_1582` となり、値は以下のようになります。
