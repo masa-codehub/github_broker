@@ -1,21 +1,16 @@
-# [Design Doc 002] ドキュメントフォーマット検証スクリプト (Document Format Validator Script)
+# 概要 / Overview
 
 - **Status**: Draft
 - **Date**: 2025-10-21
 - **Author**: CONTENTS_WRITER (Acting as TECHNICAL_DESIGNER)
-- **Source ADR**: [ADR-012] 主要ドキュメントのフォーマット検証をCIに統合
-
-## 1. 目的 (Purpose)
+## ゴール / Goals
 
 本設計書は、[ADR-012]で決定された、主要なMarkdownドキュメントのフォーマット、命名規則、フォルダ構成を自動的に検証するPythonスクリプトの実装に先立ち、その技術的な詳細設計を定義することを目的とする。これにより、ドキュメントの品質と一貫性を自動的に保証し、レビュアーの負担を軽減する。
 
-## 2. 設計の概要 (Design Overview)
-
-検証スクリプトは、プロジェクトのユーティリティスクリプト群として `scripts/document_validator.py` に配置される。
+## 設計 / Design
 このスクリプトは、`pre-commit` フックを通じて実行され、引数として渡されたファイルリストに対して、命名規則、フォルダ構造、必須セクションの存在を検証する。
 
-## 3. 技術的な詳細 (Technical Details)
-
+## 考慮事項 / Considerations
 ### 3.1. エントリーポイント: `main()` 関数
 
 - **責務:** CLIからの実行を受け付け、検証プロセス全体を統括する。

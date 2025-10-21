@@ -1,4 +1,4 @@
-# 概要
+# 概要 / Summary
 ADR 007: Issue起票プロセスの品質保証自動化
 
 ## 状況
@@ -7,7 +7,7 @@ ADR 007: Issue起票プロセスの品質保証自動化
 
 Accepted
 
-## Context
+## 状況 / Context
 
 現在、本プロジェクトにおけるGitHub Issueの品質は、起票者の知識や裁量に大きく依存しています。これにより、以下のような課題が発生しています。
 
@@ -17,7 +17,7 @@ Accepted
 
 これらの課題は、開発プロセスの効率性と透明性を損なうボトルネックとなっています。
 
-## 決定
+## 決定 / Decision
 
 これらの課題を解決するため、**「GitHub Issue Forms」**と**「GitHub Actions」**を組み合わせた、Issue起票プロセスの品質保証を自動化する仕組みを導入します。
 
@@ -38,7 +38,7 @@ Accepted
 
 ## 結果
 
-## Consequences
+## 結果 / Consequences
 
 ### メリット
 

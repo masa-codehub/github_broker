@@ -1,5 +1,6 @@
 import os
 import sys
+from pathlib import Path
 
 FILENAME_PREFIXES = {
     "epic-": "plans",
@@ -8,37 +9,58 @@ FILENAME_PREFIXES = {
 }
 
 REQUIRED_SECTIONS = {
-    "docs/adr": ["# 概要", "## 決定", "## 状況", "## 結果"],
-    "docs/design-docs": ["# 概要", "## ゴール", "## 設計", "## 考慮事項"],
+    "docs/adr": [
+        "# 概要 / Summary",
+        "## 決定 / Decision",
+        "## 状況 / Context",
+        "## 結果 / Consequences",
+    ],
+    "docs/design-docs": [
+        "# 概要 / Overview",
+        "## ゴール / Goals",
+        "## 設計 / Design",
+        "## 考慮事項 / Considerations",
+    ],
     "plans": [
-        "# 目的とゴール",
-        "## 実施内容",
-        "## 検証結果",
-        "## 影響範囲と今後の課題",
+        "# 目的とゴール / Purpose and Goals",
+        "## 実施内容 / Implementation",
+        "## 検証結果 / Validation Results",
+        "## 影響範囲と今後の課題 / Impact and Future Issues",
     ],
 }
 
 
-def validate_filename_and_folder_structure(filepath):
-    dirname = os.path.dirname(filepath)
-    if not dirname.startswith("plans"):
+def validate_filename_and_folder_structure(filepath: str):
+    path = Path(filepath)
+
+    # Check if the file is under 'plans' directory (first part of the path)
+    if path.parts[0] != "plans":
         return []
 
     errors = []
-    basename = os.path.basename(filepath)
+    basename = path.name
 
     # ファイル名のプレフィックス検証
     matched_prefix = False
     for prefix, expected_dir in FILENAME_PREFIXES.items():
         if basename.startswith(prefix):
             matched_prefix = True
-            # story-*.md と task-*.md のフォルダ構造検証
-            if prefix in ("story-", "task-") and os.path.normpath(
-                dirname
-            ) != os.path.normpath(expected_dir):
-                errors.append(
-                    f"File '{filepath}' with prefix '{prefix}' must be in '{expected_dir}/' directory."
-                )
+
+            # フォルダ構造検証
+            if prefix == "epic-":
+                # epic-*.md は plans/ の直下のサブディレクトリにあるべき (plans/adr-XXX/epic-XXX.md)
+                if len(path.parts) != 3:
+                    errors.append(
+                        f"File '{filepath}' with prefix '{prefix}' must be in a subdirectory directly under 'plans/' (e.g., plans/adr-XXX/)."
+                    )
+            elif prefix in ("story-", "task-"):
+                # story-*.md は plans/*/stories/ に、 task-*.md は plans/*/tasks/ にあるべき
+                # path.parent.name が 'stories' または 'tasks' であることを確認
+                expected_parent_name = expected_dir.split('/')[-1] # 'stories' or 'tasks'
+                if path.parent.name != expected_parent_name:
+                    errors.append(
+                        f"File '{filepath}' with prefix '{prefix}' must be in a '{expected_parent_name}/' subdirectory under 'plans/'."
+                    )
             break
 
     if not matched_prefix:
@@ -50,10 +72,13 @@ def validate_filename_and_folder_structure(filepath):
     return errors
 
 
-def validate_required_sections(filepath, sections):
+def validate_required_sections(filepath: str, sections: list[str]):
     errors = []
-    with open(filepath, encoding="utf-8") as f:
-        content = f.read()
+    try:
+        with open(filepath, encoding="utf-8") as f:
+            content = f.read()
+    except FileNotFoundError:
+        return [f"File not found: {filepath}"]
 
     for section in sections:
         if section not in content:
@@ -66,14 +91,22 @@ def validate_required_sections(filepath, sections):
 def main():
     all_errors = []
     for target_path, sections in REQUIRED_SECTIONS.items():
-        if not os.path.isdir(target_path):
+        target_path_obj = Path(target_path)
+
+        # Check if path exists and is a directory
+        if not target_path_obj.exists() or not target_path_obj.is_dir():
             continue
+
         for root, _, files in os.walk(target_path):
             for file in files:
                 if file.endswith(".md"):
-                    filepath = os.path.join(root, file)
-                    all_errors.extend(validate_filename_and_folder_structure(filepath))
-                    all_errors.extend(validate_required_sections(filepath, sections))
+                    filepath = Path(root) / file
+
+                    try:
+                        all_errors.extend(validate_filename_and_folder_structure(str(filepath)))
+                        all_errors.extend(validate_required_sections(str(filepath), sections))
+                    except Exception as e:
+                        all_errors.append(f"Internal Error validating {filepath}: {e}")
 
     if all_errors:
         for error in all_errors:

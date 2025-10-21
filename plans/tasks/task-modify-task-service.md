@@ -1,4 +1,4 @@
-# 目的とゴール
+# 目的とゴール / Purpose and Goals
 # Issue: #1527
 Status: Open
 # 【Task】`TaskService`を修正し、レビューIssueの検索クエリを更新し、遅延処理を実装する
@@ -22,14 +22,14 @@ Status: Open
 - `request_task`メソッド呼び出し時に、`needs-review`ラベルを持つIssueが候補となった場合、Redisに保存されたタイムスタンプを確認し、5分以上経過したIssueのみをタスクとして返却するロジックが追加されていること。
 - 関連する単体テストがすべてパスすること。
 
-## 実施内容
+## 実施内容 / Implementation
 
-## 検証結果
+## 検証結果 / Validation Results
 
 ## 成果物 (Deliverables)
 - `github_broker/application/task_service.py`
 
-## 影響範囲と今後の課題
+## 影響範囲と今後の課題 / Impact and Future Issues
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/implement-review-issue-handling`

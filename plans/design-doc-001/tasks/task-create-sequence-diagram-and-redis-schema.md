@@ -1,6 +1,6 @@
 # Issue: #1582
 Status: Open
-# 【Task】シーケンス図とRedisスキーマを定義する
+# 目的とゴール / Purpose and Goals
 
 ## 親Issue (Parent Issue)
 - #1581
@@ -34,6 +34,12 @@ Status: Open
 - 設計駆動開発の考え方に基づき、設計が完了していること。
 - シーケンス図には、`TaskService`、`RedisClient`、`GitHubClient`間のインタラクションが正確に記述されていること。
 - Redisスキーマ定義には、キー名、データ型（例: Hash, Sorted Set）、フィールド、値の具体例が明記されていること。
+
+## 実施内容 / Implementation
+
+## 検証結果 / Validation Results
+
+## 影響範囲と今後の課題 / Impact and Future Issues
 
 ## 成果物 (Deliverables)
 - `docs/architecture/request-task-sequence.md` (更新)

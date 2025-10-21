@@ -1,4 +1,4 @@
-# 目的とゴール
+# 目的とゴール / Purpose and Goals
 Task: Update pre-commit for parallel testing
 
 ## Status
@@ -25,14 +25,14 @@ Task: Update pre-commit for parallel testing
       pass_filenames: false
   ```
 
-## 実施内容
+## 実施内容 / Implementation
 
-## 検証結果
+## 検証結果 / Validation Results
 
 ## 成果物 (Deliverables)
 - `.pre-commit-config.yaml`
 
-## 影響範囲と今後の課題
+## 影響範囲と今後の課題 / Impact and Future Issues
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/unify-and-accelerate-checks`

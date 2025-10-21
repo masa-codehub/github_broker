@@ -1,7 +1,7 @@
-# 概要
+# 概要 / Summary
 [ADR-011] すべてのブランチへのPull RequestでCIをトリガーする
 
-## 状況
+## 状況 / Context
 
 ## Status
 
@@ -19,7 +19,7 @@
 
 品質の高いソフトウェアを継続的に提供するためには、すべての変更に対して、開発の早い段階で一貫した品質ゲートを設けることが不可欠です。
 
-## 決定 (決定)
+## 決定 / Decision
 
 `.github/workflows/ci.yml` ファイル内の `on.pull_request` トリガーから `branches` フィルタを削除します。
 
@@ -39,7 +39,7 @@ on:
 
 これにより、どのブランチをターゲットにしたPull Requestであっても、CIワークフローが実行されるようになります。
 
-## 結果
+## 結果 / Consequences
 
 ## Consequences (結果)
 

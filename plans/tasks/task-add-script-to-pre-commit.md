@@ -1,4 +1,4 @@
-# 目的とゴール
+# 目的とゴール / Purpose and Goals
 # Issue: #1512
 Status: Open
 # 【Task】検証スクリプトをpre-commitフックに追加する
@@ -20,14 +20,14 @@ Status: Open
 - [ ] `pre-commit run --all-files`を実行し、意図的に追加した規約違反ファイルに対してフックが失敗し、エラーメッセージが出力されること。
 - [ ] 規約違反がない状態ではフックが成功すること。
 
-## 実施内容
+## 実施内容 / Implementation
 
-## 検証結果
+## 検証結果 / Validation Results
 
 ## 成果物 (Deliverables)
 - `.pre-commit-config.yaml`
 
-## 影響範囲と今後の課題
+## 影響範囲と今後の課題 / Impact and Future Issues
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/integrate-doc-validation-script`

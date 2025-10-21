@@ -1,7 +1,7 @@
 # 目的とゴール
 # Issue: #1523
 Status: Open
-# 【Story】レビュー対象Issueの検索ロジックと遅延処理を実装する
+# 目的とゴール / Purpose and Goals
 
 ## 親Issue (Parent Issue)
 - #1521
@@ -17,6 +17,12 @@ Status: Open
 
 ## 完了条件 (Acceptance Criteria)
 - [ ] Task: `TaskService`を修正し、レビューIssueの検索クエリを更新し、遅延処理を実装する
+
+## 実施内容 / Implementation
+
+## 検証結果 / Validation Results
+
+## 影響範囲と今後の課題 / Impact and Future Issues
 
 ## 実施内容
 
