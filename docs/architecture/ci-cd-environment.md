@@ -11,9 +11,9 @@ Our CI/CD pipeline utilizes a self-hosted runner with the following configuratio
 - **GPU:** 不明
 - **Host Environment:** The runner is hosted within a `github-runner` container using the `github_broker-github_runner` image.
 
-## CI Trigger
+## CIトリガー
 
-Continuous Integration (CI) is triggered on **all Pull Requests** regardless of the target branch. This ensures that all feature branches are validated before merging, improving code quality and reducing the risk of introducing bugs into the main development line.
+継続的インテグレーション (CI) は、ターゲットブランチに関わらず、**すべてのプルリクエスト**でトリガーされます。これにより、すべてのフィーチャーブランチがマージ前に検証され、コードの品質が向上し、メインの開発ラインにバグが混入するリスクが低減されます。
 
 ## Usage
 
