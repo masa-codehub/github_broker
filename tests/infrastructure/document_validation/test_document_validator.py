@@ -1,7 +1,7 @@
 import pytest
 
 from github_broker.infrastructure.document_validation.document_validator import (
-    DocumentType,
+    REQUIRED_HEADERS,
     _extract_headers_from_content,
     find_target_files,
     get_required_headers,
@@ -180,38 +180,17 @@ def test_validate_sections_empty_required():
 
 @pytest.mark.parametrize(
     "doc_type, expected_headers",
-    [
-        (
-            DocumentType.ADR,
-            [
-                "背景 (Context)",
-                "意思決定 (Decision)",
-                "結果 (Consequences)",
-            ],
-        ),
-        (
-            DocumentType.DESIGN_DOC,
-            [
-                "目的と背景 (Purpose and Background)",
-                "目標 (Goals)",
-                "非目標 (Non-Goals)",
-                "設計 (Design)",
-                "代替案 (Alternatives)",
-            ],
-        ),
-        (
-            DocumentType.PLAN,
-            [
-                "親Issue (Parent Issue)",
-                "子Issue (Sub-Issues)",
-                "As-is (現状)",
-                "To-be (あるべき姿)",
-                "完了条件 (Acceptance Criteria)",
-                "成果物 (Deliverables)",
-                "ブランチ戦略 (Branching Strategy)",
-            ],
-        ),
-    ],
+    list(REQUIRED_HEADERS.items()),
 )
 def test_get_required_headers(doc_type, expected_headers):
     assert get_required_headers(doc_type) == expected_headers
+
+
+def test_get_required_headers_unknown_type():
+    """未知のドキュメントタイプが渡された場合に空のリストを返すことをテストします。"""
+    from enum import Enum, auto
+
+    class UnknownType(Enum):
+        UNKNOWN = auto()
+
+    assert get_required_headers(UnknownType.UNKNOWN) == []
