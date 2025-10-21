@@ -1,3 +1,5 @@
+import pytest
+
 from scripts.validate_doc_content import (
     define_required_headers,
     extract_headers,
@@ -79,7 +81,7 @@ Decision made.
 Consequences described.
 """
     adr_file = create_dummy_markdown_file(tmp_path, "test_adr.md", adr_content)
-    assert validate_document_headers(adr_file, "adr") is True
+    assert validate_document_headers(adr_file, "adr") == []
 
     design_doc_content = """
 # Design Doc Title
@@ -111,7 +113,7 @@ Future considerations.
     design_doc_file = create_dummy_markdown_file(
         tmp_path, "test_design_doc.md", design_doc_content
     )
-    assert validate_document_headers(design_doc_file, "design_doc") is True
+    assert validate_document_headers(design_doc_file, "design_doc") == []
 
     plan_content = """
 # Plan Title
@@ -129,10 +131,10 @@ Verification steps.
 Impact and next steps.
 """
     plan_file = create_dummy_markdown_file(tmp_path, "test_plan.md", plan_content)
-    assert validate_document_headers(plan_file, "plan") is True
+    assert validate_document_headers(plan_file, "plan") == []
 
 
-def test_validate_document_headers_failure_missing_headers(tmp_path, capsys):
+def test_validate_document_headers_failure_missing_headers(tmp_path):
     adr_content_missing = """
 # ADR Title
 
@@ -148,9 +150,7 @@ Consequences described.
     adr_file_missing = create_dummy_markdown_file(
         tmp_path, "test_adr_missing.md", adr_content_missing
     )
-    assert validate_document_headers(adr_file_missing, "adr") is False
-    captured = capsys.readouterr()
-    assert "Missing headers: Status" in captured.err
+    assert validate_document_headers(adr_file_missing, "adr") == ["Status"]
 
     design_doc_content_missing = """
 # Design Doc Title
@@ -179,9 +179,9 @@ Future considerations.
     design_doc_file_missing = create_dummy_markdown_file(
         tmp_path, "test_design_doc_missing.md", design_doc_content_missing
     )
-    assert validate_document_headers(design_doc_file_missing, "design_doc") is False
-    captured = capsys.readouterr()
-    assert "Missing headers: Purpose" in captured.err
+    assert validate_document_headers(design_doc_file_missing, "design_doc") == [
+        "Purpose"
+    ]
 
     plan_content_missing = """
 # Plan Title
@@ -198,13 +198,10 @@ Impact and next steps.
     plan_file_missing = create_dummy_markdown_file(
         tmp_path, "test_plan_missing.md", plan_content_missing
     )
-    assert validate_document_headers(plan_file_missing, "plan") is False
-    captured = capsys.readouterr()
-    assert "Missing headers: Purpose & Goal" in captured.err
+    assert validate_document_headers(plan_file_missing, "plan") == ["Purpose & Goal"]
 
 
-def test_validate_document_headers_file_not_found(tmp_path, capsys):
+def test_validate_document_headers_file_not_found(tmp_path):
     non_existent_file = tmp_path / "non_existent.md"
-    assert validate_document_headers(str(non_existent_file), "adr") is False
-    captured = capsys.readouterr()
-    assert "Error: File not found" in captured.err
+    with pytest.raises(FileNotFoundError):
+        validate_document_headers(str(non_existent_file), "adr")
