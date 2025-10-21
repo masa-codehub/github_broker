@@ -1,3 +1,5 @@
+import pytest
+
 from scripts.validate_doc_content import (
     define_required_headers,
     extract_headers,
@@ -201,6 +203,5 @@ Impact and next steps.
 
 def test_validate_document_headers_file_not_found(tmp_path):
     non_existent_file = tmp_path / "non_existent.md"
-    assert validate_document_headers(str(non_existent_file), "adr") == [
-        "File not found"
-    ]
+    with pytest.raises(FileNotFoundError):
+        validate_document_headers(str(non_existent_file), "adr")

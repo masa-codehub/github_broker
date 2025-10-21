@@ -1,5 +1,4 @@
 import argparse
-import os
 import re
 import sys
 
@@ -43,9 +42,6 @@ def validate_document_headers(file_path: str, doc_type: str) -> list[str]:
     ファイルのMarkdownコンテンツを読み込み、必須ヘッダーがすべて含まれているか検証する。
     見つからないヘッダーのリストを返す。
     """
-    if not os.path.exists(file_path):
-        return ["File not found"]
-
     with open(file_path, encoding="utf-8") as f:
         content = f.read()
 
@@ -67,13 +63,14 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    missing = validate_document_headers(args.file_path, args.doc_type)
-    if missing:
-        if "File not found" in missing:
-            print(f"Error: File not found at {args.file_path}", file=sys.stderr)  # noqa: T201
-        else:
+    try:
+        missing = validate_document_headers(args.file_path, args.doc_type)
+        if missing:
             print(  # noqa: T201
                 f"Validation failed for {args.file_path} ({args.doc_type} type). Missing headers: {', '.join(missing)}",
                 file=sys.stderr,
             )
+            sys.exit(1)
+    except FileNotFoundError:
+        print(f"Error: File not found at {args.file_path}", file=sys.stderr)  # noqa: T201
         sys.exit(1)
