@@ -9,36 +9,24 @@
 
 本設計書は、[ADR-012]で決定された、主要なMarkdownドキュメントのフォーマット、命名規則、フォルダ構成を自動的に検証するPythonスクリプトの実装に先立ち、その技術的な詳細設計を定義することを目的とする。これにより、ドキュメントの品質と一貫性を自動的に保証し、レビュアーの負担を軽減する。
 
-## 2. スクリプトのファイル構造と配置 (File Structure and Location)
+## 2. 設計の概要 (Design Overview)
 
-検証スクリプトは、プロジェクトのユーティリティスクリプト群として以下の場所に配置する。
+検証スクリプトは、プロジェクトのユーティリティスクリプト群として `scripts/document_validator.py` に配置される。
+このスクリプトは、`pre-commit` フックを通じて実行され、引数として渡されたファイルリストに対して、命名規則、フォルダ構造、必須セクションの存在を検証する。
 
-- **スクリプト本体:** `/app/scripts/document_validator.py`
-- **設定:** 検証対象のパスや必須セクションの定義は、スクリプト内部または専用の設定ファイルで管理する。初期段階ではスクリプト内部にハードコードし、将来的に設定ファイル（例: `pyproject.toml`）への移行を検討する。
-
-## 3. 主要コンポーネントと責務 (Key Components and Responsibilities)
-
-スクリプトは、以下の主要な関数とロジックで構成される。
+## 3. 技術的な詳細 (Technical Details)
 
 ### 3.1. エントリーポイント: `main()` 関数
 
 - **責務:** CLIからの実行を受け付け、検証プロセス全体を統括する。
 - **処理フロー:**
-    1.  `_get_target_files()` を呼び出し、検証対象のファイルリストを取得する。
+    1.  CLI引数として渡された検証対象のファイルリスト（`pre-commit` から渡される）を取得する。
     2.  各ファイルに対して `validate_file()` を呼び出す。
     3.  検証中にエラーが検出された場合、エラーメッセージを標準エラー出力 (`sys.stderr`) に出力する。
     4.  全てのエラーを収集した後、エラーが一つでもあれば非ゼロの終了コード (`sys.exit(1)`) で終了する。
     5.  エラーがなければ、正常終了コード (`sys.exit(0)`) で終了する。
 
-### 3.2. ファイル取得: `_get_target_files()` 関数
-
-- **責務:** ADR-012で定義されたglobパターンに基づき、検証対象となるMarkdownファイルの絶対パスリストを生成する。
-- **対象パターン:**
-    - `docs/adr/*.md`
-    - `docs/design-docs/*.md`
-    - `plans/**/*.md`
-
-### 3.3. ファイル検証: `validate_file(filepath)` 関数
+### 3.2. ファイル検証: `validate_file(filepath)` 関数
 
 - **責務:** 単一のファイルパスを受け取り、そのファイルに対して全ての検証ルールを適用する。
 - **処理フロー:**
@@ -47,23 +35,23 @@
     3.  `check_required_sections(filepath)` を実行。
     4.  検出された全てのエラーメッセージのリストを返す。
 
-### 3.4. ルールチェック関数群 (Rule Checkers)
+### 3.3. ルールチェック関数群 (Rule Checkers)
 
-#### 3.4.1. `check_naming_convention(filepath)`
+#### 3.3.1. `check_naming_convention(filepath)`
 
 - **責務:** `plans` 配下のファイル名が、規約に沿った接頭辞を持つか検証する。
 - **ロジック:**
     - ファイルパスが `plans/` 配下にある場合のみ実行。
     - ファイル名が `epic-`, `story-`, `task-` のいずれかで始まっているかチェックする。
 
-#### 3.4.2. `check_folder_structure(filepath)`
+#### 3.3.2. `check_folder_structure(filepath)`
 
 - **責務:** `plans` 配下のファイルが、ファイル名と一致する適切なサブディレクトリに配置されているか検証する。
 - **ロジック:**
-    - ファイル名が `story-*` で始まる場合、そのファイルが `stories/` サブディレクトリ内に存在するかチェックする。
-    - ファイル名が `task-*` で始まる場合、そのファイルが `tasks/` サブディレクトリ内に存在するかチェックする。
+    - ファイル名が `story-*` で始まる場合、そのファイルが `plans/*/stories/` の形式のサブディレクトリ内に存在するかチェックする。
+    - ファイル名が `task-*` で始まる場合、そのファイルが `plans/*/tasks/` の形式のサブディレクトリ内に存在するかチェックする。
 
-#### 3.4.3. `check_required_sections(filepath)`
+#### 3.3.3. `check_required_sections(filepath)`
 
 - **責務:** ファイルの内容を読み込み、ドキュメントタイプに応じた必須セクション（Markdownヘッダー）が全て存在するか検証する。
 - **ロジック:**
@@ -71,7 +59,7 @@
     - ドキュメントタイプに対応する**必須セクションリスト**（例: ADRの場合は `## Context (背景)`, `## Decision (決定)`, `## Consequences (結果)` など）を取得する。
     - ファイル内容を解析し、必須セクションが全て含まれているかチェックする。
 
-## 4. エラー出力の仕様 (Error Output Specification)
+### 3.4. エラー出力の仕様 (Error Output Specification)
 
 検証スクリプトは、規約違反を検知した場合、開発者が迅速に問題を特定し修正できるように、以下のフォーマットでエラーメッセージを標準エラー出力 (`sys.stderr`) に出力する。
 
@@ -82,7 +70,7 @@
     ERROR: docs/adr/013-new-adr.md - Missing Required Section: '## Decision (決定)'
     ```
 
-## 5. pre-commitへの統合方法 (Integration with pre-commit)
+### 3.5. pre-commitへの統合方法 (Integration with pre-commit)
 
 検証スクリプトは、ローカルでのコミット時およびCIでの自動検証のために、`.pre-commit-config.yaml` に以下の設定でフックとして統合される。
 
@@ -101,12 +89,12 @@
           docs/design-docs/.*\.md|
           plans/.*\.md
         )$
-      pass_filenames: false # スクリプト内でglob処理を行うため
+      pass_filenames: true # pre-commitから渡されたファイルのみを検証対象とする
 ```
 
 この設定により、指定されたMarkdownファイルが変更された場合、`scripts/document_validator.py` が実行され、非ゼロの終了コードが返された場合はコミットがブロックされる。
 
-## 6. 必須セクションの定義 (Definition of Required Sections)
+### 3.6. 必須セクションの定義 (Definition of Required Sections)
 
 `check_required_sections` 関数で使用される、ドキュメントタイプごとの必須セクションの定義（初期案）。
 
