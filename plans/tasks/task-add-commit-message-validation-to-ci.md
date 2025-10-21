@@ -1,4 +1,5 @@
-# Task: Add commit message validation to CI
+# 目的とゴール / Purpose and Goals
+Task: Add commit message validation to CI
 
 ## Status
 **COMPLETED** on 2025-10-19
@@ -15,8 +16,14 @@ CIワークフローにコミットメッセージを検証するステップが
 ## 完了条件 (Acceptance Criteria)
 - [x] `.github/workflows/ci.yml`に、コミットメッセージがConventional Commits規約に従っているかをチェックするステップ（例: `commitlint`を使用）が追加されていること。
 
+## 実施内容 / Implementation
+
+## 検証結果 / Validation Results
+
 ## 成果物 (Deliverables)
 - `.github/workflows/ci.yml`
+
+## 影響範囲と今後の課題 / Impact and Future Issues
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/automate-release-process`

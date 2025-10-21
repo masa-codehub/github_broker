@@ -1,12 +1,14 @@
+# 目的とゴール
 # Issue: #1507
 Status: Open
-# 【Story】検証スクリプトをpre-commitとCIに統合する
+# 目的とゴール / Purpose and Goals
 
 ## 親Issue (Parent Issue)
 - #1506
 
 ## 子Issue (Sub-Issues)
-- (起票後に追記)
+- #1512
+- #1513
 
 ## As-is (現状)
 検証スクリプトは存在するが、自動的には実行されない。
@@ -18,9 +20,15 @@ Status: Open
 - [ ] Task: 検証スクリプトをpre-commitフックに追加する
 - [ ] Task: CIワークフローでpre-commitが実行されることを確認する
 
+## 実施内容 / Implementation
+
+## 検証結果 / Validation Results
+
 ## 成果物 (Deliverables)
 - `.pre-commit-config.yaml`
 - `.github/workflows/ci.yml`
+
+## 影響範囲と今後の課題 / Impact and Future Issues
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `epic/implement-adr-012`

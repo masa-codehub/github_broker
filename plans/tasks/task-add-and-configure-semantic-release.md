@@ -1,4 +1,5 @@
-# Task: Add and configure python-semantic-release
+# 目的とゴール / Purpose and Goals
+Task: Add and configure python-semantic-release
 
 ## Status
 **COMPLETED** on 2025-10-19
@@ -30,8 +31,14 @@
   patch_tags = ["fix", "story"]
   ```
 
+## 実施内容 / Implementation
+
+## 検証結果 / Validation Results
+
 ## 成果物 (Deliverables)
 - `pyproject.toml`
+
+## 影響範囲と今後の課題 / Impact and Future Issues
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/automate-release-process`

@@ -1,4 +1,5 @@
-# Story: Modify issue_validator.yml Workflow
+# 目的とゴール / Purpose and Goals
+Story: Modify issue_validator.yml Workflow
 
 ## 関連Issue (Relation)
 - このStoryは Epic `epic/implement-adr-008` の一部です。
@@ -13,8 +14,14 @@
 - [ ] `validate-issue-body` ジョブが、ブランチ名セクションが欠落しているIssueを正しく識別し、失敗すること。
 - [ ] ワークフローの変更が、既存の他の検証ルールに影響を与えないこと。
 
+## 実施内容 / Implementation
+
+## 検証結果 / Validation Results
+
 ## 成果物 (Deliverables)
 - `.github/workflows/issue_validator.yml`
+
+## 影響範囲と今後の課題 / Impact and Future Issues
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `epic/implement-adr-008`

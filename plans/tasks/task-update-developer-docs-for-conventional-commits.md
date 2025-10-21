@@ -1,4 +1,5 @@
-# Task: Update developer docs for Conventional Commits
+# 目的とゴール / Purpose and Goals
+Task: Update developer docs for Conventional Commits
 
 ## Status
 **COMPLETED** on 2025-10-19
@@ -15,8 +16,14 @@
 ## 完了条件 (Acceptance Criteria)
 - [x] `CONTRIBUTING.md`にConventional Commitsの規約、特に`epic:`と`story:`のカスタムルールに関する説明が追記されていること。
 
+## 実施内容 / Implementation
+
+## 検証結果 / Validation Results
+
 ## 成果物 (Deliverables)
 - `CONTRIBUTING.md`
+
+## 影響範囲と今後の課題 / Impact and Future Issues
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/automate-release-process`

@@ -1,6 +1,6 @@
 # Issue: #1579
 Status: Open
-# 【Story】検証スクリプトを設計する
+# 目的とゴール / Purpose and Goals
 
 ## 親Issue (Parent Issue)
 - #1506
@@ -27,6 +27,12 @@ ADR-012で定義されたルールに基づき、ドキュメントフォーマ�
 ## 完了条件 (Acceptance Criteria)
 - このStoryを構成する全てのTaskの実装が完了していること。
 - 作成された設計書が、ADR-012の要求事項をすべて満たし、実装担当者が迷いなく作業に着手できるレベルの詳細度であることが、統合テスト（この場合は設計レビュー）によって確認されること。
+
+## 実施内容 / Implementation
+
+## 検証結果 / Validation Results
+
+## 影響範囲と今後の課題 / Impact and Future Issues
 
 ## 成果物 (Deliverables)
 - `docs/design-docs/002-document-validator-script.md` (新規作成)

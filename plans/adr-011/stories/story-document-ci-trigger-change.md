@@ -1,6 +1,6 @@
 # Issue: #1577
 Status: Open
-# 【Story】CIトリガーの変更をドキュメント化する
+# 目的とゴール / Purpose and Goals
 
 ## 親Issue (Parent Issue)
 - #1516
@@ -28,6 +28,12 @@ CI/CD環境に関するドキュメントが更新され、現在のCIトリガ�
 ## 完了条件 (Acceptance Criteria)
 - このStoryを構成する全てのTaskの実装が完了していること。
 - `docs/architecture/ci-cd-environment.md` が、ADR-011で決定されたCIのトリガー仕様を正確に反映していることが、統合テスト（この場合はドキュメントレビュー）によって確認されること。
+
+## 実施内容 / Implementation
+
+## 検証結果 / Validation Results
+
+## 影響範囲と今後の課題 / Impact and Future Issues
 
 ## 成果物 (Deliverables)
 - `docs/architecture/ci-cd-environment.md` (更新)

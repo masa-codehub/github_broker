@@ -1,3 +1,4 @@
+# 目的とゴール / Purpose and Goals
 # Issue: #1513
 Status: Open
 # 【Task】CIワークフローでpre-commitが実行されることを確認する
@@ -19,8 +20,14 @@ CIワークフロー(`.github/workflows/ci.yml`)内で`pre-commit run --all-file
 - [ ] もしステップが存在しない場合、`pre-commit`を実行するステップを追加する。
 - [ ] 意図的に規約違反のドキュメントを含むPRを作成し、CIが失敗することを確認するテストを行う。
 
+## 実施内容 / Implementation
+
+## 検証結果 / Validation Results
+
 ## 成果物 (Deliverables)
 - `.github/workflows/ci.yml`
+
+## 影響範囲と今後の課題 / Impact and Future Issues
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/integrate-doc-validation-script`

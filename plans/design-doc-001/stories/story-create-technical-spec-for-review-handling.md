@@ -1,6 +1,6 @@
 # Issue: #1581
 Status: Open
-# 【Story】レビュー処理遅延機能の技術仕様を作成する
+# 目的とゴール / Purpose and Goals
 
 ## 親Issue (Parent Issue)
 - #1521
@@ -29,6 +29,12 @@ Status: Open
 ## 完了条件 (Acceptance Criteria)
 - このStoryを構成する全てのTaskの実装が完了していること。
 - 作成されたシーケンス図とRedisスキーマ定義が、`design-doc-001` の要求事項を満たし、バックエンド担当者が迷いなく実装に着手できるレベルの詳細度であることが、統合テスト（この場合は設計レビュー）によって確認されること。
+
+## 実施内容 / Implementation
+
+## 検証結果 / Validation Results
+
+## 影響範囲と今後の課題 / Impact and Future Issues
 
 ## 成果物 (Deliverables)
 - `docs/architecture/request-task-sequence.md` (更新)

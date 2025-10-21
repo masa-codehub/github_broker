@@ -6,23 +6,28 @@ repos:
         # Run the linter.
         - id: ruff
           args: [ --fix ]
-        # Run the formatter.
-        - id: ruff-format
-          exclude: ^\.github/workflows/ci\.yml$
+
 -   repo: local
     hooks:
     -   id: pytest
         name: pytest
         entry: pytest
-        args: [-k, "not trio", -n, "auto"]
+        args: ["-k", "not trio", "-n", "auto"]
         language: system
         types: [python]
         pass_filenames: false
+
     -   id: mypy
         name: mypy
         entry: mypy
         language: system
         types: [python]
+    -   id: doc-validation
+        name: Document Validation
+        entry: python scripts/validate_docs.py
+        language: system
+        files: ^(docs/adr/|docs/design-docs/|plans/).*\.md$
+        pass_filenames: false
 -   repo: https://github.com/commitizen-tools/commitizen
     rev: 'v3.27.0'
     hooks:

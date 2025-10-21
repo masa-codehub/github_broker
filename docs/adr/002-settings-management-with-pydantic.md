@@ -1,4 +1,7 @@
-# ADR 002: 設定管理のリファクタリングとDocker Secretsへの移行
+# 概要 / Summary
+ADR 002: 設定管理のリファクタリングとDocker Secretsへの移行
+
+## 状況 / Context
 
 ## Status
 
@@ -10,7 +13,7 @@ Accepted
 
 この問題を解決するため、設定管理の方法をリファクタリングし、機密情報をより安全な方法で扱う必要があります。
 
-## Decision
+## 決定 / Decision
 
 設定管理ライブラリとして `pydantic-settings` を導入し、設定情報を一元管理するクラスを設けます。機密情報は Docker Secrets を利用してコンテナに安全に提供します。
 
@@ -112,7 +115,9 @@ class DiContainer:
 
 これにより、`os.getenv()` を直接呼び出す必要がなくなり、すべての設定が `di_container.settings` を通じて型安全に参照できるようになります。
 
-## Consequences
+## 結果
+
+## 結果 / Consequences
 
 - **セキュリティ向上:** 機密情報がコードや `docker-compose.yml` から分離され、Docker Secretsによって安全に管理されるようになります。
 - **保守性向上:** 設定が一元管理されるため、変更や追加が容易になります。

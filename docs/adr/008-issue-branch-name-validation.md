@@ -1,13 +1,13 @@
-# 008-issue-branch-name-validation
+# 概要 / Summary
+008-issue-branch-name-validation
 
 - **Status**: Completed
 - **Completed Date**: 2025-10-19
 
-## 決定 (Decision)
-
+## 決定 / Decision
 Issueの品質を向上させ、開発プロセスの手戻りを削減するため、`story`または`epic`ラベルが付与されていないすべてのIssueに対して、Issue本文に`## ブランチ名`セクションの存在を必須とする。この検証はGitHub Actionsワークフロー`issue_validator.yml`の`validate-issue-body`ジョブに組み込む。
 
-## 背景 (Context)
+## 状況 / Context
 
 現在の`issue_validator.yml`ワークフローは、特定のセクション（背景、目的、完了条件）の存在を検証しているが、ブランチ名の記載は必須としていない。これにより、開発者がIssueからブランチ名を特定できず、手動での確認や修正依頼が発生し、開発効率が低下している。特に、`story`や`epic`のような上位レベルのIssueはブランチ名を直接持たないことが多いため、これらのラベルが付与されたIssueは検証の対象外とする。
 
@@ -30,12 +30,11 @@ Issueの品質を向上させ、開発プロセスの手戻りを削減するた
 
 選択肢3が、Issueの品質向上と開発プロセスの効率化という目的を最も効果的に達成できると判断した。ワークフローの変更とメンテナンスのコストは、手動での修正作業やコミュニケーションコストの削減によって十分に相殺される。`story`や`epic`ラベルを持つIssueを対象外とすることで、上位レベルのIssueの特性に合わせた柔軟性も確保できる。
 
-## 結果 (Consequences)
+## 結果 / Consequences
 
 *   `issue_validator.yml`が更新され、`validate-issue-body`ジョブに新しい検証ロジックが追加される。
 *   `story`または`epic`ラベルを持たないIssueで`## ブランチ名`セクションが欠落している場合、`needs-more-info`ラベルが付与され、修正を促すコメントが自動的に投稿される。
 *   ワークフローはエラーとして終了し、Issue作成者に修正を促す。
 *   開発者はIssue作成時にブランチ名の記載を意識するようになり、Issueの品質が向上する。
 
-## Implementation Status (実装状況)
-完了
+

@@ -1,4 +1,5 @@
-# Epic: Implement ADR-010 CI/CD Process Improvements
+# 目的とゴール / Purpose and Goals
+Epic: Implement ADR-010 CI/CD Process Improvements
 
 ## Status
 **COMPLETED** on 2025-10-19
@@ -16,6 +17,12 @@ A streamlined, fast, and automated CI/CD pipeline. A single, fast `pre-commit` j
 - このEpicを構成する全てのStoryが完了すること。
   - [x] Story: Unify and Accelerate Quality Checks
   - [x] Story: Automate Release Process
+
+## 実施内容 / Implementation
+
+## 検証結果 / Validation Results
+
+## 影響範囲と今後の課題 / Impact and Future Issues
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `main`

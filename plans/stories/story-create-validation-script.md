@@ -1,12 +1,15 @@
+# 目的とゴール / Purpose and Goals
 # Issue: #1508
 Status: Open
-# 【Story】ドキュメントフォーマット検証スクリプトを作成する
+# 目的とゴール / Purpose and Goals
 
 ## 親Issue (Parent Issue)
 - #1506
 
 ## 子Issue (Sub-Issues)
-- (起票後に追記)
+- #1509
+- #1510
+- #1511
 
 ## As-is (現状)
 ドキュメントフォーマットを検証する自動化された仕組みが存在しない。
@@ -19,8 +22,14 @@ ADR-012で定義されたルールセット（ファイル名、フォルダ構�
 - [ ] Task: 必須セクションの検証ロジックを実装する
 - [ ] Task: 検証エラー時の詳細な出力と終了コードを実装する
 
+## 実施内容 / Implementation
+
+## 検証結果 / Validation Results
+
 ## 成果物 (Deliverables)
 - Python検証スクリプト
+
+## 影響範囲と今後の課題 / Impact and Future Issues
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `epic/implement-adr-012`

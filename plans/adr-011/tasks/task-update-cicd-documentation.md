@@ -1,6 +1,6 @@
 # Issue: #1578
 Status: Open
-# 【Task】CI/CD環境のドキュメントを更新する
+# 目的とゴール / Purpose and Goals
 
 ## 親Issue (Parent Issue)
 - #1577
@@ -28,6 +28,12 @@ Status: Open
 ## 完了条件 (Acceptance Criteria)
 - TDD（この場合はドキュメント駆動開発）の考え方に基づき、ドキュメントの更新が完了していること。
 - `docs/architecture/ci-cd-environment.md` の内容が、`.github/workflows/ci.yml` の実際のトリガー設定と一致していること。
+
+## 実施内容 / Implementation
+
+## 検証結果 / Validation Results
+
+## 影響範囲と今後の課題 / Impact and Future Issues
 
 ## 成果物 (Deliverables)
 - `docs/architecture/ci-cd-environment.md` (更新)

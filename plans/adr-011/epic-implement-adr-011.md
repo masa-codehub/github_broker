@@ -1,3 +1,4 @@
+# 目的とゴール / Purpose and Goals
 # Issue: #1516
 Status: Open
 # 【Epic】すべてのブランチへのPull RequestでCIをトリガーする
@@ -17,8 +18,14 @@ CIワークフローが、すべてのブランチを対象とするPull Request
 ## 完了条件 (Acceptance Criteria)
 - [ ] Story: CIワークフローが全ブランチへのPRでトリガーされるようにする
 
+## 実施内容 / Implementation
+
+## 検証結果 / Validation Results
+
 ## 成果物 (Deliverables)
 - `.github/workflows/ci.yml`
+
+## 影響範囲と今後の課題 / Impact and Future Issues
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `main`

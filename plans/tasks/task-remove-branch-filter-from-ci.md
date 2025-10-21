@@ -1,3 +1,4 @@
+# 目的とゴール / Purpose and Goals
 # Issue: #1518
 Status: Open
 # 【Task】ci.ymlのトリガー設定からmainブランチ指定を削除する
@@ -39,8 +40,14 @@ on:
 - [ ] `main`ブランチへのPull RequestでもCIが実行されること。
 - [ ] ドキュメントのみの変更を含むPull RequestではCIがスキップされること。
 
+## 実施内容 / Implementation
+
+## 検証結果 / Validation Results
+
 ## 成果物 (Deliverables)
 - `.github/workflows/ci.yml`
+
+## 影響範囲と今後の課題 / Impact and Future Issues
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/update-ci-trigger-for-all-branches`
