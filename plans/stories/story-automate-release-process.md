@@ -1,4 +1,5 @@
-# Story: Automate Release Process
+# 目的とゴール
+Story: Automate Release Process
 
 ## Status
 **COMPLETED** on 2025-10-19
@@ -18,10 +19,16 @@ The release process is fully automated using `python-semantic-release`, triggere
   - [x] Task: Add commit message validation to CI
   - [x] Task: Update developer docs for Conventional Commits
 
+## 実施内容
+
+## 検証結果
+
 ## 成果物 (Deliverables)
 - `pyproject.toml` (or equivalent configuration file)
 - `.github/workflows/ci.yml`
 - `CONTRIBUTING.md` (or `docs/guides/development-workflow.md`)
+
+## 影響範囲と今後の課題
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `epic/implement-adr-010`

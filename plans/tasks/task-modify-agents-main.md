@@ -1,3 +1,4 @@
+# 目的とゴール
 # Issue: #1526
 Status: Open
 # 【Task】`agents_main.py`を修正し、`development`タスクのモデルを`gemini-flash-latest`に変更する
@@ -18,9 +19,15 @@ Status: Open
 - `agents_main.py`内の`gemini_model`を指定する箇所で、`task_type`が`development`の場合に`"gemini-flash-latest"`が設定されるようになっていること。
 - 関連する単体テストを更新し、すべてパスすること。
 
+## 実施内容
+
+## 検証結果
+
 ## 成果物 (Deliverables)
 - `agents_main.py`
 - `tests/test_agents_main.py`
+
+## 影響範囲と今後の課題
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/update-gemini-model`

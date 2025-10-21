@@ -1,3 +1,4 @@
+# 目的とゴール
 # Issue: #1517
 Status: Open
 # 【Story】CIワークフローが全ブランチへのPRでトリガーされるようにする
@@ -17,8 +18,14 @@ Status: Open
 ## 完了条件 (Acceptance Criteria)
 - [ ] [Task: ci.ymlのトリガー設定からmainブランチ指定を削除する](../tasks/task-remove-branch-filter-from-ci.md)
 
+## 実施内容
+
+## 検証結果
+
 ## 成果物 (Deliverables)
 - `.github/workflows/ci.yml`
+
+## 影響範囲と今後の課題
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `epic/implement-adr-011`

@@ -1,3 +1,4 @@
+# 目的とゴール
 # Issue: #1511
 Status: Open
 # 【Task】検証エラー時の詳細な出力と終了コードを実装する
@@ -20,8 +21,14 @@ Status: Open
 - [ ] 違反があった場合に`sys.exit(1)`などで終了コードを1に設定すること。
 - [ ] 違反がなかった場合は何も出力せず、終了コード0で正常終了すること。
 
+## 実施内容
+
+## 検証結果
+
 ## 成果物 (Deliverables)
 - Python検証スクリプトのCLI部分
+
+## 影響範囲と今後の課題
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/create-doc-validation-script`

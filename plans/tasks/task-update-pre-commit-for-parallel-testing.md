@@ -1,4 +1,5 @@
-# Task: Update pre-commit for parallel testing
+# 目的とゴール
+Task: Update pre-commit for parallel testing
 
 ## Status
 **COMPLETED** on 2025-10-19
@@ -13,7 +14,7 @@
 `.pre-commit-config.yaml`の`pytest`フックに`-n auto`フラグが追加され、ローカルでのコミット時にテストが並列実行されます。
 
 ## 完了条件 (Acceptance Criteria)
-- [x] `.pre-commit-config.yaml`内の`pytest`フックが以下のように更新され、`args`に`-n auto`が追加されていること。
+- [x] `.pre-commit-config.yaml`内の`pytest`フックが以下のように更新され、ローカルでのコミット時にテストが並列実行されること。
   ```yaml
   -   id: pytest
       name: pytest
@@ -24,8 +25,14 @@
       pass_filenames: false
   ```
 
+## 実施内容
+
+## 検証結果
+
 ## 成果物 (Deliverables)
 - `.pre-commit-config.yaml`
+
+## 影響範囲と今後の課題
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/unify-and-accelerate-checks`

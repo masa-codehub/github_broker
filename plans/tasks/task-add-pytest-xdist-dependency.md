@@ -1,4 +1,5 @@
-# Task: Add pytest-xdist dependency
+# 目的とゴール
+Task: Add pytest-xdist dependency
 
 ## Status
 **COMPLETED** on 2025-10-19
@@ -15,8 +16,14 @@
 ## 完了条件 (Acceptance Criteria)
 - [x] `pytest-xdist`が`pyproject.toml`の`[tool.poetry.group.dev.dependencies]`セクションに追加されていること。
 
+## 実施内容
+
+## 検証結果
+
 ## 成果物 (Deliverables)
 - `pyproject.toml`
+
+## 影響範囲と今後の課題
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/unify-and-accelerate-checks`

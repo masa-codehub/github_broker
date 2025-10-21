@@ -1,3 +1,4 @@
+# 目的とゴール
 # Issue: #1509
 Status: Open
 # 【Task】ファイル名とフォルダ構成の検証ロジックを実装する
@@ -19,8 +20,14 @@ Status: Open
 - [ ] ファイル名が`epic-`, `story-`, `task-`で始まることを検証する関数が実装されていること。
 - [ ] `story-*.md`が`stories/`内に、`task-*.md`が`tasks/`内にあることを検証する関数が実装されていること。
 
+## 実施内容
+
+## 検証結果
+
 ## 成果物 (Deliverables)
 - Python検証スクリプトの一部
+
+## 影響範囲と今後の課題
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/create-doc-validation-script`

@@ -1,4 +1,5 @@
-# Story: Unify and Accelerate Quality Checks
+# 目的とゴール
+Story: Unify and Accelerate Quality Checks
 
 ## Status
 **COMPLETED** on 2025-10-19
@@ -18,10 +19,16 @@ A single, unified CI step runs all quality checks in parallel, significantly red
   - [x] Task: Update pre-commit for parallel testing
   - [x] Task: Refactor CI workflow to use pre-commit
 
+## 実施内容
+
+## 検証結果
+
 ## 成果物 (Deliverables)
 - `pyproject.toml` (or `requirements.in`)
 - `.pre-commit-config.yaml`
 - `.github/workflows/ci.yml`
+
+## 影響範囲と今後の課題
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `epic/implement-adr-010`
