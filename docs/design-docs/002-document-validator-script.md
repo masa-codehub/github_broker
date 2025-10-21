@@ -39,15 +39,20 @@
 
 #### 3.3.1. `check_naming_convention(filepath)`
 
-- **責務:** `plans` 配下のファイル名が、規約に沿った接頭辞を持つか検証する。
+- **責務:** ファイルパスに応じて、各ディレクトリの命名規則（接頭辞やフォーマット）が守られているか検証する。
 - **ロジック:**
-    - ファイルパスが `plans/` 配下にある場合のみ実行。
-    - ファイル名が `epic-`, `story-`, `task-` のいずれかで始まっているかチェックする。
+    - ファイルパスが `plans/` 配下にある場合:
+        - ファイル名が `epic-`, `story-`, `task-` のいずれかで始まっているかチェックする。
+    - ファイルパスが `docs/adr/` 配下にある場合:
+        - ファイル名が `[ADR-XXX]`（XXXはゼロ埋め3桁の番号）で始まっているかチェックする。
+    - ファイルパスが `docs/design-docs/` 配下にある場合:
+        - ファイル名が `[Design Doc XXX]`（XXXはゼロ埋め3桁の番号）で始まっているかチェックする。
 
 #### 3.3.2. `check_folder_structure(filepath)`
 
 - **責務:** `plans` 配下のファイルが、ファイル名と一致する適切なサブディレクトリに配置されているか検証する。
 - **ロジック:**
+    - ファイル名が `epic-*` で始まる場合、そのファイルが `plans/` 直下（サブディレクトリではなく）に存在するかチェックする（例: `plans/epic-*.md`）。
     - ファイル名が `story-*` で始まる場合、そのファイルが `plans/*/stories/` の形式のサブディレクトリ内に存在するかチェックする。
     - ファイル名が `task-*` で始まる場合、そのファイルが `plans/*/tasks/` の形式のサブディレクトリ内に存在するかチェックする。
 
@@ -56,7 +61,15 @@
 - **責務:** ファイルの内容を読み込み、ドキュメントタイプに応じた必須セクション（Markdownヘッダー）が全て存在するか検証する。
 - **ロジック:**
     - ファイルパスからドキュメントタイプ（例: ADR, Design Doc, Epic/Story/Task）を特定する。
-    - ドキュメントタイプに対応する**必須セクションリスト**（例: ADRの場合は `## Context (背景)`, `## Decision (決定)`, `## Consequences (結果)` など）を取得する。
+    - ドキュメントタイプに対応する**必須セクションリスト**（例: ADRの場合は `# [ADR-XXX] Title`, `## Context (背景)`, `## Decision (決定)`, `## Consequences (結果)` など）を取得する。
+    - **ヘッダー解析ルール:**
+        - ヘッダーの前後にある空白（スペース）は無視する（トリムする）。
+        - 大文字・小文字は区別する（完全一致を要求）。
+        - コードブロック（` ``` `）内のヘッダーは無視する。
+    - **タイトル整合性チェック (ADR/Design Doc):**
+        - タイトルヘッダー（例: `# [ADR-XXX] Title`）が存在することをチェックする。
+        - タイトル内の番号 (`XXX`) が、ファイル名に含まれる番号と一致することを検証する。
+        - タイトル部分 (`Title`) が空でないことを検証する。
     - ファイル内容を解析し、必須セクションが全て含まれているかチェックする。
 
 ### 3.4. エラー出力の仕様 (Error Output Specification)
@@ -66,6 +79,7 @@
 - **フォーマット:** `ERROR: <filepath> - <Violation Type>: <Details>`
 - **具体例:**
     ```
+    ERROR: plans/feature.md - Naming Convention Violation: Files in 'plans/' must start with 'epic-', 'story-', or 'task-'.
     ERROR: plans/adr-012/story-test.md - Folder Structure Violation: 'story-*' files must be in 'stories/' subdirectory.
     ERROR: docs/adr/013-new-adr.md - Missing Required Section: '## Decision (決定)'
     ```
