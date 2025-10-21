@@ -1,9 +1,6 @@
 import os
 import sys
 
-# ADR-012で定義されたルール
-TARGET_PATHS = ["docs/adr", "docs/design-docs", "plans"]
-
 FILENAME_PREFIXES = {
     "epic-": "plans",
     "story-": "plans/stories",
@@ -23,25 +20,28 @@ REQUIRED_SECTIONS = {
 
 
 def validate_filename_and_folder_structure(filepath):
+    dirname = os.path.dirname(filepath)
+    if not dirname.startswith("plans"):
+        return []
+
     errors = []
     basename = os.path.basename(filepath)
-    dirname = os.path.dirname(filepath)
 
     # ファイル名のプレフィックス検証
     matched_prefix = False
-    for prefix, expected_dir_suffix in FILENAME_PREFIXES.items():
+    for prefix, expected_dir in FILENAME_PREFIXES.items():
         if basename.startswith(prefix):
             matched_prefix = True
             # story-*.md と task-*.md のフォルダ構造検証
-            if prefix in ("story-", "task-") and not dirname.endswith(
-                expected_dir_suffix
-            ):
+            if prefix in ("story-", "task-") and os.path.normpath(
+                dirname
+            ) != os.path.normpath(expected_dir):
                 errors.append(
-                    f"File '{filepath}' with prefix '{prefix}' must be in '{expected_dir_suffix}/' directory."
+                    f"File '{filepath}' with prefix '{prefix}' must be in '{expected_dir}/' directory."
                 )
             break
 
-    if not matched_prefix and dirname.startswith("plans"):
+    if not matched_prefix:
         # plans 配下でプレフィックスがないファイルはエラー
         errors.append(
             f"File '{filepath}' in 'plans/' must start with one of {list(FILENAME_PREFIXES.keys())}."
