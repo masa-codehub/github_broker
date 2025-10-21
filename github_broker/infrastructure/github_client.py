@@ -17,7 +17,12 @@ class GitHubClient:
 
     def get_open_issues(self):
         """
-        リポジトリに存在するすべてのオープンなIssueを取得します。
+        タスク割り当ての候補となるオープンなIssueを取得します。
+
+        検索クエリ: `is:issue is:open -label:"needs-review"`
+        - `is:issue`: Issueのみを対象とします。
+        - `is:open`: オープンなIssueのみを対象とします。
+        - `-label:"needs-review"`: レビュー待ちのIssueを除外します。
         """
         try:
             query = f'repo:{self._repo_name} is:issue is:open -label:"needs-review"'
@@ -33,7 +38,13 @@ class GitHubClient:
 
     def get_review_issues(self):
         """
-        レビュー待ちのIssueを取得します。
+        レビュータスクとして割り当てるべきIssueを取得します。
+
+        検索クエリ: `is:issue label:needs-review linked:pr is:open`
+        - `is:issue`: Issueのみを対象とします。
+        - `label:needs-review`: `needs-review`ラベルが付与されているIssueのみを対象とします。
+        - `linked:pr`: 関連するPull Requestが存在するIssueのみを対象とします。
+        - `is:open`: オープンなIssueのみを対象とします。
         """
         try:
             query = (
