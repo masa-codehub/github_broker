@@ -11,9 +11,9 @@ Our CI/CD pipeline utilizes a self-hosted runner with the following configuratio
 - **GPU:** 不明
 - **Host Environment:** The runner is hosted within a `github-runner` container using the `github_broker-github_runner` image.
 
-## CIトリガー
+## CI Triggers
 
-継続的インテグレーション (CI) は、ターゲットブランチに関わらず、**すべてのプルリクエスト**でトリガーされます。これにより、すべてのフィーチャーブランチがマージ前に検証され、コードの品質が向上し、メインの開発ラインにバグが混入するリスクが低減されます。
+継続的インテグレーション (CI) は、ターゲットブランチに関わらず、コード変更を含むすべてのプルリクエストでトリガーされます。ただし、ドキュメント（`.md`ファイルや`docs/`、`plans/`配下のファイル）のみの変更では、CIの実行はスキップされます。これにより、すべてのフィーチャーブランチがマージ前に検証され、コードの品質が向上し、メインの開発ラインにバグが混入するリスクが低減されます。
 
 ## Usage
 
