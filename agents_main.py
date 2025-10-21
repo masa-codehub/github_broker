@@ -24,6 +24,13 @@ DEFAULT_TASK_TYPE = "development"
 DEFAULT_REQUIRED_ROLE = "BACKENDCODER"
 # --------------------
 
+# --- Geminiモデル設定 ---
+GEMINI_MODEL_MAP = {
+    "review": "gemini-2.5-pro",
+}
+DEFAULT_GEMINI_MODEL = "gemini-flash-latest"
+# --------------------------
+
 
 def _handle_subprocess_error(e: subprocess.CalledProcessError, run_once: bool) -> bool:
     """Subprocess実行時のエラーをハンドリングし、リトライするかどうかを決定する。"""
@@ -66,10 +73,7 @@ def main(run_once=False):
                         "required_role", DEFAULT_REQUIRED_ROLE
                     )
 
-                    model_map = {
-                        "review": "gemini-2.5-pro",
-                    }
-                    gemini_model = model_map.get(task_type, "gemini-flash-latest")
+                    gemini_model = GEMINI_MODEL_MAP.get(task_type, DEFAULT_GEMINI_MODEL)
 
                     logging.info(
                         f"タスクタイプ: {task_type}, 必須ロール: {required_role}, 使用モデル: {gemini_model}"
