@@ -29,50 +29,33 @@ sequenceDiagram
     TaskService->>+RedisClient: get_value("open_issues")
     RedisClient-->>-TaskService: Cached Issues List
     TaskService->>TaskService: 役割に合うタスクを候補化
+    Note over TaskService: レビューIssueの場合、Redisのタイムスタンプを確認し、\n遅延時間(5分)経過後のみ候補に含める。
 
     alt 割り当て可能なタスク候補あり
-        TaskService->>TaskService: 候補Issueを優先度順にソート
-
+        TaskService->>TaskService: 候補Issueを優先度ラベル順にソート
+        
         loop 各候補Issue
-            alt レビュータスクの場合 (label:needs-review)
-                TaskService->>+RedisClient: get_value(review_delay_{issue_id})
-                RedisClient-->>-TaskService: Delay Record (found_at)
+            TaskService->>+RedisClient: acquire_lock(issue_lock_{issue_id})
+            RedisClient-->>-TaskService: Lock Acquired or Not Acquired
+            
+            alt Lock Acquired
+                TaskService->>+GitHubClient: create_branch(branch_name)
+                GitHubClient-->>-TaskService: OK
+                TaskService->>+GitHubClient: add_label(issue_id, ["in-progress", "{agent_id}"])
+                GitHubClient-->>-TaskService: OK
 
-                alt Delay Recordが存在しない
-                    Note over TaskService: 遅延時間(5分)の計測を開始
-                    TaskService->>+RedisClient: set_value(review_delay_{issue_id}, {found_at, pr_number, status})
-                    RedisClient-->>-TaskService: OK
-                    TaskService->>TaskService: 次の候補Issueへ
-                else Delay Recordが存在し、遅延時間(5分)が経過
-                    TaskService->>TaskService: 割り当て処理へ進む
-                else Delay Recordが存在するが、遅延時間未経過
-                    TaskService->>TaskService: 次の候補Issueへ
-                end
-            end
+                TaskService->>+GeminiExecutor: build_prompt(issue_url, branch_name)
+                GeminiExecutor-->>-TaskService: prompt_string
 
-            alt 開発タスクまたは遅延経過後のレビュータスク
-                TaskService->>+RedisClient: acquire_lock(issue_lock_{issue_id})
-                RedisClient-->>-TaskService: Lock Acquired
+                TaskService->>+RedisClient: set_value(agent_current_task:{agent_id}, {issue_id})
+                RedisClient-->>-TaskService: OK
 
-                alt Lock Acquired
-                    TaskService->>+GitHubClient: create_branch(branch_name)
-                    GitHubClient-->>-TaskService: OK
-                    TaskService->>+GitHubClient: add_label(issue_id, ["in-progress", "{agent_id}"])
-                    GitHubClient-->>-TaskService: OK
-
-                    TaskService->>+GeminiExecutor: build_prompt(issue_url, branch_name)
-                    GeminiExecutor-->>-TaskService: prompt_string
-
-                    TaskService->>+RedisClient: set_value(agent_current_task:{agent_id}, {issue_id})
-                    RedisClient-->>-TaskService: OK
-
-                    TaskService-->>-ApiServer: TaskResponse
-                    ApiServer-->>-Worker: 200 OK (TaskResponse)
-                    break loop
-                else Lock Not Acquired
-                    Note over TaskService: ロック取得失敗、次の候補へ
-                    TaskService->>TaskService: 次の候補Issueへ
-                end
+                TaskService-->>-ApiServer: TaskResponse
+                ApiServer-->>-Worker: 200 OK (TaskResponse)
+                break loop
+            else Lock Not Acquired
+                Note over TaskService: ロック取得失敗、次の候補へ
+                TaskService->>TaskService: 次の候補Issueへ
             end
         end
 
@@ -116,8 +99,11 @@ sequenceDiagram
 
 4.  **タスク候補の選定:**
     *   **キャッシュ取得:** `RedisClient`を介して、バックグラウンドで定期的にキャッシュされているオープンなIssueのリスト (`open_issues`) を取得します。
-    *   **候補フィルタリング:** Redisから取得したIssueリストから、`in-progress`ラベルが付いていないタスクを候補としてフィルタリングします。この候補には、開発タスク（`needs-review`ラベルがないもの）とレビュータスク（`needs-review`ラベル付き）の両方が含まれます。さらに、各Issueに付与された役割ラベル（例: `BACKENDCODER`）を解釈し、タスクを絞り込みます。
-    *   **ソート:** 候補Issueを**優先度ラベル（例: P0, P1）とIssue番号の昇順**でソートします。
+    *   **候補フィルタリング:** Redisから取得したIssueリストから、`in-progress`ラベルが付いていないタスクを候補としてフィルタリングします。
+        *   **開発タスク:** `needs-review`ラベルが付いていないタスクを候補とします。
+        *   **レビュータスク:** `needs-review`ラベルが付いているタスクは、Redisに保存された検出タイムスタンプを確認し、設定された遅延時間（`REVIEW_ASSIGNMENT_DELAY_MINUTES`）が経過した後でのみ候補に含めます。
+        *   さらに、各Issueに付与された役割ラベル（例: `BACKENDCODER`）を解釈し、タスクを絞り込みます。
+    *   **ソート:** 候補Issueを**優先度ラベル順（P0 > P1 > P2 の順）**でソートします。
 
 5.  **タスク割り当て処理:**
     *   ソートされた順に各候補Issueをチェックします。
