@@ -290,6 +290,10 @@ class TaskService:
 
                 if detected_timestamp_str:
                     detected_timestamp = datetime.fromisoformat(detected_timestamp_str)
+                    if detected_timestamp.tzinfo is None:
+                        detected_timestamp = detected_timestamp.replace(tzinfo=UTC)
+                    else:
+                        detected_timestamp = detected_timestamp.astimezone(UTC)
                     time_since_detection = datetime.now(UTC) - detected_timestamp
                     if time_since_detection >= timedelta(
                         minutes=self.REVIEW_ASSIGNMENT_DELAY_MINUTES
