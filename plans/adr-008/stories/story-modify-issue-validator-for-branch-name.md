@@ -4,6 +4,9 @@ Story: Modify issue_validator.yml Workflow
 ## 関連Issue (Relation)
 - このStoryは Epic `epic/implement-adr-008` の一部です。
 
+## Status
+**COMPLETED**
+
 ## As-is (現状)
 - `issue_validator.yml` ワークフローは、Issue本文の `## ブランチ名` セクションの存在をチェックしていません。
 

@@ -1,6 +1,6 @@
 # 目的とゴール / Purpose and Goals
 # Issue: #1511
-Status: Open
+Status: COMPLETED
 # 【Task】検証エラー時の詳細な出力と終了コードを実装する
 
 ## 親Issue (Parent Issue)

@@ -4,6 +4,9 @@ Task: Add Branch Name Validation Logic to Workflow
 ## 関連Issue (Relation)
 - このTaskは Story `story/modify-issue-validator-for-branch-name` の一部です。
 
+## Status
+**COMPLETED**
+
 ## As-is (現状)
 - `issue_validator.yml` 内の `validate-issue-body` ジョブのスクリプトに、ラベルに基づいてブランチ名セクションの有無を検証するロジックが存在しません。
 

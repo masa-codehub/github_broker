@@ -1,6 +1,6 @@
 # 目的とゴール / Purpose and Goals
 # Issue: #1526
-Status: Open
+Status: COMPLETED
 # 【Task】`agents_main.py`を修正し、`development`タスクのモデルを`gemini-flash-latest`に変更する
 
 ## 親Issue (Parent Issue)
