@@ -91,7 +91,7 @@
 - **同期Pull Requestの作成:**
     1. `git checkout -b chore/sync-plan-status-TIMESTAMP` のように、同期用の新しいブランチを作成します。
     2. `plans/ADR-XXX/`配下の各Markdownファイルに基づき、`create_issue`で未起票のIssue（Epic, Story, Task）を作成します。その際、Issueの本文にMarkdownファイルの内容を転記し、適切な**優先度ラベル**と**担当エージェントのラベル**を付与します。
-    3. **[重要]** Issueを作成した直後、**必ず**計画ファイルに記載された`ブランチ戦略`に基づき、`create_branch`ツールを使用して**作業ブランチ (Feature Branch)** を**ベースブランチ (Base Branch)** から作成してください。このステップを省略すると、開発エージェントが作業を開始できません。
+    3. **[重要]** Issueを作成した直後、**必ず**計画ファイルに記載された`ブランチ戦略`に基づき、`create_branch`ツールを使用して**作業ブランチ (Feature Branch)** を作成してください。その際、`from_branch`引数には計画ファイルに指定された**ベースブランチ (Base Branch)** を正確に指定します。このステップを省略すると、開発エージェントが作業を開始できません。
     4. Issue作成後、`add_sub_issue`ツールを使い、計画の階層構造（Epic -> Story -> Task）をGitHub Issues上で再現します。
     5. `replace`を使い、対応する各Markdownファイルに、起票したIssueの番号を示すヘッダー（例: `# Issue: #123`）と、ステータスが`Open`であることを示す記述（例: `Status: Open`）を追記し、起票済みであることを明確に記録します。
     6. `git add .`、`git commit -m "chore(plans): Sync plan status with GitHub Issues"`、`git push` を実行します。
