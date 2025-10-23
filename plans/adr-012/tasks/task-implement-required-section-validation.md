@@ -1,6 +1,6 @@
 # 目的とゴール / Purpose and Goals
 # Issue: #1510
-Status: Open
+Status: COMPLETED
 # 【Task】必須セクションの検証ロジックを実装する
 
 ## 親Issue (Parent Issue)

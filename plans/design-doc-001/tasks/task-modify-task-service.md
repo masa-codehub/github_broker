@@ -1,6 +1,6 @@
 # 目的とゴール / Purpose and Goals
 # Issue: #1527
-Status: Open
+Status: COMPLETED
 # 【Task】`TaskService`を修正し、レビューIssueの検索クエリを更新し、遅延処理を実装する
 
 ## 親Issue (Parent Issue)

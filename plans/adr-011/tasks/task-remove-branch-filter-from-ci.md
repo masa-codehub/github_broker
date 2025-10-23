@@ -1,6 +1,6 @@
 # 目的とゴール / Purpose and Goals
 # Issue: #1518
-Status: Open
+Status: COMPLETED
 # 【Task】ci.ymlのトリガー設定からmainブランチ指定を削除する
 
 ## 親Issue (Parent Issue)

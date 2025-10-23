@@ -1,6 +1,6 @@
 # 目的とゴール / Purpose and Goals
 # Issue: #1512
-Status: Open
+Status: COMPLETED
 # 【Task】検証スクリプトをpre-commitフックに追加する
 
 ## 親Issue (Parent Issue)

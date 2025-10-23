@@ -1,6 +1,6 @@
 # 目的とゴール / Purpose and Goals
 # Issue: #1513
-Status: Open
+Status: COMPLETED
 # 【Task】CIワークフローでpre-commitが実行されることを確認する
 
 ## 親Issue (Parent Issue)

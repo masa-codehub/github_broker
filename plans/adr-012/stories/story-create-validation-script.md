@@ -1,6 +1,6 @@
 # 目的とゴール / Purpose and Goals
 # Issue: #1508
-Status: Open
+Status: COMPLETED
 # 目的とゴール / Purpose and Goals
 
 ## 親Issue (Parent Issue)
