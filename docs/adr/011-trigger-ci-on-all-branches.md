@@ -1,13 +1,10 @@
 # 概要 / Summary
 [ADR-011] すべてのブランチへのPull RequestでCIをトリガーする
 
-## 状況 / Context
-
-## Status
-
+- **Status**: 承認済み
 - **Date**: 2025-10-19
 
-## Context (背景)
+## 状況 / Context
 
 現在のCIワークフロー (`.github/workflows/ci.yml`) は、`main`ブランチに対するPull Requestが作成された場合にのみトリガーされるように設定されています。この設定では、開発中のフィーチャーブランチや、`main`以外のブランチへの変更に対する品質保証が、CIプロセスによって自動的に行われません。
 
@@ -41,8 +38,6 @@ on:
 
 ## 結果 / Consequences
 
-## Consequences (結果)
-
 ### メリット (Positive consequences)
 
 -   **品質の早期確保:** すべてのPull Requestで自動的にテストとリントが実行されるため、開発サイクルの早い段階で問題を検知・修正できます。
@@ -61,4 +56,4 @@ on:
 -   `main`以外のブランチ（例: `feature/some-new-feature`）から、別のブランチ（`main`でなくてもよい）へのPull Requestを作成した際に、GitHub上でCIワークフローが自動的に開始されること。
 
 ## Implementation Status (実装状況)
-未着手
+完了

@@ -2,8 +2,8 @@
 デザインドキュメント: Geminiモデルの更新とレビューIssueの処理
 
 - **Author(s)**: SYSTEM_ARCHITECT
-- **Status**: 提案中
-- **Last Updated**: 2025-10-18
+- **Status**: 承認済み
+- **Last Updated**: 2025-10-23
 
 このドキュメントは、エージェントが使用するGeminiモデルのバージョン更新と、レビューが必要なIssueの検索条件および処理フローの変更を提案するものです。これにより、エージェントの実行コストの最適化と、レビュープロセスの効率化を目指します。
 
@@ -46,6 +46,9 @@
 - `development` タスクを実行するエージェントのログに、使用モデルとして `gemini-flash-latest` が記録されること。
 - `is:issue label:needs-review linked:pr is:open` の条件に合致するIssueが作成された場合、即座にはタスクとして割り当てられず、設定された遅延時間経過後に `request_task` を呼び出したクライアントに割り当てられること。
 - 上記条件に合致しないIssueは、タスクとして割り当てられないこと。
+
+## Implementation Status (実装状況)
+完了
 
 
 
