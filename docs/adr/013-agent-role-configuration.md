@@ -34,6 +34,7 @@
 2.  **設定の更新 (`config.py`):**
     -   `github_broker/infrastructure/config.py` の `Settings` クラスに、`AGENT_CONFIG_PATH: str` という新しい設定項目を追加します。
     -   この値は、環境変数 `AGENT_CONFIG_PATH` から読み込まれ、上記YAMLファイルのパスを指定します。
+    -   環境変数が設定されていない場合、デフォルトのパスとして `/app/agents.yml` を使用します。
 
 3.  **ローダー/バリデーターコンポーネントの作成:**
     -   指定されたパスからYAMLファイルを読み込み、その構造と内容を検証する新しいコンポーネント（`AgentConfigLoader`）を作成します。
