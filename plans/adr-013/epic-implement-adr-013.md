@@ -23,6 +23,33 @@
 エージェントの役割定義が外部のYAMLファイルで管理され、アプリケーションは起動時にその設定を読み込んで利用する。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
+
+```mermaid
+gantt
+    title ADR-013 実装計画ガントチャート
+    dateFormat  YYYY-MM-DD
+    axisFormat  %m/%d
+
+    %% --- Story 1: YAMLベースのエージェント設定機構を導入する (P0) ---
+    section Story 1: YAML Config Foundation (Priority: P0)
+    サンプルファイル作成      :active, task-1.1, 2025-10-27, 1d
+    設定パス追加         :active, task-1.2, 2025-10-27, 1d
+    ローダー作成           :active, task-1.3, after task-1.2, 2d
+    ローダーのテスト作成     :active, task-1.4, after task-1.3, 2d
+
+    %% --- Story 2: TaskServiceが外部設定を利用できるようにする (P1) ---
+    section Story 2: Refactor TaskService (Priority: P1)
+    DIコンテナへの登録: task-2.1, after task-1.4, 1d
+    TaskServiceへの注入 : task-2.2, after task-2.1, 1d
+    ハードコード削除  : task-2.3, after task-2.2, 1d
+    TaskServiceテスト更新: task-2.4, after task-2.3, 2d
+
+    %% --- Story 3: 新しい設定に対応したドキュメントを更新する (P2) ---
+    section Story 3: Documentation Update (Priority: P2)
+    開発者ガイド更新  : task-3.1, after task-2.4, 1d
+    .env.sample更新      : task-3.2, after task-3.1, 1d
+```
+
 1. `Story: YAMLベースのエージェント設定機構を導入する` を行い、設定ファイルの読み込みと検証の基盤を構築する。
 2. `Story: TaskServiceが外部設定を利用できるようにする` を行い、アプリケーションのコアロジックを新しい設定機構に適応させる。
 3. `Story: 新しい設定に対応したドキュメントを更新する` を行い、変更内容を開発者向けにドキュメント化する。
