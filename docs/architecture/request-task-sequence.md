@@ -32,7 +32,7 @@ sequenceDiagram
     Note over TaskService: レビューIssueの場合、Redisのタイムスタンプを確認し、\n遅延時間(5分)経過後のみ候補に含める。
 
     alt 割り当て可能なタスク候補あり
-        TaskService->>TaskService: 候補Issueを優先度ラベル順にソート
+        TaskService->>TaskService: 最高優先度バケットで候補Issueをフィルタリング
         
         loop 各候補Issue
             TaskService->>+RedisClient: acquire_lock(issue_lock_{issue_id})
@@ -103,7 +103,10 @@ sequenceDiagram
         *   **開発タスク:** `needs-review`ラベルが付いていないタスクを候補とします。
         *   **レビュータスク:** `needs-review`ラベルが付いているタスクは、Redisに保存された検出タイムスタンプを確認し、設定された遅延時間（`REVIEW_ASSIGNMENT_DELAY_MINUTES`）が経過した後でのみ候補に含めます。
         *   さらに、各Issueに付与された役割ラベル（例: `BACKENDCODER`）を解釈し、タスクを絞り込みます。
-    *   **ソート:** 候補Issueを**優先度ラベル順（P0 > P1 > P2 の順）**でソートします。
+    *   **優先度バケットによるフィルタリング:**
+        *   まず、オープン状態のIssueの中から、最も高い優先度レベル（例: `P0`）を特定します。
+        *   `TaskService`は、この最高優先度レベルのラベルを持つIssueのみを、タスク割り当ての候補とします。最高優先度以外のIssueは、たとえ割り当て可能な状態であっても、この段階で除外されます（厳格な優先度バケット方式）。
+    *   **ソート:** フィルタリングされた候補Issueを、必要に応じて他の基準（例: 更新日時）でソートします。
 
 5.  **タスク割り当て処理:**
     *   ソートされた順に各候補Issueをチェックします。
