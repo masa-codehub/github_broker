@@ -6,6 +6,9 @@
 ## 子Issue (Sub-Issues)
 - (起票後に追記)
 
+## Issue: #1737
+## Status: Open
+
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/015-strict-priority-bucket-assignment.md`
 
@@ -33,7 +36,7 @@ gantt
 
     %% --- Epic: ADR-015 厳格な優先度バケットによるタスク割り当てを実装する (P4) ---
     section Epic: ADR-015 Strict Priority Bucket Assignment (P4)
-    全体計画 :crit, 2025-10-27, 10d
+    全体計画 :crit, 2025-10-27, 12d
 
     %% --- Story 1: 現在の最高優先度を特定するロジックを実装する (P1) ---
     section Story 1: Implement Logic to Determine Current Highest Priority (P1)
@@ -52,12 +55,18 @@ gantt
     section Story 4: Implement Strict Priority Bucket Testing (P3)
     P0とP1のIssueでP1が割り当てられないテスト追加: task-4.1, after task-3.1, 1d, priority 2
     P0完了後にP1が割り当てられるテスト追加      : task-4.2, after task-4.1, 1d, priority 2
+
+    %% --- Story 5: ADR-015の変更点をドキュメント化する (P3) ---
+    section Story 5: Document ADR-015 Changes (P3)
+    開発者ガイド更新  : task-5.1, after task-4.2, 1d, priority 2
+    設計ドキュメント更新      : task-5.2, after task-5.1, 1d, priority 2
 ```
 
 1. `Story: 現在の最高優先度を特定するロジックを実装する` を行い、タスク割り当ての前提となる最高優先度を特定する。
 2. `Story: タスク候補のフィルタリングロジックを実装する` を行い、最高優先度レベルのIssueのみを候補とする。
 3. `Story: タスク割り当てロジックを更新する` を行い、フィルタリングされた候補リストに基づいてタスクを割り当てるように変更する。
 4. `Story: 厳格な優先度バケット方式のテストを実装する` を行い、新しいロジックが正しく機能することを検証する。
+5. `Story: ADR-015の変更点をドキュメント化する` を行い、新しいタスク割り当てルールに関するドキュメントを更新する。
 
 ## 完了条件 (Acceptance Criteria)
 - このEpicを構成する全てのStoryの実装が完了していること。
