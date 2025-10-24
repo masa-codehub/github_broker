@@ -1,10 +1,13 @@
 # 【Task】config.pyにAGENT_CONFIG_PATH設定を追加する
 
 ## 親Issue (Parent Issue)
-- (Story起票後に追記)
+- #1692
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/013-agent-role-configuration.md`
+
+## Issue: #1696
+## Status: Open
 
 # 目的とゴール / Purpose and Goals
 アプリケーションの設定ファイルパスを環境変数経由で変更可能にすることで、設定の柔軟性を高める。
