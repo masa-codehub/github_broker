@@ -1,10 +1,13 @@
 # 【Task】AgentConfigLoaderの単体テストを作成する
 
 ## 親Issue (Parent Issue)
-- (Story起票後に追記)
+- #1692
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/013-agent-role-configuration.md`
+
+## Issue: #1698
+## Status: Open
 
 # 目的とゴール / Purpose and Goals
 `AgentConfigLoader` の品質を保証し、将来のリファクタリングに対する安全網を構築するため、網羅的な単体テストを作成する。
