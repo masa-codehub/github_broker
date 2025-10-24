@@ -1,12 +1,12 @@
 # 【Task】開発者ガイドに新しいタスク割り当てルールに関する説明を追記する
 
 ## 親Issue (Parent Issue)
-- #1748
+- #1755
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/015-strict-priority-bucket-assignment.md`
 
-## Issue: #1748
+## Issue: #1756
 ## Status: Open
 
 # 目的とゴール / Purpose and Goals
