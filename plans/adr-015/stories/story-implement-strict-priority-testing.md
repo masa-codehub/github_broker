@@ -1,10 +1,14 @@
 # 【Story】厳格な優先度バケット方式のテストを実装する
 
 ## 親Issue (Parent Issue)
-- (Epic起票後に追記)
+- #1737
 
 ## 子Issue (Sub-Issues)
-- (Task起票後に追記)
+- #1746
+- #1747
+
+## Issue: #1741
+## Status: Open
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/015-strict-priority-bucket-assignment.md`

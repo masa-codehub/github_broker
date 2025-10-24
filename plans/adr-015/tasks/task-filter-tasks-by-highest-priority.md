@@ -1,10 +1,13 @@
 # 【Task】特定された最高優先度レベルのラベルを持つIssueのみをフィルタリングするロジックを実装する
 
 ## 親Issue (Parent Issue)
-- (Story起票後に追記)
+- #1739
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/015-strict-priority-bucket-assignment.md`
+
+## Issue: #1744
+## Status: Open
 
 # 目的とゴール / Purpose and Goals
 タスク割り当ての候補となるIssueを、現在の最高優先度レベルに限定するフィルタリングロジックを実装する。
