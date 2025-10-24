@@ -1,10 +1,13 @@
 # 【Task】scripts/validate_docs.pyにDesign Docの概要正規表現検証ロジックを追加する
 
 ## 親Issue (Parent Issue)
-- (Story起票後に追記)
+- #1718
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/014-improve-adr-validation-rules.md`
+
+## Issue: #1724
+## Status: Open
 
 # 目的とゴール / Purpose and Goals
 Design Docの概要行が特定の正規表現に一致することを検証するロジックを`scripts/validate_docs.py`に追加し、Design Docの命名規則の一貫性を強制する。
