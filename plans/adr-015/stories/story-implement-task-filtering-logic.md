@@ -1,10 +1,13 @@
 # 【Story】タスク候補のフィルタリングロジックを実装する
 
 ## 親Issue (Parent Issue)
-- (Epic起票後に追記)
+- #1737
 
 ## 子Issue (Sub-Issues)
-- (Task起票後に追記)
+- #1744
+
+## Issue: #1739
+## Status: Open
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/015-strict-priority-bucket-assignment.md`

@@ -1,10 +1,13 @@
 # 【Task】関連する設計ドキュメントを更新する
 
 ## 親Issue (Parent Issue)
-- (Story起票後に追記)
+- #1748
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/015-strict-priority-bucket-assignment.md`
+
+## Issue: #1749
+## Status: Open
 
 # 目的とゴール / Purpose and Goals
 ADR-015で導入された厳格な優先度バケットによるタスク割り当てについて、関連する設計ドキュメントを更新し、変更内容を明確に伝える。
