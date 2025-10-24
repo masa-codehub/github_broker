@@ -1,10 +1,13 @@
 # 【Task】開発者ガイドに新しいタスク割り当てルールに関する説明を追記する
 
 ## 親Issue (Parent Issue)
-- (Story起票後に追記)
+- #1748
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/015-strict-priority-bucket-assignment.md`
+
+## Issue: #1748
+## Status: Open
 
 # 目的とゴール / Purpose and Goals
 ADR-015で導入された厳格な優先度バケットによるタスク割り当てについて、開発者ガイドに説明を追記し、開発者がルールを理解できるようにする。
