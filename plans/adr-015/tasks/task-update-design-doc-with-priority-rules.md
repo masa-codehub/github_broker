@@ -1,12 +1,12 @@
 # 【Task】関連する設計ドキュメントを更新する
 
 ## 親Issue (Parent Issue)
-- #1748
+- #1755
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/015-strict-priority-bucket-assignment.md`
 
-## Issue: #1749
+## Issue: #1761
 ## Status: Open
 
 # 目的とゴール / Purpose and Goals

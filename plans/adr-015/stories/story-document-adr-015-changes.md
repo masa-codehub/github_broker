@@ -4,10 +4,13 @@
 - #1737
 
 ## 子Issue (Sub-Issues)
-- #1748
-- #1749
+- #1756
+- #1761
 
-## Issue: #1748
+## Issue: #1755
+## Status: Open
+
+## Issue: #1755
 ## Status: Open
 
 ## 参照元の意思決定 (Source Decision Document)
