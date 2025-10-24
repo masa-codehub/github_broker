@@ -40,22 +40,13 @@ class TaskService:
     REVIEW_ISSUE_TIMESTAMP_KEY_FORMAT = "review_issue_detected_timestamp:{issue_id}"
     REVIEW_ASSIGNMENT_DELAY_MINUTES = 5
 
-    AGENT_ROLES = {
-        "BACKENDCODER",
-        "CONTENTS_WRITER",
-        "MARKET_RESEARCHER",
-        "PEST_ANALYST",
-        "PRODUCT_MANAGER",
-        "SYSTEM_ARCHITECT",
-        "UIUX_DESIGNER",
-    }
-
     def __init__(
         self,
         redis_client: RedisClient,
         github_client: GitHubClient,
         settings: "Settings",
         gemini_executor: "GeminiExecutor",
+        agent_definitions: list[dict[str, Any]],
     ):
         self.redis_client = redis_client
         self.github_client = github_client
@@ -65,6 +56,8 @@ class TaskService:
         self.polling_interval_seconds = settings.POLLING_INTERVAL_SECONDS
         self.long_polling_check_interval = settings.LONG_POLLING_CHECK_INTERVAL
         self.gemini_executor = gemini_executor
+        self.agent_definitions = agent_definitions
+        self.AGENT_ROLES = {agent["role"] for agent in agent_definitions}
 
     def start_polling(self, stop_event: "threading.Event | None" = None):
         logger.info("Starting issue polling...")
