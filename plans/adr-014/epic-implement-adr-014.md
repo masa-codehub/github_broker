@@ -6,6 +6,9 @@
 ## 子Issue (Sub-Issues)
 - (起票後に追記)
 
+## Issue: #1716
+## Status: Open
+
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/014-improve-adr-validation-rules.md`
 
