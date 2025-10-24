@@ -24,28 +24,34 @@
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
 
+本Epicにおけるタスクの優先度は、Epic > Story > Task の階層で定義されます。ガントチャートは、この階層と依存関係を視覚的に示しています。
+
 ```mermaid
 gantt
     title ADR-013 実装計画ガントチャート
     dateFormat  YYYY-MM-DD
     axisFormat  %m/%d
 
-    %% --- Story 1: YAMLベースのエージェント設定機構を導入する (P0) ---
-    section Story 1: YAML Config Foundation (Priority: P0)
+    %% --- Epic: ADR-013 エージェント役割定義の外部設定化 (最上位目標) ---
+    section Epic: ADR-013 エージェント役割定義の外部設定化 (最上位目標)
+    全体計画 :crit, 2025-10-27, 10d
+
+    %% --- Story 1: YAMLベースのエージェント設定機構を導入する (実装優先度: 高) ---
+    section Story 1: YAML Config Foundation (実装優先度: 高)
     サンプルファイル作成      :active, task-1.1, 2025-10-27, 1d
     設定パス追加         :active, task-1.2, 2025-10-27, 1d
     ローダー作成           :active, task-1.3, after task-1.2, 2d
     ローダーのテスト作成     :active, task-1.4, after task-1.3, 2d
 
-    %% --- Story 2: TaskServiceが外部設定を利用できるようにする (P1) ---
-    section Story 2: Refactor TaskService (Priority: P1)
+    %% --- Story 2: TaskServiceが外部設定を利用できるようにする (実装優先度: 中) ---
+    section Story 2: Refactor TaskService (実装優先度: 中)
     DIコンテナへの登録: task-2.1, after task-1.4, 1d
     TaskServiceへの注入 : task-2.2, after task-2.1, 1d
     ハードコード削除  : task-2.3, after task-2.2, 1d
     TaskServiceテスト更新: task-2.4, after task-2.3, 2d
 
-    %% --- Story 3: 新しい設定に対応したドキュメントを更新する (P2) ---
-    section Story 3: Documentation Update (Priority: P2)
+    %% --- Story 3: 新しい設定に対応したドキュメントを更新する (実装優先度: 低) ---
+    section Story 3: Documentation Update (実装優先度: 低)
     開発者ガイド更新  : task-3.1, after task-2.4, 1d
     .env.sample更新      : task-3.2, after task-3.1, 1d
 ```
