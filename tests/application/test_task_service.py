@@ -920,6 +920,41 @@ def test_sort_issues_by_priority(task_service):
 
 
 @pytest.mark.unit
+def test_filter_by_highest_priority(task_service):
+    """Issueリストが最高優先度ラベルに基づいて正しくフィルタリングされることをテストします。"""
+    # Arrange
+    highest_priority_label = "P1"
+    issue_p1_a = create_mock_issue(
+        number=1, title="P1 Task A", body="", labels=["P1", "feature"]
+    )
+    issue_p1_b = create_mock_issue(
+        number=2, title="P1 Task B", body="", labels=["P1", "bug"]
+    )
+    issue_p0 = create_mock_issue(
+        number=3, title="P0 Task", body="", labels=["P0", "bug"]
+    )
+    issue_p2 = create_mock_issue(
+        number=4, title="P2 Task", body="", labels=["P2", "documentation"]
+    )
+    issue_no_priority = create_mock_issue(
+        number=5, title="No Priority Task", body="", labels=["documentation"]
+    )
+
+    issues = [issue_p1_a, issue_p1_b, issue_p0, issue_p2, issue_no_priority]
+
+    # Act
+    filtered_issues = task_service._filter_by_highest_priority(
+        issues, highest_priority_label
+    )
+
+    # Assert
+    expected_numbers = {1, 2}
+    actual_numbers = {issue["number"] for issue in filtered_issues}
+    assert actual_numbers == expected_numbers
+    assert len(filtered_issues) == 2
+
+
+@pytest.mark.unit
 def test_find_candidates_for_any_role_filters_no_priority(task_service):
     """_find_candidates_for_any_roleが優先度ラベルのないIssueを除外することをテストします。"""
     # Arrange
