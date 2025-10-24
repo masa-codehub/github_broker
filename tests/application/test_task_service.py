@@ -919,6 +919,28 @@ def test_sort_issues_by_priority(task_service):
     assert actual_order == expected_order
 
 
+@pytest.mark.parametrize(
+    "labels, expected_priority",
+    [
+        (["bug", "P2", "P0", "feature"], "P0"),
+        (["P1"], "P1"),
+        (["bug", "feature"], None),
+        ([], None),
+        (["P9", "P1", "P0"], "P0"),
+        (["P10", "P5", "P1"], "P1"),
+        (["p1", "P2"], "P2"),  # 大文字小文字の区別
+    ],
+)
+@pytest.mark.unit
+def test_determine_highest_priority(task_service, labels, expected_priority):
+    """優先度ラベルのリストから最高優先度を正しく特定できることをテストします。"""
+    # Act
+    highest_priority = task_service._determine_highest_priority(labels)
+
+    # Assert
+    assert highest_priority == expected_priority
+
+
 @pytest.mark.unit
 def test_find_candidates_for_any_role_filters_no_priority(task_service):
     """_find_candidates_for_any_roleが優先度ラベルのないIssueを除外することをテストします。"""
