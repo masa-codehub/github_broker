@@ -539,12 +539,49 @@ class TaskService:
 
         candidate_issues = self._find_candidates_for_any_role(all_issues)
         if candidate_issues:
-            logger.info(
-                "役割に紐づく候補Issueが%d件見つかりました。", len(candidate_issues)
-            )
-            task = await self._find_first_assignable_task(candidate_issues, agent_id)
-            if task:
-                return task
+            # Separate candidates into development and review
+            development_candidates = [
+                issue for issue in candidate_issues if self.LABEL_NEEDS_REVIEW not in {label.get("name") for label in issue.get("labels", [])}
+            ]
+            review_candidates = [
+                issue for issue in candidate_issues if self.LABEL_NEEDS_REVIEW in {label.get("name") for label in issue.get("labels", [])}
+            ]
+
+            final_candidates = []
+
+            if development_candidates:
+                highest_priority_label = self._determine_highest_priority_label(
+                    development_candidates
+                )
+
+                if highest_priority_label:
+                    filtered_development_candidates = self._filter_by_highest_priority(
+                        development_candidates, highest_priority_label
+                    )
+                    final_candidates.extend(filtered_development_candidates)
+                    logger.info(
+                        "最高優先度ラベル '%s' に基づき、開発候補Issueを %d 件にフィルタリングしました。",
+                        highest_priority_label,
+                        len(filtered_development_candidates),
+                    )
+                else:
+                    # This case should not happen if _find_candidates_for_any_role is correct,
+                    # as it filters out development candidates without a priority label.
+                    logger.warning("開発候補Issueが見つかりましたが、優先度ラベルがありませんでした。")
+
+            # Review candidates are always added, regardless of priority filtering
+            final_candidates.extend(review_candidates)
+
+            if final_candidates:
+                logger.info(
+                    "最終的なタスク候補Issueが%d件見つかりました。", len(final_candidates)
+                )
+                task = await self._find_first_assignable_task(final_candidates, agent_id)
+                if task:
+                    return task
+            else:
+                logger.info("優先度フィルタリングの結果、割り当て可能なタスク候補が見つかりませんでした。")
+
         return None
 
     def create_task_candidate(self, issue_id: int, agent_id: str):

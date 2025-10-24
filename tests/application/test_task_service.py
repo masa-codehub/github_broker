@@ -195,6 +195,72 @@ async def test_request_task_selects_and_sets_required_role_from_cache(
 
 @pytest.mark.unit
 @pytest.mark.anyio
+async def test_request_task_filters_by_highest_priority(
+    task_service, mock_redis_client, mock_github_client
+):
+    """
+    request_taskが、存在するIssueの中で最も高い優先度（P1）のIssueのみをフィルタリングし、
+    割り当て候補とすることをテストします。
+    """
+    # Arrange
+    agent_id = "test-agent"
+    deliverables = """## 成果物\n- work.py"""
+
+    # P1 Issue (Highest priority present)
+    issue_p1_a = create_mock_issue(
+        number=10,
+        title="P1 Task A",
+        body=deliverables,
+        labels=["BACKENDCODER", "P1"],
+    )
+    issue_p1_b = create_mock_issue(
+        number=11,
+        title="P1 Task B",
+        body=deliverables,
+        labels=["BACKENDCODER", "P1"],
+    )
+    # P2 Issue (Lower priority)
+    issue_p2 = create_mock_issue(
+        number=20,
+        title="P2 Task",
+        body=deliverables,
+        labels=["BACKENDCODER", "P2"],
+    )
+    # P3 Issue (Lowest priority)
+    issue_p3 = create_mock_issue(
+        number=30,
+        title="P3 Task",
+        body=deliverables,
+        labels=["BACKENDCODER", "P3"],
+    )
+
+    cached_issues = [issue_p3, issue_p2, issue_p1_a, issue_p1_b]
+    issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
+    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
+    mock_redis_client.get_values.return_value = [
+        json.dumps(issue) for issue in cached_issues
+    ]
+    mock_github_client.find_issues_by_labels.return_value = []
+    mock_redis_client.acquire_lock.return_value = True
+
+    # Act
+    result = await task_service.request_task(agent_id=agent_id)
+
+    # Assert
+    # 1. Only a P1 issue should be returned
+    assert result is not None
+    assert result.issue_id in [issue_p1_a["number"], issue_p1_b["number"]]
+
+    # 2. Crucially, lock attempts should only be made on the highest priority issues (P1)
+    lock_calls = [call[0][0] for call in mock_redis_client.acquire_lock.call_args_list]
+    # Assert that the assigned issue's lock was acquired, and no lower priority issues were attempted
+    assert f"issue_lock_{result.issue_id}" in lock_calls
+    assert "issue_lock_20" not in lock_calls
+    assert "issue_lock_30" not in lock_calls
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
 async def test_request_task_no_matching_role_label_issue(
     task_service, mock_redis_client, mock_github_client
 ):
@@ -1174,10 +1240,10 @@ async def test_request_task_logs_detailed_information(
     """タスク割り当てプロセス中に詳細なログが出力されることをテストします。"""
     # Arrange
     agent_id = "test-agent-for-logging"
-    issue_not_assignable = create_mock_issue(
+    issue_assignable_p0 = create_mock_issue(
         number=3,
-        title="Not Assignable",
-        body="No deliverables section",
+        title="Assignable P0 Task",
+        body="""## 成果物\n- work""",
         labels=["BACKENDCODER", "P0"],
         has_branch_name=True,
     )
@@ -1204,7 +1270,7 @@ async def test_request_task_logs_detailed_information(
     cached_issues = [
         issue_locked,
         issue_no_branch,
-        issue_not_assignable,
+        issue_assignable_p0,
         issue_assignable,
     ]
     issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
@@ -1225,32 +1291,35 @@ async def test_request_task_logs_detailed_information(
 
         # Assert
         assert result is not None
-        assert result.issue_id == 4
+        assert result.issue_id == 3
 
         log_messages = [record.message for record in caplog.records]
 
         # 1. Agent ID
         assert f"タスクをリクエストしています: agent_id={agent_id}" in log_messages
-        # 2. Candidate count
-        assert "役割に紐づく候補Issueが4件見つかりました。" in log_messages
-        # 3. Sorted order
-        assert "候補Issueを優先度順にソートしました: [3, 2, 1, 4]" in log_messages
-        # 4. Reasons for skipping
+        # 2. Candidate count (Removed old assertion)
+        # 3. Filtering message
+        assert "最高優先度ラベル 'P0' に基づき、開発候補Issueを 1 件にフィルタリングしました。" in log_messages
+        # 4. Final candidate count
+        assert "最終的なタスク候補Issueが1件見つかりました。" in log_messages
+        # 5. Sorted order (Issue 3 is the only one left)
+        assert "候補Issueを優先度順にソートしました: [3]" in log_messages
+        # 6. Reasons for skipping (Issue 2, 1, 4 should not be in the final candidate list)
         assert any(
             "Issueは割り当て不可能です" in m and "issue_id=3" in m for m in log_messages
-        )
+        ) is False # Issue 3 is now assignable
         assert any(
-            "ブランチ名が見つかりません" in m and "issue_id=2" in m
+            "ブランチ名が見つかりませんでした" in m and "issue_id=2" in m
             for m in log_messages
-        )
+        ) is False # Issue 2 was filtered out by priority
         assert any(
             "Issue is locked by another agent" in m and "issue_id=1" in m
             for m in log_messages
-        )
-        # 5. Successful assignment
+        ) is False # Issue 1 was filtered out by priority
+        # 7. Successful assignment
         assert any(
             "Lock acquired for issue" in m
-            and "issue_id=4" in m
+            and "issue_id=3" in m
             and f"agent_id={agent_id}" in m
             for m in log_messages
         )
