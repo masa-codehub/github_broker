@@ -1,10 +1,13 @@
 # 【Task】agents.ymlのサンプルファイルを作成する
 
 ## 親Issue (Parent Issue)
-- (Story起票後に追記)
+- #1692
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/013-agent-role-configuration.md`
+
+## Issue: #1695
+## Status: Open
 
 # 目的とゴール / Purpose and Goals
 開発者がエージェント設定ファイルのフォーマットを理解し、容易に利用開始できるように、サンプルの設定ファイルを提供する。

@@ -1,10 +1,13 @@
 # 【Task】.env.sampleファイルにAGENT_CONFIG_PATHのエントリを追加する
 
 ## 親Issue (Parent Issue)
-- (Story起票後に追記)
+- #1694
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/013-agent-role-configuration.md`
+
+## Issue: #1705
+## Status: Open
 
 # 目的とゴール / Purpose and Goals
 開発者が新しい環境変数を認識し、設定のデフォルト値を容易に把握できるように、`.env.sample` ファイルを更新する。
