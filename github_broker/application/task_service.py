@@ -3,7 +3,7 @@ import logging
 import threading
 import time
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from github import GithubException
 from pydantic import HttpUrl
@@ -345,19 +345,28 @@ class TaskService:
         Issueリストの中から最も高い優先度ラベル（P0, P1, P2...）を決定します。
         最も高い優先度は、数字が最も小さいラベルです（例: P0）。
         """
-        min_priority_number = float('inf')
-        highest_priority_label = None
-
+        all_labels: list[str] = []
         for issue in issues:
-            labels = {label.get("name") for label in issue.get("labels", [])}
-            for label_name in labels:
-                # _get_priority_from_label returns the number (0 for P0, 1 for P1, etc.)
-                priority_number = self._get_priority_from_label(label_name)
-                if priority_number is not None and priority_number < min_priority_number:
-                    min_priority_number = priority_number
-                    highest_priority_label = label_name
+            for label in issue.get("labels", []):
+                label_name = label.get("name")
+                if label_name:
+                    all_labels.append(label_name)
 
-        return highest_priority_label
+        priority_labels: set[str] = set()
+        for label in all_labels:
+            if self._get_priority_from_label(label) is not None:
+                priority_labels.add(label)
+
+        if not priority_labels:
+            return None
+
+        def get_priority(label: str) -> int:
+            return cast(int, self._get_priority_from_label(label))
+
+        return min(
+            priority_labels,
+            key=get_priority,
+        )
 
     def _filter_by_highest_priority(
         self, issues: list[dict[str, Any]], highest_priority_label: str
@@ -365,12 +374,11 @@ class TaskService:
         """
         Issueリストから、指定された最高優先度ラベルを持つIssueのみをフィルタリングします。
         """
-        filtered_issues = []
-        for issue in issues:
-            labels = {label.get("name") for label in issue.get("labels", [])}
-            if highest_priority_label in labels:
-                filtered_issues.append(issue)
-        return filtered_issues
+        return [
+            issue
+            for issue in issues
+            if highest_priority_label in {label.get("name") for label in issue.get("labels", [])}
+        ]
 
     async def _find_first_assignable_task(
         self, candidate_issues: list, agent_id: str
@@ -540,12 +548,14 @@ class TaskService:
         candidate_issues = self._find_candidates_for_any_role(all_issues)
         if candidate_issues:
             # Separate candidates into development and review
-            development_candidates = [
-                issue for issue in candidate_issues if self.LABEL_NEEDS_REVIEW not in {label.get("name") for label in issue.get("labels", [])}
-            ]
-            review_candidates = [
-                issue for issue in candidate_issues if self.LABEL_NEEDS_REVIEW in {label.get("name") for label in issue.get("labels", [])}
-            ]
+            development_candidates = []
+            review_candidates = []
+            for issue in candidate_issues:
+                labels = {label.get("name") for label in issue.get("labels", [])}
+                if self.LABEL_NEEDS_REVIEW in labels:
+                    review_candidates.append(issue)
+                else:
+                    development_candidates.append(issue)
 
             final_candidates = []
 
