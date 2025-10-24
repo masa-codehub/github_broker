@@ -33,7 +33,7 @@ gantt
 
     %% --- Epic: ADR-014 ドキュメント検証規約の改善を実装する (P4) ---
     section Epic: ADR-014 ドキュメント検証規約の改善を実装する (P4)
-    全体計画 :crit, 2025-10-27, 7d
+    全体計画 :crit, 2025-10-27, 9d
 
     %% --- Story 1: ADR検証ロジックを更新する (P1) ---
     section Story 1: Update ADR Validation Logic (P1)
@@ -49,11 +49,17 @@ gantt
     section Story 3: Strengthen Doc Validation Tests (P3)
     ADR検証テスト追加  : task-3.1, after task-2.2, 1d, priority 2
     Design Doc検証テスト追加      : task-3.2, after task-3.1, 1d, priority 2
+
+    %% --- Story 4: ADR-014の変更点をドキュメント化する (P3) ---
+    section Story 4: Document ADR-014 Changes (P3)
+    開発者ガイド更新  : task-4.1, after task-3.2, 1d, priority 2
+    テンプレート更新      : task-4.2, after task-4.1, 1d, priority 2
 ```
 
 1. `Story: ADR検証ロジックを更新する` を行い、ADRの新しい検証ルールを実装する。
 2. `Story: Design Doc検証ロジックを更新する` を行い、Design Docの新しい検証ルールを実装する。
 3. `Story: ドキュメント検証スクリプトのテストを強化する` を行い、新しい検証ルールが正しく機能することを保証する。
+4. `Story: ADR-014の変更点をドキュメント化する` を行い、新しい検証ルールに関するドキュメントを更新する。
 
 ## 完了条件 (Acceptance Criteria)
 - このEpicを構成する全てのStoryの実装が完了していること。
