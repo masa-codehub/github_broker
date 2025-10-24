@@ -632,6 +632,63 @@ async def test_request_task_stores_current_task_in_redis(
 
 @pytest.mark.unit
 @pytest.mark.anyio
+async def test_request_task_prioritizes_p0_and_skips_p1(
+    task_service, mock_redis_client, mock_github_client
+):
+    """
+    P0のIssueが存在する場合、P1のIssueが割り当てられないことをテストします。
+    これは厳格な優先度バケット方式の検証です。
+    """
+    # Arrange
+    agent_id = "test-agent"
+    agent_role = "BACKENDCODER"
+
+    # P1 Issue (Should be skipped)
+    issue_p1 = create_mock_issue(
+        number=10,
+        title="P1 Task",
+        body="""## 成果物\n- p1.py""",
+        labels=[agent_role, "P1"],
+    )
+
+    # P0 Issue (Should be assigned)
+    issue_p0 = create_mock_issue(
+        number=20,
+        title="P0 Task",
+        body="""## 成果物\n- p0.py""",
+        labels=[agent_role, "P0"],
+    )
+
+    # _sort_issues_by_priorityの結果として、P0がP1より前に来るように設定
+    # request_taskはRedisから取得したIssueをソートするため、ここではソート前のリストを設定
+    cached_issues = [issue_p1, issue_p0]
+    issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
+    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
+    mock_redis_client.get_values.return_value = [
+        json.dumps(issue) for issue in cached_issues
+    ]
+
+    # P0のIssueに対してロック取得が成功するように設定
+    mock_redis_client.acquire_lock.return_value = True
+    mock_github_client.find_issues_by_labels.return_value = []
+
+    # Act
+    result = await task_service.request_task(agent_id=agent_id)
+
+    # Assert
+    # 1. P0のIssueが割り当てられたことを確認
+    assert result is not None
+    assert result.issue_id == issue_p0["number"]
+
+    # 2. P0のIssueに対してのみロック取得が試行されたことを確認
+    # P1のIssue (10)に対してはacquire_lockが呼び出されていないことを確認
+    mock_redis_client.acquire_lock.assert_called_once_with(
+        f"issue_lock_{issue_p0['number']}", agent_id, timeout=600
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
 async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
     task_service, mock_redis_client, mock_github_client
 ):
