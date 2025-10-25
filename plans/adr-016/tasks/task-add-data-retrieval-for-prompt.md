@@ -1,4 +1,5 @@
 # 【Task】プロンプト生成に必要な情報取得ロジックの追加
+# Issue: #1819
 
 ## 親Issue (Parent Issue)
 - (Story起票後に追記)
