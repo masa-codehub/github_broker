@@ -21,7 +21,7 @@
 
 ## 完了条件 (Acceptance Criteria)
 - TDD（テスト駆動開発）のサイクル（Red-Green-Refactor）に従って実装と単体テストが完了していること。
-- すべての単体テストがパスし、コードカバレッジが規定の基準を満していること。
+- すべての単体テストがパスし、コードカバレッジが規定の基準を満たしていること。
 
 ## 成果物 (Deliverables)
 - `github_broker/application/task_service.py` の修正
