@@ -47,7 +47,7 @@
 
 ## 成果物 (Deliverables)
 - 更新された `github_broker/application/task_service.py`
-- 更新された `github_broker/infrastructure/gemini_executor.py`
+- 更新された `github_broker/infrastructure/executors/gemini_executor.py`
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `epic/implement-design-doc-003`

@@ -1,17 +1,19 @@
-# 【Task】`GeminiExecutor` が `base_branch_name` を読み込み、プロンプトを置換するように変更する
+# 【Task】`GeminiExecutor` のプロンプト構築メソッドを修正する
 
 ## 目的とゴール / Purpose and Goals
-このTaskの目的は、`GeminiExecutor` がRedisから `base_branch_name` を読み込み、プロンプトの `{base_branch_name}` 変数を置換するように変更することです。
+このTaskの目的は、`GeminiExecutor` がプロンプトを構築する際に、`base_branch_name` を外部から引数として受け取れるようにメソッドシグネチャを修正することです。これにより、`GeminiExecutor` の責務をプロンプト構築に限定し、データ取得ロジックから分離します。
 
 ## 実施内容 / Implementation
-- `github_broker/infrastructure/executors/gemini_executor.py` を開き、Redisから `base_branch_name` を取得し、プロンプトの `{base_branch_name}` 変数を置換するロジックを追加します。
-- 関連するテストコードを修正します。
+- `github_broker/infrastructure/executors/gemini_executor.py` の `build_prompt`（または関連するメソッド）の引数に `base_branch_name` を追加します。
+- メソッド内で、受け取った `base_branch_name` を使ってプロンプトの `{base_branch_name}` 変数を置換するロジックを実装します。
+- 関連するテストコードを修正し、新しい引数を渡すように変更します。
 
 ## 検証結果 / Validation Results
-- `GeminiExecutor` が `base_branch_name` を正しく置換し、テストが成功すること。
+- `GeminiExecutor` のメソッドが `base_branch_name` を引数として受け取り、プロンプトを正しく構築できること。
+- テストが成功すること。
 
 ## 影響範囲と今後の課題 / Impact and Future Issues
-- 影響範囲: `GeminiExecutor` のプロンプト生成ロジック。
+- 影響範囲: `GeminiExecutor` のメソッドインターフェースと、その呼び出し元。
 - 今後の課題: なし。
 
 ## 親Issue (Parent Issue)
@@ -27,16 +29,16 @@
 - (なし)
 
 ## As-is (現状)
-- `GeminiExecutor` がRedisから `base_branch_name` を読み込んでいない。
+- `GeminiExecutor` のプロンプト構築メソッドが `base_branch_name` を引数として受け取らない。
 
 ## To-be (あるべき姿)
-- `GeminiExecutor` がRedisから `base_branch_name` を読み込み、プロンプトの `{base_branch_name}` 変数を置換する。
+- `GeminiExecutor` のプロンプト構築メソッドが `base_branch_name` を引数として受け取り、プロンプトテンプレートの `{base_branch_name}` 変数を置換する。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
 1. `github_broker/infrastructure/executors/gemini_executor.py` を開く。
-2. Redisから `base_branch_name` を取得するロジックを追加する。
-3. プロンプトの `{base_branch_name}` 変数を置換するロジックを追加する。
-4. 関連するテストコードを修正する。
+2. `build_prompt`（または関連するメソッド）のシグネチャを変更し、`base_branch_name: str` を引数に追加する。
+3. メソッド内で、引数で受け取った `base_branch_name` を使ってプロンプトの変数を置換する。
+4. このメソッドを呼び出している箇所のコードと、関連するテストコードを修正する。
 
 ## 完了条件 (Acceptance Criteria)
 - TDD（テスト駆動開発）のサイクル（Red-Green-Refactor）に従って実装と単体テストが完了していること。

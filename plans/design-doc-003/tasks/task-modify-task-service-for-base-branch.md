@@ -1,17 +1,17 @@
-# 【Task】`TaskService` が `base_branch_name` を取得・保存するように変更する
+# 【Task】`TaskService` に `base_branch_name` の処理を追加する
 
 ## 目的とゴール / Purpose and Goals
-このTaskの目的は、`TaskService` がIssueのペイロードからベースブランチ名を取得し、Redisに保存するように変更することです。
+このTaskの目的は、`TaskService` がタスクの種類に応じて `base_branch_name` を特定し、Redisへの保存、および `GeminiExecutor` への引き渡しを行うように責務を修正することです。
 
 ## 実施内容 / Implementation
-- `github_broker/application/task_service.py` を開き、Issue情報取得処理で `base.ref` の値を取得し、`base_branch_name` としてRedisに保存するロジックを追加します。
-- 関連するテストコードを修正します。
+- `github_broker/application/task_service.py` を修正し、`base_branch_name` を処理するロジックを追加します。
+- 関連するテストコードを、新しいロジックを網羅するように修正します。
 
 ## 検証結果 / Validation Results
-- `TaskService` が `base_branch_name` を正しく取得・保存し、テストが成功すること。
+- `TaskService` がタスクの種類に応じて `base_branch_name` を正しく特定・処理し、テストが成功すること。
 
 ## 影響範囲と今後の課題 / Impact and Future Issues
-- 影響範囲: `TaskService` のロジック。
+- 影響範囲: `TaskService` のタスク処理ロジック。
 - 今後の課題: なし。
 
 ## 親Issue (Parent Issue)
@@ -27,16 +27,22 @@
 - (なし)
 
 ## As-is (現状)
-- `TaskService` がIssueのペイロードからベースブランチ名を取得していない。
+- `TaskService` は `base_branch_name` を扱っていない。
 
 ## To-be (あるべき姿)
-- `TaskService` がIssueのペイロードからベースブランチ名（`base.ref`）を取得し、Redisに `base_branch_name` として保存する。
+- `TaskService` が、タスクの種類に応じて `base_branch_name` を特定する。
+- 特定した `base_branch_name` をRedisに保存する。
+- `GeminiExecutor` を呼び出す際に、取得した `base_branch_name` を引数として渡す。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
 1. `github_broker/application/task_service.py` を開く。
-2. Issue情報取得処理で、`base.ref` の値を取得するロジックを追加する。
-3. 取得した値を `base_branch_name` としてRedisに保存するロジックを追加する。
-4. 関連するテストコードを修正する。
+2. タスク実行の中核となるメソッド（例: `run_task`）を修正する。
+3. タスクのペイロードを基に、タスクの種類を判定する（例: IssueがPRに紐づくか否かで、レビュータスクか新規開発タスクかを判断する）。
+4. **レビュータスクの場合:** Issueペイロード内のPR情報から `base.ref` を `base_branch_name` として取得する。
+5. **新規開発タスクの場合:** GitHub APIを呼び出して、リポジトリのデフォルトブランチ名を取得し、それを `base_branch_name` とする。
+6. 取得した `base_branch_name` をRedisのタスク情報に保存する。
+7. `gemini_executor.build_prompt` を呼び出す際に、引数として `base_branch_name` を渡す。
+8. 上記のロジック分岐（レビュータスク、新規開発タスク）を網羅する単体テストを `tests/application/test_task_service.py` に追加・修正する。
 
 ## 完了条件 (Acceptance Criteria)
 - TDD（テスト駆動開発）のサイクル（Red-Green-Refactor）に従って実装と単体テストが完了していること。
