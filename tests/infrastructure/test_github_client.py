@@ -176,11 +176,15 @@ def test_get_open_issues_raises_exception(mock_github):
 
 @pytest.mark.unit
 @patch("github_broker.infrastructure.github_client.Github")
-def test_get_open_issues_success(mock_github):
-    """get_open_issuesが正常にIssueを返すことをテストします。"""
+def test_get_open_issues_success_includes_labels(mock_github):
+    """get_open_issuesが正常にIssueを返し、そのデータにラベル情報が含まれていることをテストします。"""
     # Arrange
     mock_issue = MagicMock()
-    mock_issue.raw_data = {"number": 1, "title": "Test Issue"}
+    mock_issue.raw_data = {
+        "number": 1,
+        "title": "Test Issue",
+        "labels": [{"name": "P0"}, {"name": "bug"}],
+    }
     mock_results = MagicMock()
     mock_results.totalCount = 1
     mock_results.__iter__.return_value = [mock_issue]
@@ -196,6 +200,9 @@ def test_get_open_issues_success(mock_github):
 
     # Assert
     assert issues == [mock_issue.raw_data]
+    assert "labels" in issues[0]
+    assert len(issues[0]["labels"]) == 2
+    assert issues[0]["labels"][0]["name"] == "P0"
     mock_github_instance.search_issues.assert_called_once_with(
         query='repo:test/repo is:issue is:open -label:"needs-review"'
     )

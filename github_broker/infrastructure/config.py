@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -29,3 +30,4 @@ class Settings(BaseSettings):
     GEMINI_EXECUTOR_PROMPT_FILE: str = (
         "github_broker/infrastructure/prompts/gemini_executor.yml"
     )
+    AGENT_DEFINITIONS: list[dict[str, Any]] = []
