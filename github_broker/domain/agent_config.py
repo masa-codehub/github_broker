@@ -1,5 +1,6 @@
+
 from pydantic import BaseModel, Field
-from typing import List
+
 
 class AgentDefinition(BaseModel):
     """
@@ -13,4 +14,4 @@ class AgentConfig(BaseModel):
     """
     The root configuration model for all agents.
     """
-    agents: List[AgentDefinition] = Field(..., description="A list of all agent definitions.")
+    agents: list[AgentDefinition] = Field(..., description="A list of all agent definitions.")
