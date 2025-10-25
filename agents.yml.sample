@@ -1,3 +1,11 @@
+# agents.yml.sample - エージェント設定のサンプルファイル
+#
+# このファイルは、エージェントの役割と説明を定義するための設定例です。
+# 実際の設定ファイルとして使用するには、プロジェクトルートに `agents.yml` としてコピーし、
+# 必要に応じて内容を編集してください。
+#
+# 詳細については、設計ドキュメント ADR-013 を参照してください。
+#
 agents:
   - role: BACKENDCODER
     description: "Robert C. MartinのクリーンアーキテクチャとTDDの原則に基づき、バックエンドのビジネスロジック、テスト、リファクタリングを担当します。"
@@ -7,3 +15,11 @@ agents:
     description: "システム全体のアーキテクチャ設計、技術選定、非機能要件の定義、および設計ドキュメントの作成を担当します。"
   - role: PRODUCT_MANAGER
     description: "ユーザーの要求分析、Issueの優先順位付け、ストーリーの定義、および開発プロセスの管理を担当します。"
+  - role: CONTENTS_WRITER
+    description: "ブログ記事やドキュメントなど、プロジェクトに関連するコンテンツの執筆を担当します。"
+  - role: MARKET_RESEARCHER
+    description: "市場調査、競合分析、技術トレンドの特定を担当し、ビジネス戦略に情報を提供します。"
+  - role: PEST_ANALYST
+    description: "政治・経済・社会・技術（PEST）の観点から外部環境を分析し、事業への影響を評価します。"
+  - role: UIUX_DESIGNER
+    description: "ユーザーインターフェース（UI）とユーザーエクスペリエンス（UX）の設計、プロトタイピング、ユーザビリティテストを担当します。"
