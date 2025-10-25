@@ -1,10 +1,9 @@
-import yaml
 from pathlib import Path
-from typing import List
 
-from pydantic import ValidationError
+import yaml
 
-from github_broker.domain.agent_config import AgentDefinition, AgentConfig
+from github_broker.domain.agent_config import AgentConfig
+
 
 class AgentConfigLoader:
     """
@@ -13,10 +12,10 @@ class AgentConfigLoader:
     def __init__(self, config_path: Path):
         self.config_path = config_path
 
-    def load_config(self) -> List[AgentDefinition]:
+    def load_config(self) -> AgentConfig:
         """
         Loads the YAML file, validates it against the AgentConfig model,
-        and returns a list of AgentDefinition objects.
+        and returns the validated AgentConfig object.
 
         Raises:
             FileNotFoundError: If the configuration file does not exist.
@@ -26,10 +25,9 @@ class AgentConfigLoader:
         if not self.config_path.exists():
             raise FileNotFoundError(f"Agent configuration file not found at: {self.config_path}")
 
-        with open(self.config_path, 'r') as f:
+        with open(self.config_path) as f:
             raw_config = yaml.safe_load(f)
 
         # Pydanticによる検証
-        validated_config = AgentConfig.model_validate(raw_config)
-        return validated_config.agents
+        return AgentConfig.model_validate(raw_config)
 
