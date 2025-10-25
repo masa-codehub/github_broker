@@ -32,8 +32,8 @@
 - `validate_file`がエラー（仮）を返した場合に、`main`関数が非ゼロで終了すること。
 
 ## 成果物 (Deliverables)
-- `scripts/validate_documents.py` (新規作成)
-- `tests/scripts/test_validate_documents.py` (新規作成)
+- `scripts/validate_documents.py` (更新)
+- `tests/scripts/test_validate_documents.py` (更新)
 
 ## 実施内容 / Implementation
 (記述不要)

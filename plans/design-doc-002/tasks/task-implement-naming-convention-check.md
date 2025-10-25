@@ -19,8 +19,8 @@
 1. `scripts/validate_documents.py`に`check_naming_convention(filepath)`関数を実装する。
 2. 以下のロジックを実装する:
     - `plans/`配下のファイル名が`epic-`, `story-`, `task-`で始まるか検証する。
-    - `docs/adr/`配下のファイル名が`[ADR-XXX]`で始まるか検証する。
-    - `docs/design-docs/`配下のファイル名が`[Design Doc XXX]`で始まるか検証する。
+    - `docs/adr/`配下のファイル名が`[ADR-XXX]`（XXXはゼロ埋め3桁の番号）で始まるか検証する。
+    - `docs/design-docs/`配下のファイル名が`[Design Doc XXX]`（XXXはゼロ埋め3桁の番号）で始まるか検証する。
 3. `tests/scripts/test_validate_documents.py`に、上記の各命名規則に対するテストケースを追加する。
     - 正常なファイル名でエラーが返らないことを確認するテスト。
     - 不正なファイル名で適切なエラーメッセージが返ることを確認するテスト。

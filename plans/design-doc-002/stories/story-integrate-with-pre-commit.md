@@ -13,7 +13,7 @@
 - `docs/design-docs/002-document-validator-script.md`
 
 ## 実装の参照資料 (Implementation Reference Documents)
--`.pre-commit-config.yaml`
+- `.pre-commit-config.yaml`
 
 # 目的とゴール / Purpose and Goals
 完成した検証スクリプトを`.pre-commit-config.yaml`にフックとして登録し、`git commit`時に指定されたMarkdownファイルに対して自動的に実行されるようにする。

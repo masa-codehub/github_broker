@@ -34,8 +34,8 @@
 - 何かしらの検証エラーを検出した場合は、エラーメッセージを標準エラー出力に出力し、終了コード1で異常終了すること。
 
 ## 成果物 (Deliverables)
-- `scripts/validate_documents.py` (新規作成)
-- `tests/scripts/test_validate_documents.py` (新規作成)
+- `scripts/validate_documents.py` (更新)
+- `tests/scripts/test_validate_documents.py` (更新)
 
 ## 実施内容 / Implementation
 (子Issueに記載)

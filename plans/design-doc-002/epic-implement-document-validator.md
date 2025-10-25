@@ -18,6 +18,8 @@
 # 目的とゴール / Purpose and Goals
 `pre-commit`フックを通じて、主要なMarkdownドキュメントの規約（命名規則、フォルダ構造、必須セクション）を自動的に検証するスクリプトを実装し、ドキュメント品質の一貫性を保証する。
 
+**注:** 参照元の設計書では成果物スクリプト名が `scripts/document_validator.py` と記載されていますが、本計画では既存の `scripts/validate_documents.py` を拡張・利用する方針とします。
+
 ## As-is (現状)
 現在、プロジェクト内のMarkdownドキュメント（ADR、Design Doc、計画ファイル）のフォーマット、命名規則、フォルダ構成は手動でレビューされており、一貫性の担保がレビュアーの負担になっている。
 
@@ -35,8 +37,8 @@
 - `pre-commit`フックとしてスクリプトが正常に動作し、規約違反のあるMarkdownファイルのコミットをブロックできること。
 
 ## 成果物 (Deliverables)
-- `scripts/validate_documents.py`
-- `tests/scripts/test_validate_documents.py`
+- `scripts/validate_documents.py` (更新)
+- `tests/scripts/test_validate_documents.py` (更新)
 - `.pre-commit-config.yaml` への追加設定
 
 ## 実施内容 / Implementation
