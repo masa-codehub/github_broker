@@ -316,7 +316,18 @@ class TaskService:
         return candidate_issues
 
     @staticmethod
-    def _sort_issues_by_priority(issues: list[dict]) -> list[dict]:
+    def _get_priority_key(issue: dict) -> int | float:
+        """Extracts the lowest priority number from an issue's labels."""
+        label_names = (label.get("name", "") for label in issue.get("labels", []))
+        priority_numbers = (
+            int(name[1:])
+            for name in label_names
+            if name.startswith("P") and name[1:].isdigit()
+        )
+        return min(priority_numbers, default=float("inf"))
+
+    @classmethod
+    def _sort_issues_by_priority(cls, issues: list[dict]) -> list[dict]:
         """
         Issueのリストを優先度ラベルに基づいてソートします。
         P0 > P1 > P2 の順に優先度が高く、優先度ラベルがないIssueは末尾に配置されます。
@@ -327,29 +338,36 @@ class TaskService:
         Returns:
             list[dict]: 優先度に基づいてソートされたIssueのリスト。
         """
-
-        def get_priority_key(issue: dict) -> int | float:
-            """Extracts the lowest priority number from an issue's labels."""
-            label_names = (label.get("name", "") for label in issue.get("labels", []))
-            priority_numbers = (
-                int(name[1:])
-                for name in label_names
-                if name.startswith("P") and name[1:].isdigit()
-            )
-            return min(priority_numbers, default=float("inf"))
-
-        return sorted(issues, key=get_priority_key)
+        return sorted(issues, key=cls._get_priority_key)
 
     async def _find_first_assignable_task(
         self, candidate_issues: list, agent_id: str
     ) -> TaskResponse | None:
         assert self.repo_name is not None
         sorted_issues = self._sort_issues_by_priority(candidate_issues)
+        
         logger.info(
             "候補Issueを優先度順にソートしました: %s",
             [issue["number"] for issue in sorted_issues],
         )
-        for issue_obj in sorted_issues:
+        
+        if not sorted_issues:
+            logger.info(f"[agent_id={agent_id}] No assignable issues found.")
+            return None
+
+        # 最高優先度バケットのIssueのみをフィルタリング
+        top_priority_key = self._get_priority_key(sorted_issues[0])
+        top_priority_issues = [
+            issue for issue in sorted_issues 
+            if self._get_priority_key(issue) == top_priority_key
+        ]
+        
+        logger.info(
+            "最高優先度バケットのIssueにフィルタリングしました: %s",
+            [issue["number"] for issue in top_priority_issues],
+        )
+        
+        for issue_obj in top_priority_issues:
             task = Task(
                 issue_id=issue_obj["number"],
                 title=issue_obj["title"],
@@ -471,7 +489,7 @@ class TaskService:
                     )
                 raise
 
-        logger.info(f"[agent_id={agent_id}] No assignable and unlocked issues found.")
+        logger.info(f"[agent_id={agent_id}] No assignable and unlocked issues found in the top priority bucket.")
         return None
 
     async def request_task(self, agent_id: str) -> TaskResponse | None:
