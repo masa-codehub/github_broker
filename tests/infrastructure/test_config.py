@@ -19,6 +19,7 @@ def clear_env_vars():
         "REDIS_DB",
         "TESTING",
         "GITHUB_INDEXING_WAIT_SECONDS",
+        "AGENT_CONFIG_PATH",
     ]
     for key in keys_to_clear:
         if key in os.environ:
@@ -37,6 +38,7 @@ def test_settings_loads_from_env_vars():
     os.environ["REDIS_PORT"] = "6380"
     os.environ["REDIS_DB"] = "1"
     os.environ["TESTING"] = "True"
+    os.environ["AGENT_CONFIG_PATH"] = "/custom/agents.yml"
 
     settings = Settings()
 
@@ -47,6 +49,7 @@ def test_settings_loads_from_env_vars():
     assert settings.REDIS_PORT == 6380
     assert settings.REDIS_DB == 1
     assert settings.TESTING is True
+    assert settings.AGENT_CONFIG_PATH == "/custom/agents.yml"
 
 
 @pytest.mark.unit
@@ -63,6 +66,7 @@ def test_settings_uses_default_values():
     assert settings.REDIS_DB == 0
     assert settings.TESTING is False
     assert settings.POLLING_INTERVAL_SECONDS == 5 * 60
+    assert settings.AGENT_CONFIG_PATH == "/app/agents.yml"
 
 
 @pytest.mark.unit
