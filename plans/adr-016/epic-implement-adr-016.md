@@ -5,7 +5,7 @@
 - (なし)
 
 ## 子Issue (Sub-Issues)
-- (起票後に追記)
+- #1817
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/016-fix-review-issue-assignment-logic.md`
