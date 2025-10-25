@@ -391,9 +391,31 @@ class TaskService:
 
                 self.github_client.create_branch(branch_name)
 
-                prompt = self.gemini_executor.build_prompt(
-                    html_url=task.html_url, branch_name=branch_name
-                )
+                if self.LABEL_NEEDS_REVIEW in task.labels:
+                    logger.info(
+                        f"[issue_id={task.issue_id}] Task is a review task. Retrieving review comments."
+                    )
+                    # Issue番号をPR番号として使用
+                    pr_number = task.issue_id
+                    
+                    # レビューコメントを取得
+                    review_comments = self.github_client.get_pull_request_review_comments(pr_number)
+                    
+                    # プロンプト生成
+                    prompt = self.gemini_executor.build_code_review_prompt(
+                        pr_url=task.html_url, review_comments=review_comments
+                    )
+                    logger.info(
+                        f"[issue_id={task.issue_id}] Used gemini_executor.build_code_review_prompt."
+                    )
+                else:
+                    # 開発タスクの場合
+                    prompt = self.gemini_executor.build_prompt(
+                        html_url=task.html_url, branch_name=branch_name
+                    )
+                    logger.info(
+                        f"[issue_id={task.issue_id}] Used gemini_executor.build_prompt."
+                    )
 
                 gemini_response = await self.gemini_executor.execute(
                     issue_id=task.issue_id,
