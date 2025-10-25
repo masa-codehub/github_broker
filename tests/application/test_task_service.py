@@ -632,25 +632,32 @@ async def test_request_task_stores_current_task_in_redis(
 
 @pytest.mark.unit
 @pytest.mark.anyio
-async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
+async def test_request_task_uses_review_prompt_for_review_issue(
     task_service, mock_redis_client, mock_github_client
 ):
-    """'needs-review'ラベルを持つIssueが割り当てられた際に、task_typeが'review'に設定されることをテストします。"""
+    """'needs-review'ラベルを持つIssueが割り当てられた際に、TaskTypeが'review'に設定され、レビュー用プロンプトが使用されることをテストします。"""
     # Arrange
+    issue_id = 1
     issue = create_mock_issue(
-        number=1,
+        number=issue_id,
         title="Review Task",
         body="""## 成果物\n- review.py""",
         labels=["BACKENDCODER", "needs-review"],
     )
     cached_issues = [issue]
-    issue_keys = [
-        f"repo::owner::repo:issue:{issue['number']}" for issue in cached_issues
-    ]
+    issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
     mock_redis_client.get_keys_by_pattern.return_value = issue_keys
     mock_redis_client.get_values.return_value = [
         json.dumps(issue) for issue in cached_issues
     ]
+
+    # 必須モック（Issue #1819の前提）
+    review_pr_url = "https://github.com/test/repo/pull/42"
+    pr_number = 42
+    review_comments = ["Please verify logic.", "Refactor needed."]
+    mock_github_client.get_pr_for_issue.return_value = (review_pr_url, pr_number)
+    mock_github_client.get_pull_request_review_comments.return_value = review_comments
+
     mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = True
     # Set the timestamp to be older than the delay
@@ -667,15 +674,30 @@ async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
     # Assert
     assert result is not None
     assert result.required_role == "BACKENDCODER"
-    assert result.issue_id == 1
+    assert result.issue_id == issue_id
     assert result.task_type == TaskType.REVIEW
     mock_redis_client.get_keys_by_pattern.assert_called_once_with("issue:*")
     mock_redis_client.acquire_lock.assert_called_once_with(
         "issue_lock_1", agent_id, timeout=600
     )
-    task_service.gemini_executor.build_prompt.assert_called_once_with(
+
+    # Issue #1820: レビュープロンプトの呼び出しを検証
+    task_service.gemini_executor.build_code_review_prompt.assert_called_once_with(
+        pr_url=review_pr_url,
+        review_comments=review_comments,
+    )
+    task_service.gemini_executor.build_prompt.assert_not_called()
+
+    # Issue #1819: 情報取得ロジックの呼び出しを検証
+    mock_github_client.get_pr_for_issue.assert_called_once_with(issue_id)
+    mock_github_client.get_pull_request_review_comments.assert_called_once_with(pr_number)
+
+    # executeの引数検証（Issue URLが渡されていることを確認）
+    task_service.gemini_executor.execute.assert_called_once_with(
+        issue_id=issue_id,
         html_url=issue["html_url"],
         branch_name="feature/issue-1",
+        prompt="Generated Code Review Prompt",
     )
     mock_redis_client.set_value.assert_called_once_with(
         f"agent_current_task:{agent_id}", str(issue["number"]), timeout=3600
