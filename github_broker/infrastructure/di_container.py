@@ -48,6 +48,7 @@ def _create_container() -> punq.Container:
         github_client=github_client,
         settings=settings,
         gemini_executor=gemini_executor,
+        agent_definitions=settings.AGENT_DEFINITIONS,
     )
 
     # 4. すべての主要なインスタンスをコンテナに登録
