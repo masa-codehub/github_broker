@@ -391,9 +391,27 @@ class TaskService:
 
                 self.github_client.create_branch(branch_name)
 
-                prompt = self.gemini_executor.build_prompt(
-                    html_url=task.html_url, branch_name=branch_name
+                task_type = (
+                    TaskType.REVIEW
+                    if self.LABEL_NEEDS_REVIEW in task.labels
+                    else TaskType.DEVELOPMENT
                 )
+
+                if task_type == TaskType.REVIEW:
+                    # Issue #1819: レビューに必要な情報の取得
+                    review_pr_url, pr_number = self.github_client.get_pr_for_issue(task.issue_id)
+                    review_comments = self.github_client.get_pull_request_review_comments(pr_number)
+
+                    # Issue #1820: レビュー用プロンプトの生成
+                    prompt = self.gemini_executor.build_code_review_prompt(
+                        pr_url=review_pr_url,
+                        review_comments=review_comments,
+                    )
+                else:
+                    # Issue #1820: 開発用プロンプトの生成
+                    prompt = self.gemini_executor.build_prompt(
+                        html_url=task.html_url, branch_name=branch_name
+                    )
 
                 gemini_response = await self.gemini_executor.execute(
                     issue_id=task.issue_id,
@@ -429,11 +447,6 @@ class TaskService:
 
                 required_role = role_labels[0]
 
-                task_type = (
-                    TaskType.REVIEW
-                    if self.LABEL_NEEDS_REVIEW in task.labels
-                    else TaskType.DEVELOPMENT
-                )
                 return TaskResponse(
                     issue_id=task.issue_id,
                     issue_url=HttpUrl(task.html_url),
