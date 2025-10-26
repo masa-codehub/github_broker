@@ -32,7 +32,7 @@ sequenceDiagram
     Note over TaskService: レビューIssueの場合、Redisのタイムスタンプを確認し、\n遅延時間(5分)経過後のみ候補に含める。
 
     alt 割り当て可能なタスク候補あり
-        TaskService->>TaskService: 最高優先度バケットで候補Issueをフィルタリング
+        TaskService->>TaskService: 候補Issueを優先度ラベル順にソート
         
         loop 各候補Issue
             TaskService->>+RedisClient: acquire_lock(issue_lock_{issue_id})
