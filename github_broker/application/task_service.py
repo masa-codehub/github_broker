@@ -249,11 +249,8 @@ class TaskService:
     ) -> list[dict[str, Any]]:
         candidate_issues = []
         for issue in issues:
-            labels = {
-                label.get("name")
-                for label in issue.get("labels", [])
-                if label.get("name")
-            }
+            label_names = (label.get("name") for label in issue.get("labels", []))
+            labels = {name for name in label_names if name is not None}
 
             # 役割ラベルが付いているかチェック
             role_labels = labels.intersection(self.AGENT_ROLES)
