@@ -66,6 +66,7 @@ def task_service(mock_redis_client, mock_github_client, mock_agent_configs):
 @pytest.fixture
 def task_service_factory(mock_redis_client, mock_github_client):
     """TaskServiceのインスタンスを動的に作成するファクトリを提供します。"""
+
     def _factory(agent_configs):
         mock_settings = MagicMock()
         mock_settings.GITHUB_REPOSITORY = "test/repo"
@@ -90,6 +91,7 @@ def task_service_factory(mock_redis_client, mock_github_client):
             gemini_executor=mock_gemini_executor_instance,
             agent_configs=agent_configs,
         )
+
     return _factory
 
 
