@@ -659,8 +659,8 @@ async def test_request_task_prioritizes_p0_and_skips_p1(
         labels=[agent_role, "P0"],
     )
 
-    # _sort_issues_by_priorityの結果として、P0がP1より前に来るように設定
-    # request_taskはRedisから取得したIssueをソートするため、ここではソート前のリストを設定
+    # RedisからはP1, P0の順で返されるようにモックを設定
+    # これにより、TaskService内のソートロジックが正しくP0を優先することを確認する
     cached_issues = [issue_p1, issue_p0]
     issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
     mock_redis_client.get_keys_by_pattern.return_value = issue_keys
