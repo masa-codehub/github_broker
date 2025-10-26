@@ -1,3 +1,4 @@
+import itertools
 import json
 import logging
 import threading
@@ -345,28 +346,28 @@ class TaskService:
     ) -> TaskResponse | None:
         assert self.repo_name is not None
         sorted_issues = self._sort_issues_by_priority(candidate_issues)
-        
+
         logger.info(
             "候補Issueを優先度順にソートしました: %s",
             [issue["number"] for issue in sorted_issues],
         )
-        
+
         if not sorted_issues:
             logger.info(f"[agent_id={agent_id}] No assignable issues found.")
             return None
 
         # 最高優先度バケットのIssueのみをフィルタリング
         top_priority_key = self._get_priority_key(sorted_issues[0])
-        top_priority_issues = [
-            issue for issue in sorted_issues 
-            if self._get_priority_key(issue) == top_priority_key
-        ]
-        
+        top_priority_issues = list(itertools.takewhile(
+            lambda issue: self._get_priority_key(issue) == top_priority_key,
+            sorted_issues,
+        ))
+
         logger.info(
             "最高優先度バケットのIssueにフィルタリングしました: %s",
             [issue["number"] for issue in top_priority_issues],
         )
-        
+
         for issue_obj in top_priority_issues:
             task = Task(
                 issue_id=issue_obj["number"],
