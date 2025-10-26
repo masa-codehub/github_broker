@@ -57,6 +57,10 @@ class TaskService:
         self.polling_interval_seconds = settings.POLLING_INTERVAL_SECONDS
         self.long_polling_check_interval = settings.LONG_POLLING_CHECK_INTERVAL
         self.gemini_executor = gemini_executor
+
+        if not agent_configs:
+            raise ValueError("agent_configs cannot be empty")
+
         self.agent_configs = agent_configs
         self.agent_roles = {config.role for config in agent_configs}
 
@@ -407,7 +411,7 @@ class TaskService:
 
                 # 役割ラベルを抽出
                 role_labels = [
-                    label for label in task.labels if label in self.agent_roles
+                    label for label in task.labels if task.labels and label in self.agent_roles
                 ]
 
                 # _find_candidates_for_any_role で役割ラベルが1つ以上あることは保証されているはず
