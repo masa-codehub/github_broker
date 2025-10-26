@@ -47,7 +47,7 @@ class TaskService:
         github_client: GitHubClient,
         settings: "Settings",
         gemini_executor: "GeminiExecutor",
-        agent_configs: list[AgentConfig],
+        agent_configs: list[AgentConfig] | None = None,
     ):
         self.redis_client = redis_client
         self.github_client = github_client
@@ -58,8 +58,8 @@ class TaskService:
         self.long_polling_check_interval = settings.LONG_POLLING_CHECK_INTERVAL
         self.gemini_executor = gemini_executor
 
-        if not agent_configs:
-            raise ValueError("agent_configs cannot be empty")
+        if agent_configs is None:
+            agent_configs = []
 
         self.agent_configs = agent_configs
         self.agent_roles = {config.role for config in agent_configs}
