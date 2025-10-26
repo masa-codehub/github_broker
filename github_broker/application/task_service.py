@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import threading
 import time
 from datetime import UTC, datetime, timedelta
@@ -243,6 +244,26 @@ class TaskService:
 
     def _has_priority_label(self, labels: set[str]) -> bool:
         return any(self._get_priority_from_label(name) is not None for name in labels)
+
+    def _determine_highest_priority(self, labels: list[str]) -> str | None:
+        """
+        優先度ラベルのリストから最も高い優先度（数字が最小）を特定します。
+
+        Args:
+            labels (list[str]): Issueに付与されているラベル名のリスト。
+
+        Returns:
+            str | None: 最も高い優先度ラベル (例: 'P0')。優先度ラベルがない場合はNone。
+        """
+        priority_tuples = [
+            (int(match.group(1)), label)
+            for label in labels
+            if (match := re.match(r"^P(\d+)$", label))
+        ]
+
+        if priority_tuples:
+            return min(priority_tuples)[1]
+        return None
 
     def _find_candidates_for_any_role(
         self, issues: list[dict[str, Any]]

@@ -1,10 +1,17 @@
 # 【Story】ADR-015の変更点をドキュメント化する
 
 ## 親Issue (Parent Issue)
-- (Epic起票後に追記)
+- #1737
 
 ## 子Issue (Sub-Issues)
-- (Task起票後に追記)
+- #1756
+- #1761
+
+## Issue: #1755
+## Status: Open
+
+## Issue: #1755
+## Status: Open
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/015-strict-priority-bucket-assignment.md`
