@@ -43,11 +43,17 @@ def task_service(mock_redis_client, mock_github_client):
         return_value="Gemini Executor Output"
     )
 
+    agent_definitions = [
+        {"role": "BACKENDCODER", "description": "Backend Coder"},
+        {"role": "FRONTENDCODER", "description": "Frontend Coder"},
+    ]
+
     return TaskService(
         redis_client=mock_redis_client,
         github_client=mock_github_client,
         settings=mock_settings,
         gemini_executor=mock_gemini_executor_instance,
+        agent_definitions=agent_definitions,
     )
 
 
