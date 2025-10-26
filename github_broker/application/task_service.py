@@ -3,7 +3,7 @@ import logging
 import threading
 import time
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from github import GithubException
 from pydantic import HttpUrl
@@ -249,11 +249,8 @@ class TaskService:
     ) -> list[dict[str, Any]]:
         candidate_issues = []
         for issue in issues:
-            labels = {
-                label.get("name")
-                for label in issue.get("labels", [])
-                if label.get("name")
-            }
+            label_names = (label.get("name") for label in issue.get("labels", []))
+            labels = {name for name in label_names if name is not None}
 
             # 役割ラベルが付いているかチェック
             role_labels = labels.intersection(self.AGENT_ROLES)
@@ -339,6 +336,46 @@ class TaskService:
             return min(priority_numbers, default=float("inf"))
 
         return sorted(issues, key=get_priority_key)
+
+    def _determine_highest_priority_label(self, issues: list[dict[str, Any]]) -> str | None:
+        """
+        Issueリストの中から最も高い優先度ラベル（P0, P1, P2...）を決定します。
+        最も高い優先度は、数字が最も小さいラベルです（例: P0）。
+        """
+        all_labels: list[str] = []
+        for issue in issues:
+            for label in issue.get("labels", []):
+                label_name = label.get("name")
+                if label_name:
+                    all_labels.append(label_name)
+
+        priority_labels: set[str] = set()
+        for label in all_labels:
+            if self._get_priority_from_label(label) is not None:
+                priority_labels.add(label)
+
+        if not priority_labels:
+            return None
+
+        def get_priority(label: str) -> int:
+            return cast(int, self._get_priority_from_label(label))
+
+        return min(
+            priority_labels,
+            key=get_priority,
+        )
+
+    def _filter_by_highest_priority(
+        self, issues: list[dict[str, Any]], highest_priority_label: str
+    ) -> list[dict[str, Any]]:
+        """
+        Issueリストから、指定された最高優先度ラベルを持つIssueのみをフィルタリングします。
+        """
+        return [
+            issue
+            for issue in issues
+            if highest_priority_label in {label.get("name") for label in issue.get("labels", [])}
+        ]
 
     async def _find_first_assignable_task(
         self, candidate_issues: list, agent_id: str
@@ -507,12 +544,51 @@ class TaskService:
 
         candidate_issues = self._find_candidates_for_any_role(all_issues)
         if candidate_issues:
-            logger.info(
-                "役割に紐づく候補Issueが%d件見つかりました。", len(candidate_issues)
-            )
-            task = await self._find_first_assignable_task(candidate_issues, agent_id)
-            if task:
-                return task
+            # Separate candidates into development and review
+            development_candidates = []
+            review_candidates = []
+            for issue in candidate_issues:
+                labels = {label.get("name") for label in issue.get("labels", [])}
+                if self.LABEL_NEEDS_REVIEW in labels:
+                    review_candidates.append(issue)
+                else:
+                    development_candidates.append(issue)
+
+            final_candidates = []
+
+            if development_candidates:
+                highest_priority_label = self._determine_highest_priority_label(
+                    development_candidates
+                )
+
+                if highest_priority_label:
+                    filtered_development_candidates = self._filter_by_highest_priority(
+                        development_candidates, highest_priority_label
+                    )
+                    final_candidates.extend(filtered_development_candidates)
+                    logger.info(
+                        "最高優先度ラベル '%s' に基づき、開発候補Issueを %d 件にフィルタリングしました。",
+                        highest_priority_label,
+                        len(filtered_development_candidates),
+                    )
+                else:
+                    # This case should not happen if _find_candidates_for_any_role is correct,
+                    # as it filters out development candidates without a priority label.
+                    logger.warning("開発候補Issueが見つかりましたが、優先度ラベルがありませんでした。")
+
+            # Review candidates are always added, regardless of priority filtering
+            final_candidates.extend(review_candidates)
+
+            if final_candidates:
+                logger.info(
+                    "最終的なタスク候補Issueが%d件見つかりました。", len(final_candidates)
+                )
+                task = await self._find_first_assignable_task(final_candidates, agent_id)
+                if task:
+                    return task
+            else:
+                logger.info("優先度フィルタリングの結果、割り当て可能なタスク候補が見つかりませんでした。")
+
         return None
 
     def create_task_candidate(self, issue_id: int, agent_id: str):
