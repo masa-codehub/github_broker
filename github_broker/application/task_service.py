@@ -10,6 +10,7 @@ from github import GithubException
 from pydantic import HttpUrl
 from redis.exceptions import RedisError
 
+from github_broker.domain.agent import AgentDefinition
 from github_broker.domain.task import Task
 from github_broker.infrastructure.github_client import GitHubClient
 from github_broker.infrastructure.redis_client import RedisClient
@@ -41,22 +42,13 @@ class TaskService:
     REVIEW_ISSUE_TIMESTAMP_KEY_FORMAT = "review_issue_detected_timestamp:{issue_id}"
     REVIEW_ASSIGNMENT_DELAY_MINUTES = 5
 
-    AGENT_ROLES = {
-        "BACKENDCODER",
-        "CONTENTS_WRITER",
-        "MARKET_RESEARCHER",
-        "PEST_ANALYST",
-        "PRODUCT_MANAGER",
-        "SYSTEM_ARCHITECT",
-        "UIUX_DESIGNER",
-    }
-
     def __init__(
         self,
         redis_client: RedisClient,
         github_client: GitHubClient,
         settings: "Settings",
         gemini_executor: "GeminiExecutor",
+        agent_definitions: list[AgentDefinition],
     ):
         self.redis_client = redis_client
         self.github_client = github_client
@@ -66,6 +58,7 @@ class TaskService:
         self.polling_interval_seconds = settings.POLLING_INTERVAL_SECONDS
         self.long_polling_check_interval = settings.LONG_POLLING_CHECK_INTERVAL
         self.gemini_executor = gemini_executor
+        self.agent_definitions = agent_definitions
 
     def start_polling(self, stop_event: "threading.Event | None" = None):
         logger.info("Starting issue polling...")
@@ -277,7 +270,7 @@ class TaskService:
             }
 
             # 役割ラベルが付いているかチェック
-            role_labels = labels.intersection(self.AGENT_ROLES)
+            role_labels = labels.intersection({agent["role"] for agent in self.agent_definitions})
             if not role_labels:
                 continue  # 役割ラベルがないIssueはスキップ
 
@@ -434,7 +427,7 @@ class TaskService:
 
                 # 役割ラベルを抽出
                 role_labels = [
-                    label for label in task.labels if label in self.AGENT_ROLES
+                    label for label in task.labels if label in {agent["role"] for agent in self.agent_definitions}
                 ]
 
                 # _find_candidates_for_any_role で役割ラベルが1つ以上あることは保証されているはず
@@ -557,7 +550,7 @@ class TaskService:
         # 1. Issue情報を取得し、役割ラベルを抽出
         issue_data = self.github_client.get_issue_by_number(pull_request_number)
         issue_labels = {label["name"] for label in issue_data.get("labels", [])}
-        role_labels = list(issue_labels.intersection(self.AGENT_ROLES))
+        role_labels = list(issue_labels.intersection({agent["role"] for agent in self.agent_definitions}))
 
         # 2. 修正タスクのラベルを構築
         fix_labels = ["fix"] + role_labels
