@@ -255,18 +255,15 @@ class TaskService:
         Returns:
             str | None: 最も高い優先度ラベル (例: 'P0')。優先度ラベルがない場合はNone。
         """
-        highest_priority_number = float("inf")
-        highest_priority_label = None
+        priority_tuples = [
+            (int(match.group(1)), label)
+            for label in labels
+            if (match := re.match(r"^P(\d+)$", label))
+        ]
 
-        for label in labels:
-            match = re.match(r"^P(\d+)$", label)
-            if match:
-                priority_number = int(match.group(1))
-                if priority_number < highest_priority_number:
-                    highest_priority_number = priority_number
-                    highest_priority_label = label
-
-        return highest_priority_label
+        if priority_tuples:
+            return min(priority_tuples)[1]
+        return None
 
     def _find_candidates_for_any_role(
         self, issues: list[dict[str, Any]]
