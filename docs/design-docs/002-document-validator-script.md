@@ -1,17 +1,42 @@
 # 概要 / Overview
+デザインドキュメント: ドキュメント検証スクリプト
 
-- **Status**: Draft
-- **Date**: 2025-10-21
-- **Author**: CONTENTS_WRITER (Acting as TECHNICAL_DESIGNER)
+- **Author(s)**: CONTENTS_WRITER (Acting as TECHNICAL_DESIGNER)
+- **Status**: 承認済み
+- **Last Updated**: 2025-10-26
+
+## 背景と課題 / Background
+
+本プロジェクトでは、ADR (Architecture Decision Records), Design Docs, そして `plans` 配下の計画ファイル (Epics, Stories, Tasks) といった、多数のドキュメントが開発プロセスの中核を担っています。これらのドキュメントの一貫性と品質を維持することは、プロジェクトの透明性とメンテナンス性を保つ上で極めて重要です。
+
+しかし、これらのドキュメントのフォーマット（必須セクションの有無、命名規則、フォルダ構成など）は、現状ではレビュアーによる手動での確認に依存しています。これにより、以下のような課題が生じています。
+
+-   **抜け漏れの発生:** 人間の目によるレビューでは、必須項目の抜け漏れや、規約違反を完全には防ぎきれない。
+-   **レビュー負荷の増大:** レビュアーは、本来集中すべき設計やロジックの内容よりも、フォーマットのチェックに時間を割かれてしまう。
+-   **規約の形骸化:** プロジェクトが拡大するにつれて、規約の遵守が徹底されにくくなる。
+
+これらの課題を解決し、ドキュメントの品質を自動的に保証する仕組みが必要です。
+
 ## ゴール / Goals
 
-本設計書は、[ADR-012]で決定された、主要なMarkdownドキュメントのフォーマット、命名規則、フォルダ構成を自動的に検証するPythonスクリプトの実装に先立ち、その技術的な詳細設計を定義することを目的とする。これにより、ドキュメントの品質と一貫性を自動的に保証し、レビュアーの負担を軽減する。
+### 機能要件 / Functional Requirements
+- ADR, Design Doc, `plans` 配下のMarkdownドキュメントのフォーマットを自動的に検証する。
+- ファイル名、フォルダ構成、必須セクションの有無を検証する。
+- CIプロセスに統合し、規約違反を自動的に検出する。
+
+### 非機能要件 / Non-Functional Requirements
+- 検証スクリプトは高速に実行できること。
+- エラーメッセージは開発者が問題を特定しやすいように具体的であること。
 
 ## 設計 / Design
+
+### ハイレベル設計 / High-Level Design
+
 このスクリプトは、`pre-commit` フックを通じて実行され、引数として渡されたファイルリストに対して、命名規則、フォルダ構造、必須セクションの存在を検証する。
 
-## 考慮事項 / Considerations
-### 3.1. エントリーポイント: `main()` 関数
+### 詳細設計 / Detailed Design
+
+#### 3.1. エントリーポイント: `main()` 関数
 
 - **責務:** CLIからの実行を受け付け、検証プロセス全体を統括する。
 - **処理フロー:**
@@ -21,7 +46,7 @@
     4.  全てのエラーを収集した後、エラーが一つでもあれば非ゼロの終了コード (`sys.exit(1)`) で終了する。
     5.  エラーがなければ、正常終了コード (`sys.exit(0)`) で終了する。
 
-### 3.2. ファイル検証: `validate_file(filepath)` 関数
+#### 3.2. ファイル検証: `validate_file(filepath)` 関数
 
 - **責務:** 単一のファイルパスを受け取り、そのファイルに対して全ての検証ルールを適用する。
 - **処理フロー:**
@@ -30,9 +55,9 @@
     3.  `check_required_sections(filepath)` を実行。
     4.  検出された全てのエラーメッセージのリストを返す。
 
-### 3.3. ルールチェック関数群 (Rule Checkers)
+#### 3.3. ルールチェック関数群 (Rule Checkers)
 
-#### 3.3.1. `check_naming_convention(filepath)`
+##### 3.3.1. `check_naming_convention(filepath)`
 
 - **責務:** ファイルパスに応じて、各ディレクトリの命名規則（接頭辞やフォーマット）が守られているか検証する。
 - **ロジック:**
@@ -43,7 +68,7 @@
     - ファイルパスが `docs/design-docs/` 配下にある場合:
         - ファイル名が `[Design Doc XXX]`（XXXはゼロ埋め3桁の番号）で始まっているかチェックする。
 
-#### 3.3.2. `check_folder_structure(filepath)`
+##### 3.3.2. `check_folder_structure(filepath)`
 
 - **責務:** `plans` 配下のファイルが、ファイル名と一致する適切なサブディレクトリに配置されているか検証する。
 - **ロジック:**
@@ -51,7 +76,7 @@
     - ファイル名が `story-*` で始まる場合、そのファイルが `plans/*/stories/` の形式のサブディレクトリ内に存在するかチェックする。
     - ファイル名が `task-*` で始まる場合、そのファイルが `plans/*/tasks/` の形式のサブディレクトリ内に存在するかチェックする。
 
-#### 3.3.3. `check_required_sections(filepath)`
+##### 3.3.3. `check_required_sections(filepath)`
 
 - **責務:** ファイルの内容を読み込み、ドキュメントタイプに応じた必須セクション（Markdownヘッダー）が全て存在するか検証する。
 - **ロジック:**
@@ -67,50 +92,22 @@
         - タイトル部分 (`Title`) が空でないことを検証する。
     - ファイル内容を解析し、必須セクションが全て含まれているかチェックする。
 
-### 3.4. エラー出力の仕様 (Error Output Specification)
+## 検討した代替案 / Alternatives Considered
 
-検証スクリプトは、規約違反を検知した場合、開発者が迅速に問題を特定し修正できるように、以下のフォーマットでエラーメッセージを標準エラー出力 (`sys.stderr`) に出力する。
+- なし
 
-- **フォーマット:** `ERROR: <filepath> - <Violation Type>: <Details>`
-- **具体例:**
-    ```
-    ERROR: plans/feature.md - Naming Convention Violation: Files in 'plans/' must start with 'epic-', 'story-', or 'task-'.
-    ERROR: plans/adr-012/story-test.md - Folder Structure Violation: 'story-*' files must be in 'stories/' subdirectory.
-    ERROR: docs/adr/013-new-adr.md - Missing Required Section: '## Decision (決定)'
-    ```
+## セキュリティとプライバシー / Security & Privacy
 
-### 3.5. pre-commitへの統合方法 (Integration with pre-commit)
+- このスクリプトはファイルの内容を読み取るが、外部への送信は行わないため、セキュリティ上のリスクは低い。
 
-検証スクリプトは、ローカルでのコミット時およびCIでの自動検証のために、`.pre-commit-config.yaml` に以下の設定でフックとして統合される。
+## 未解決の問題 / Open Questions & Unresolved Issues
 
-```yaml
-# .pre-commit-config.yaml への追加設定 (予定)
-- repo: local
-  hooks:
-    - id: document-validator
-      name: Document Format Validator
-      entry: python scripts/document_validator.py
-      language: system
-      types: [markdown]
-      files: |
-        (?x)^(
-          docs/adr/.*\.md|
-          docs/design-docs/.*\.md|
-          plans/.*\.md
-        )$
-      pass_filenames: true # pre-commitから渡されたファイルのみを検証対象とする
-```
+- なし
 
-この設定により、指定されたMarkdownファイルが変更された場合、`scripts/document_validator.py` が実行され、非ゼロの終了コードが返された場合はコミットがブロックされる。
+## 検証基準 / Verification Criteria
 
-### 3.6. 必須セクションの定義 (Definition of Required Sections)
+- `pre-commit`フックが、規約違反のドキュメントのコミットをブロックすること。
+- CIが、規約違反のドキュメントを含むPRを失敗させること。
 
-`check_required_sections` 関数で使用される、ドキュメントタイプごとの必須セクションの定義（初期案）。
-
-| ドキュメントタイプ | パスパターン | 必須セクション (Markdown Header) |
-| :--- | :--- | :--- |
-| **ADR** | `docs/adr/*.md` | `# [ADR-XXX] Title`, `## Context (背景)`, `## Decision (決定)`, `## Consequences (結果)` |
-| **Design Doc** | `docs/design-docs/*.md` | `# [Design Doc XXX] Title`, `## 1. 目的 (Purpose)`, `## 2. 設計の概要 (Design Overview)`, `## 3. 技術的な詳細 (Technical Details)` |
-| **Epic** | `plans/epic-*.md` | `# Epic: Title`, `## 目的 (Goal)`, `## 関連するストーリー (Related Stories)` |
-| **Story** | `plans/*/stories/story-*.md` | `# Story: Title`, `## As a... I want... So that...`, `## 完了条件 (Acceptance Criteria)` |
-| **Task** | `plans/*/tasks/task-*.md` | `# Task: Title`, `## 目的 (Goal)`, `## 手順 (Steps)` |
+## 実装状況 / Implementation Status
+完了

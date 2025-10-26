@@ -1,13 +1,10 @@
 # 概要 / Summary
 [ADR-010] CI/CDプロセスの改善による開発ワークフローの高速化と自動化
 
+- Status: Accepted
+- Date: 2025-10-19
+
 ## 状況 / Context
-
-## Status
-- **Date**: 2025-10-18
-- **Completed Date**: 2025-10-19
-
-## Context (背景)
 
 現在のCI/CDプロセスは、プロダクトの成長に伴い、いくつかの課題を抱えています。
 
@@ -30,8 +27,6 @@
 
 ## 結果 / Consequences
 
-## Consequences (結果)
-
 ### メリット (Positive consequences)
 
 - **保守性の向上**: CIの設定ファイル (`ci.yml`) がチェック処理を集約することでシンプルになり、管理が容易になります。
@@ -44,14 +39,12 @@
 - **規約への準拠**: チームメンバーは、リリースの自動化を正しく機能させるために、Conventional Commitsの規約を厳守する必要があります。
 - **ツールの学習コスト**: `pre-commit`や`python-semantic-release`の挙動に慣れるまで、若干の学習コストが発生する可能性があります。
 
-## Verification Criteria (検証基準)
-
-この意思決定が正しく実装されたことは、以下の点で確認できます。
+## 検証基準 / Verification Criteria
 
 - CIのワークフローログにおいて、`pre-commit run --all-files` が実行され、lint, format, type, testのチェックが成功していること。
 - CIのテスト実行ステップで、`pytest-xdist`によってテストが並列実行されているログが確認できること。
 - `feat:`や`fix:`といった規約に従ったPull Requestを`main`にマージした際、`python-semantic-release`によって新しいバージョンのGitHubリリースが自動的に作成されること。
 - `epic:`を含むコミットをマージするとマイナーバージョンが上がり、`story:`を含むコミットをマージするとパッチバージョンが上がることが確認できること。
 
-## Implementation Status (実装状況)
+## 実装状況 / Implementation Status
 完了
