@@ -1,10 +1,13 @@
 # 【Task】TaskService内のハードコードされたAGENT_ROLESを削除し、インジェクションされた設定を利用するロジックに置き換える
 
 ## 親Issue (Parent Issue)
-- (Story起票後に追記)
+- #1693
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/013-agent-role-configuration.md`
+
+## Issue: #1702
+## Status: Open
 
 # 目的とゴール / Purpose and Goals
 `TaskService` からハードコードされた役割定義を完全に排除し、外部から注入された動的な設定のみを利用するようにリファクタリングする。

@@ -1,10 +1,13 @@
 # 【Story】新しい設定に対応したドキュメントを更新する
 
 ## 親Issue (Parent Issue)
-- (Epic起票後に追記)
+- #1691
 
 ## 子Issue (Sub-Issues)
 - (Task起票後に追記)
+
+## Issue: #1694
+## Status: Open
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/013-agent-role-configuration.md`

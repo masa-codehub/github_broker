@@ -1,10 +1,13 @@
 # 【Task】開発者ガイドに、agents.ymlとAGENT_CONFIG_PATHに関する説明を追記する
 
 ## 親Issue (Parent Issue)
-- (Story起票後に追記)
+- #1694
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/013-agent-role-configuration.md`
+
+## Issue: #1704
+## Status: Open
 
 # 目的とゴール / Purpose and Goals
 開発者が新しいエージェント設定方法を理解し、プロジェクトを正しくセットアップできるよう、関連ドキュメントを更新する。

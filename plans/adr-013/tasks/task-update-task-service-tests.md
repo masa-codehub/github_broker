@@ -1,10 +1,13 @@
 # 【Task】TaskServiceの単体テストを修正・追加する
 
 ## 親Issue (Parent Issue)
-- (Story起票後に追記)
+- #1693
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/013-agent-role-configuration.md`
+
+## Issue: #1703
+## Status: Open
 
 # 目的とゴール / Purpose and Goals
 `TaskService` のリファクタリングに伴い、単体テストを新しい仕様に適応させ、コードの品質と動作の正当性を保証する。

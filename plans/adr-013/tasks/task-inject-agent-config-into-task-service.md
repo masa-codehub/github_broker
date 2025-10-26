@@ -1,10 +1,13 @@
 # 【Task】TaskServiceのコンストラクタを修正し、エージェント設定リストをインジェクションできるようにする
 
 ## 親Issue (Parent Issue)
-- (Story起票後に追記)
+- #1693
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/013-agent-role-configuration.md`
+
+## Issue: #1700
+## Status: Open
 
 # 目的とゴール / Purpose and Goals
 `TaskService` が外部の設定に依存できるように、コンストラクタを通じて設定情報を注入（インジェクション）可能にする。

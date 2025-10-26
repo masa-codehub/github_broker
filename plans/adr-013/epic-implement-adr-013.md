@@ -80,3 +80,12 @@ gantt
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `main`
 - **作業ブランチ (Feature Branch):** `epic/implement-adr-013`
+
+## 親Issue (Parent Issue)
+- (なし)
+
+## 子Issue (Sub-Issues)
+- (起票後に追記)
+
+## Issue: #1691
+## Status: Open

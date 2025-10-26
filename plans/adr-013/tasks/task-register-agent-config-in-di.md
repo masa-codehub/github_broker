@@ -1,10 +1,13 @@
 # 【Task】DIコンテナを修正し、AgentConfigLoaderを使ってエージェント設定をプロバイダーとして登録する
 
 ## 親Issue (Parent Issue)
-- (Story起票後に追記)
+- #1693
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/013-agent-role-configuration.md`
+
+## Issue: #1699
+## Status: Open
 
 # 目的とゴール / Purpose and Goals
 アプリケーション全体で唯一のエージェント設定情報を共有するため、DIコンテナに設定を読み込むプロバイダーを登録する。

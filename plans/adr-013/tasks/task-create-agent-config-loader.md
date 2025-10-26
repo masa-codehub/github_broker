@@ -1,10 +1,13 @@
 # 【Task】YAMLファイルを読み込み検証するAgentConfigLoaderコンポーネントを作成する
 
 ## 親Issue (Parent Issue)
-- (Story起票後に追記)
+- #1692
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/013-agent-role-configuration.md`
+
+## Issue: #1697
+## Status: Open
 
 # 目的とゴール / Purpose and Goals
 YAMLファイルからエージェント設定を安全に読み込み、アプリケーション内で利用できる形式に変換するためのコンポーネントを作成する。
