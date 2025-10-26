@@ -1,10 +1,13 @@
 # 【Task】GitHub APIを呼び出し、オープンなIssueの優先度ラベルを取得する
 
 ## 親Issue (Parent Issue)
-- (Story起票後に追記)
+- #1738
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/015-strict-priority-bucket-assignment.md`
+
+## Issue: #1742
+## Status: Open
 
 # 目的とゴール / Purpose and Goals
 GitHubリポジトリ内のオープン状態のIssueから、優先度ラベルを含む情報を取得し、タスク割り当てロジックの基礎データを提供する。
