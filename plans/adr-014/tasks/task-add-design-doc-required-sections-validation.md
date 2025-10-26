@@ -1,10 +1,13 @@
 # 【Task】scripts/validate_docs.pyにDesign Docの必須セクション検証ロジックを追加する
 
 ## 親Issue (Parent Issue)
-- (Story起票後に追記)
+- #1718
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/014-improve-adr-validation-rules.md`
+
+## Issue: #1723
+## Status: Open
 
 # 目的とゴール / Purpose and Goals
 Design Docの品質と一貫性を保証するため、必須セクションの存在を検証するロジックを`scripts/validate_docs.py`に追加する。
