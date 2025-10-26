@@ -53,7 +53,6 @@ def task_service(mock_redis_client, mock_github_client, mock_agent_configs):
     mock_gemini_executor_instance.execute = AsyncMock(
         return_value="Gemini Executor Output"
     )
-
     return TaskService(
         redis_client=mock_redis_client,
         github_client=mock_github_client,
