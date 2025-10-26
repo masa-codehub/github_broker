@@ -27,7 +27,7 @@ repos:
         entry: python scripts/validate_docs.py
         language: system
         files: ^(docs/adr/|docs/design-docs/|plans/).*\.md$
-        pass_filenames: false
+        pass_filenames: true
 -   repo: https://github.com/commitizen-tools/commitizen
     rev: 'v3.27.0'
     hooks:

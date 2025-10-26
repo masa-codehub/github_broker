@@ -39,46 +39,37 @@ REQUIRED_SECTIONS = {
     ],
 }
 
+ADR_SUMMARY_REGEX = re.compile(r"^\[ADR-\d+]")
+
 
 def validate_filename_and_folder_structure(filepath: str):
     path = Path(filepath)
-
-    # Check if the file is under 'plans' directory (first part of the path)
     if "plans" not in path.parts:
         return []
 
     errors = []
     basename = path.name
-
-    # ファイル名のプレフィックス検証
     matched_prefix = False
     for prefix, expected_dir in FILENAME_PREFIXES.items():
         if basename.startswith(prefix):
             matched_prefix = True
-
-            # フォルダ構造検証
             if prefix == "epic-":
-                # epic-*.md は plans/ の直下のサブディレクトリにあるべき (plans/adr-XXX/epic-XXX.md)
-                if len(path.parts) != 3:
+                if len(path.parts) < 3 or path.parts[-3] != "plans":
                     errors.append(
-                        f"File '{filepath}' with prefix '{prefix}' must be in a subdirectory directly under 'plans/' (e.g., plans/adr-XXX/)."
+                        f"File '{filepath}' with prefix '{prefix}' must be in a subdirectory directly under 'plans/' (e.g., plans/some-epic-name/)."
                     )
             elif prefix in ("story-", "task-"):
-                # story-*.md は plans/*/stories/ に、 task-*.md は plans/*/tasks/ にあるべき
-                # path.parent.name が 'stories' または 'tasks' であることを確認
-                expected_parent_name = expected_dir.split('/')[-1] # 'stories' or 'tasks'
+                expected_parent_name = expected_dir.split("/")[-1]
                 if path.parent.name != expected_parent_name:
                     errors.append(
-                        f"File '{filepath}' with prefix '{prefix}' must be in a '{expected_parent_name}/' subdirectory under 'plans/'."
+                        f"File '{filepath}' with prefix '{prefix}' must be in a '{expected_parent_name}/' subdirectory."
                     )
             break
 
     if not matched_prefix:
-        # plans 配下でプレフィックスがないファイルはエラー
         errors.append(
             f"File '{filepath}' in 'plans/' must start with one of {list(FILENAME_PREFIXES.keys())}."
         )
-
     return errors
 
 
@@ -98,9 +89,6 @@ def validate_required_sections(filepath: str, sections: list[str]):
     return errors
 
 
-ADR_SUMMARY_REGEX = re.compile(r"^\[ADR-\d+\]")
-
-
 def validate_adr_summary_regex(filepath: str):
     errors = []
     try:
@@ -109,24 +97,18 @@ def validate_adr_summary_regex(filepath: str):
     except FileNotFoundError:
         return [f"File not found: {filepath}"]
 
-    # Find the line after "# 概要 / Summary"
     try:
         summary_index = [i for i, line in enumerate(content) if line.strip() == "# 概要 / Summary"][0]
-
         summary_line = ""
-        # Find the first non-empty line after the header
         for line in content[summary_index + 1:]:
             stripped_line = line.strip()
             if stripped_line:
                 summary_line = stripped_line
                 break
-
         if not summary_line:
             errors.append(f"File '{filepath}' has no summary content after '# 概要 / Summary' header.")
             return errors
-
     except IndexError:
-        # Required sections validation will catch missing "# 概要 / Summary"
         return []
 
     if not ADR_SUMMARY_REGEX.match(summary_line):
@@ -136,46 +118,46 @@ def validate_adr_summary_regex(filepath: str):
     return errors
 
 
+def get_files_to_validate(files_from_args):
+    if files_from_args:
+        return [f for f in files_from_args if f.endswith(".md")]
+    all_files = []
+    for path in ["docs/adr", "docs/design-docs", "plans"]:
+        target_path_obj = Path(path)
+        if target_path_obj.exists() and target_path_obj.is_dir():
+            for root, _, files in os.walk(target_path_obj):
+                for file in files:
+                    if file.endswith(".md"):
+                        all_files.append(str(Path(root) / file))
+    return all_files
+
 def main():
     all_errors = []
+    files_to_validate = get_files_to_validate(sys.argv[1:])
 
-    # 1. ADR と Design Doc のセクション検証
-    for target_path_str in ["docs/adr", "docs/design-docs"]:
-        sections = REQUIRED_SECTIONS.get(target_path_str, [])
-        if not sections:
-            continue
-        target_path_obj = Path(target_path_str)
-        if not target_path_obj.exists() or not target_path_obj.is_dir():
-            continue
-        for root, _, files in os.walk(target_path_obj):
-            for file in files:
-                if file.endswith(".md"):
-                    filepath = Path(root) / file
-                    try:
-                        all_errors.extend(validate_required_sections(str(filepath), sections))
-                        if target_path_str == "docs/adr":
-                            all_errors.extend(validate_adr_summary_regex(str(filepath)))
-                    except Exception as e:
-                        all_errors.append(f"Internal Error validating {filepath}: {e}")
+    for filepath in files_to_validate:
+        try:
+            path_obj = Path(filepath)
+            # 'plans' validation
+            if "plans" in path_obj.parts:
+                all_errors.extend(validate_filename_and_folder_structure(filepath))
 
-    # 2. plans ディレクトリのファイル名とフォルダ構造検証
-    plans_path_obj = Path("plans")
-    if plans_path_obj.exists() and plans_path_obj.is_dir():
-        for root, _, files in os.walk(plans_path_obj):
-            for file in files:
-                if file.endswith(".md"):
-                    filepath = Path(root) / file
-                    try:
-                        all_errors.extend(validate_filename_and_folder_structure(str(filepath)))
-                    except Exception as e:
-                        all_errors.append(f"Internal Error validating {filepath}: {e}")
+            # ADR and Design Doc validation
+            for doc_type_path, sections in REQUIRED_SECTIONS.items():
+                if filepath.startswith(doc_type_path):
+                    all_errors.extend(validate_required_sections(filepath, sections))
+                    if doc_type_path == "docs/adr":
+                        all_errors.extend(validate_adr_summary_regex(filepath))
+
+        except Exception as e:
+            all_errors.append(f"Internal Error validating {filepath}: {e}")
 
     if all_errors:
         for error in all_errors:
-            print(f"ERROR: {error}", file=sys.stderr)  # noqa: T201
+            sys.stderr.write(f"ERROR: {error}\n")
         sys.exit(1)
     else:
-        print("Document validation successful!")  # noqa: T201
+        sys.stdout.write("Document validation successful!\n")
         sys.exit(0)
 
 
