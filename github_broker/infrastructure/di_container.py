@@ -1,13 +1,34 @@
+import os
+from typing import cast
+
 import punq
 from redis import Redis
 
-from github_broker.application.task_service import TaskService
+from github_broker.application.task_service import AgentDefinition, TaskService
 from github_broker.infrastructure.config import Settings
 from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
 from github_broker.infrastructure.github_client import GitHubClient
 from github_broker.infrastructure.redis_client import RedisClient
 
 _container: punq.Container | None = None
+
+
+def _load_agent_definitions() -> list[AgentDefinition]:
+    """
+    .gemini/AGENTS/ディレクトリからエージェント定義を読み込みます。
+    """
+    agent_definitions_path = "/app/.gemini/AGENTS"
+    agent_definitions = []
+    try:
+        for filename in os.listdir(agent_definitions_path):
+            if filename.endswith(".md") and filename != "_GEMINI.md":
+                role = filename.replace(".md", "")
+                # descriptionはファイルの内容から取得すべきだが、ここではロール名のみを使用
+                agent_definitions.append(cast(AgentDefinition, {"role": role, "description": f"Agent role: {role}"}))
+    except FileNotFoundError:
+        # テスト環境などでファイルがない場合は空リストを返す
+        return []
+    return agent_definitions
 
 
 def _create_container() -> punq.Container:
@@ -42,12 +63,16 @@ def _create_container() -> punq.Container:
 
     gemini_executor = GeminiExecutor(prompt_file=settings.GEMINI_EXECUTOR_PROMPT_FILE)
 
+    # エージェント定義の読み込み
+    agent_definitions = _load_agent_definitions()
+
     # 3. 構築した依存関係をすべて使ってTaskServiceをインスタンス化
     task_service = TaskService(
         redis_client=redis_client,
         github_client=github_client,
         settings=settings,
         gemini_executor=gemini_executor,
+        agent_definitions=agent_definitions,
     )
 
     # 4. すべての主要なインスタンスをコンテナに登録

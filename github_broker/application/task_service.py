@@ -3,7 +3,7 @@ import logging
 import threading
 import time
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from github import GithubException
 from pydantic import HttpUrl
@@ -19,6 +19,11 @@ if TYPE_CHECKING:
     from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
 
 logger = logging.getLogger(__name__)
+
+
+class AgentDefinition(TypedDict):
+    role: str
+    description: str
 
 
 class TaskService:
@@ -46,7 +51,7 @@ class TaskService:
         github_client: GitHubClient,
         settings: "Settings",
         gemini_executor: "GeminiExecutor",
-        agent_definitions: list[dict[str, Any]],
+        agent_definitions: list["AgentDefinition"],
     ):
         self.redis_client = redis_client
         self.github_client = github_client
@@ -57,6 +62,8 @@ class TaskService:
         self.long_polling_check_interval = settings.LONG_POLLING_CHECK_INTERVAL
         self.gemini_executor = gemini_executor
         self.agent_definitions = agent_definitions
+        if not agent_definitions:
+            raise ValueError("agent_definitions cannot be empty")
         self.agent_roles = {
             definition["role"] for definition in agent_definitions
         }
@@ -408,7 +415,7 @@ class TaskService:
 
                 # 役割ラベルを抽出
                 role_labels = [
-                    label for label in task.labels if label in self.agent_roles
+                    label for label in task.labels if task.labels and label in self.agent_roles
                 ]
 
                 # _find_candidates_for_any_role で役割ラベルが1つ以上あることは保証されているはず

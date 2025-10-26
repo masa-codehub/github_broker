@@ -43,10 +43,11 @@ def task_service(mock_redis_client, mock_github_client):
         return_value="Gemini Executor Output"
     )
 
-    # TaskService.AGENT_ROLESに相当するモックデータ
+    # agent_definitions用のモックデータ
     mock_agent_definitions = [
         {"role": "BACKENDCODER", "description": "Backend coder"},
         {"role": "CONTENTS_WRITER", "description": "Contents writer"},
+        {"role": "FRONTENDCODER", "description": "Frontend coder"},
         {"role": "MARKET_RESEARCHER", "description": "Market researcher"},
         {"role": "PEST_ANALYST", "description": "PEST analyst"},
         {"role": "PRODUCT_MANAGER", "description": "Product manager"},
