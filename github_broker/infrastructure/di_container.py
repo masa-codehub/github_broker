@@ -1,34 +1,17 @@
-import os
 
 import punq
 from redis import Redis
 
 from github_broker.application.task_service import TaskService
 from github_broker.domain.agent_config import AgentConfig
+from github_broker.infrastructure.agent.loader import AgentConfigLoader
+from github_broker.infrastructure.agent.models import AgentConfigList
 from github_broker.infrastructure.config import Settings
 from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
 from github_broker.infrastructure.github_client import GitHubClient
 from github_broker.infrastructure.redis_client import RedisClient
 
 _container: punq.Container | None = None
-
-
-def _load_agent_configs() -> list[AgentConfig]:
-    """
-    .gemini/AGENTS/ディレクトリからエージェント設定を読み込みます。
-    """
-    agent_definitions_path = "/app/.gemini/AGENTS"
-    agent_configs = []
-    try:
-        for filename in os.listdir(agent_definitions_path):
-            if filename.endswith(".md") and filename != "_GEMINI.md":
-                role = filename.replace(".md", "")
-                # descriptionはファイルの内容から取得すべきだが、ここではロール名のみを使用
-                agent_configs.append(AgentConfig(role=role, description=f"Agent role: {role}"))
-    except FileNotFoundError:
-        # テスト環境などでファイルがない場合は空リストを返す
-        return []
-    return agent_configs
 
 
 def _create_container() -> punq.Container:
@@ -63,8 +46,13 @@ def _create_container() -> punq.Container:
 
     gemini_executor = GeminiExecutor(prompt_file=settings.GEMINI_EXECUTOR_PROMPT_FILE)
 
-    # エージェント設定の読み込み
-    agent_configs = _load_agent_configs()
+    # 5. AgentConfigLoaderを使用してエージェント設定を読み込み、DIコンテナに登録
+    agent_config_loader = AgentConfigLoader(settings=settings)
+    agent_definitions = agent_config_loader.load_config()
+    agent_config_list = AgentConfigList(agents=agent_definitions)
+    container.register(AgentConfigList, instance=agent_config_list)
+
+    agent_configs = [AgentConfig(role=d.role, description=d.description) for d in agent_definitions]
 
     # 3. 構築した依存関係をすべて使ってTaskServiceをインスタンス化
     task_service = TaskService(
@@ -80,7 +68,6 @@ def _create_container() -> punq.Container:
     container.register(RedisClient, instance=redis_client)
     container.register(GitHubClient, instance=github_client)
     container.register(GeminiExecutor, instance=gemini_executor)
-    container.register(list[AgentConfig], instance=agent_configs)
     container.register(TaskService, instance=task_service)
 
     return container
