@@ -1285,7 +1285,7 @@ async def test_find_first_assignable_task_filters_by_top_priority(
     """
     # Arrange
     agent_id = "test-agent"
-    
+
     # P1 Issue (次点優先度) - ロックされていない
     issue_p1_unlocked = create_mock_issue(
         number=1,
@@ -1322,7 +1322,7 @@ async def test_find_first_assignable_task_filters_by_top_priority(
         labels=["BACKENDCODER", "P0"],
     )
 
-    # 候補Issueリスト (ソート前)
+
     candidate_issues = [
         issue_p1_unlocked,
         issue_p2_unlocked,
@@ -1330,12 +1330,9 @@ async def test_find_first_assignable_task_filters_by_top_priority(
         issue_p0_unlocked,
         issue_p0_locked,
     ]
-    
-    # ロックの挙動を設定: P0_unlocked(4) -> True, P0_locked(5) -> False
-    # _sort_issues_by_priorityの結果: [P0(4), P0(5), P1(1), P1(2), P2(3)]
-    # top_priority_issues: [P0(4), P0(5)]
-    # acquire_lockの呼び出し順: 4, 5
-    mock_redis_client.acquire_lock.side_effect = [True, False] 
+
+
+    mock_redis_client.acquire_lock.side_effect = [True, False]
     mock_redis_client.acquire_lock.reset_mock()
     mock_github_client.add_label.reset_mock()
 
@@ -1347,29 +1344,29 @@ async def test_find_first_assignable_task_filters_by_top_priority(
         # P0(4)が最高優先度バケットであり、ロックされていないため、これが選択されるべき
         assert result is not None
         assert result.issue_id == issue_p0_unlocked["number"]
-        
+
         # P0(4)のロック取得が試行され、成功していることを確認
         mock_redis_client.acquire_lock.assert_called_once_with(
             "issue_lock_4", agent_id, timeout=600
         )
-        
+
         # P1(1), P2(3)は考慮されていないことを確認
         assert "最高優先度バケットのIssueにフィルタリングしました: [4, 5]" in caplog.text
         assert "issue_lock_1" not in caplog.text
-        
+
     # Act 2: P0_unlockedがロックされている場合のケース
     mock_redis_client.acquire_lock.reset_mock()
     mock_github_client.add_label.reset_mock()
     mock_redis_client.acquire_lock.side_effect = [False, True] # P0(4) -> False, P0(5) -> True
-    
+
     with caplog.at_level(logging.INFO):
         result_locked = await task_service._find_first_assignable_task(candidate_issues, agent_id)
-        
+
         # Assert 2
         # P0(4)がロックされているため、P0(5)が選択されるべき
         assert result_locked is not None
         assert result_locked.issue_id == issue_p0_locked["number"]
-        
+
         # P0(4)とP0(5)のロック取得が試行されていることを確認
         assert mock_redis_client.acquire_lock.call_count == 2
         mock_redis_client.acquire_lock.assert_any_call(
@@ -1378,25 +1375,25 @@ async def test_find_first_assignable_task_filters_by_top_priority(
         mock_redis_client.acquire_lock.assert_any_call(
             "issue_lock_5", agent_id, timeout=600
         )
-        
+
         # P1(1)以降は考慮されていないことを確認
         assert "issue_lock_1" not in caplog.text
-        
+
     # Act 3: P0バケットのIssueがすべてロックされている場合のケース
     mock_redis_client.acquire_lock.reset_mock()
     mock_github_client.add_label.reset_mock()
     mock_redis_client.acquire_lock.side_effect = [False, False] # P0(4) -> False, P0(5) -> False
-    
+
     with caplog.at_level(logging.INFO):
         result_all_locked = await task_service._find_first_assignable_task(candidate_issues, agent_id)
-        
+
         # Assert 3
         # P0バケットがすべてロックされているため、Noneが返されるべき
         assert result_all_locked is None
-        
+
         # P0(4)とP0(5)のロック取得が試行されていることを確認
         assert mock_redis_client.acquire_lock.call_count == 2
-        
+
         # P1(1)以降は考慮されていないことを確認
         assert "issue_lock_1" not in caplog.text
-        assert f"No assignable and unlocked issues found in the top priority bucket." in caplog.text
+        assert "No assignable and unlocked issues found in the top priority bucket." in caplog.text
