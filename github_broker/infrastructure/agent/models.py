@@ -1,4 +1,3 @@
-from typing import List
 
 from pydantic import BaseModel, Field
 
@@ -18,6 +17,6 @@ class AgentConfigList(BaseModel):
     エージェント設定ファイル全体の構造を定義するPydanticモデル。
     """
 
-    agents: List[AgentDefinition] = Field(
+    agents: list[AgentDefinition] = Field(
         ..., description="定義されたエージェントのリスト"
     )
