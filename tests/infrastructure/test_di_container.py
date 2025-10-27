@@ -1,12 +1,11 @@
-from typing import List
-from unittest.mock import patch
 import os
+from unittest.mock import patch
 
 import pytest
 
 import github_broker.infrastructure.di_container as di_container_module
 from github_broker.application.task_service import TaskService
-from github_broker.infrastructure.agent.models import AgentDefinition, AgentConfigList
+from github_broker.infrastructure.agent.models import AgentConfigList, AgentDefinition
 
 
 @pytest.fixture(autouse=True)
@@ -16,10 +15,15 @@ def reset_container():
 
 
 @pytest.mark.integration
-def test_di_container_resolves_task_service_instance():
+@patch(
+    "github_broker.infrastructure.agent.loader.AgentConfigLoader.load_config",
+    return_value=[AgentDefinition(role="TEST_AGENT", description="A test agent")],
+)
+def test_di_container_resolves_task_service_instance(mock_load_config):
     """
     DIコンテナが設定と依存関係を解決し、TaskServiceのインスタンスを
     正常に作成できることを検証する統合テスト。
+    AgentConfigLoader.load_configをモック化し、ファイルシステムの存在に依存しないようにする。
     """
 
     test_env = {
@@ -42,10 +46,21 @@ def test_di_container_resolves_task_service_instance():
         # 内部のクライアントも正しく設定されているかを確認
         assert service.repo_name == "test/repo"
         assert service.github_indexing_wait_seconds == 10
+        # モックが呼ばれ、設定が反映されていることを確認
+        mock_load_config.assert_called_once()
+        assert len(service.agent_configs) == 1
+        assert service.agent_configs[0].role == "TEST_AGENT"
 
 
 @pytest.mark.integration
-def test_di_container_resolves_agent_config_list():
+@patch(
+    "github_broker.infrastructure.agent.loader.AgentConfigLoader.load_config",
+    return_value=[
+        AgentDefinition(role="BACKENDCODER", description="Backend Coder"),
+        AgentDefinition(role="FRONTENDCODER", description="Frontend Coder"),
+    ],
+)
+def test_di_container_resolves_agent_config_list(mock_load_config):
     """
     DIコンテナがAgentConfigListを正しく解決できることを検証する。
     """
@@ -65,7 +80,7 @@ def test_di_container_resolves_agent_config_list():
 
         # Assert
         assert isinstance(agent_config, AgentConfigList)
-        assert isinstance(agent_config_list, List)
+        assert isinstance(agent_config_list, list)
         assert len(agent_config_list) == 2
         assert all(isinstance(item, AgentDefinition) for item in agent_config_list)
         assert agent_config_list[0].role == "BACKENDCODER"

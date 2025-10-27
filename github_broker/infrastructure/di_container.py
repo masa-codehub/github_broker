@@ -1,11 +1,11 @@
-from typing import List
 
 import punq
 from redis import Redis
 
 from github_broker.application.task_service import TaskService
+from github_broker.domain.agent_config import AgentConfig
 from github_broker.infrastructure.agent.loader import AgentConfigLoader
-from github_broker.infrastructure.agent.models import AgentDefinition, AgentConfigList
+from github_broker.infrastructure.agent.models import AgentConfigList
 from github_broker.infrastructure.config import Settings
 from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
 from github_broker.infrastructure.github_client import GitHubClient
@@ -46,12 +46,21 @@ def _create_container() -> punq.Container:
 
     gemini_executor = GeminiExecutor(prompt_file=settings.GEMINI_EXECUTOR_PROMPT_FILE)
 
+    # 5. AgentConfigLoaderを使用してエージェント設定を読み込み、DIコンテナに登録
+    agent_config_loader = AgentConfigLoader(settings=settings)
+    agent_definitions = agent_config_loader.load_config()
+    agent_config_list = AgentConfigList(agents=agent_definitions)
+    container.register(AgentConfigList, instance=agent_config_list)
+
+    agent_configs = [AgentConfig(role=d.role, description=d.description) for d in agent_definitions]
+
     # 3. 構築した依存関係をすべて使ってTaskServiceをインスタンス化
     task_service = TaskService(
         redis_client=redis_client,
         github_client=github_client,
         settings=settings,
         gemini_executor=gemini_executor,
+        agent_configs=agent_configs,
     )
 
     # 4. すべての主要なインスタンスをコンテナに登録
@@ -60,11 +69,6 @@ def _create_container() -> punq.Container:
     container.register(GitHubClient, instance=github_client)
     container.register(GeminiExecutor, instance=gemini_executor)
     container.register(TaskService, instance=task_service)
-
-    # 5. AgentConfigLoaderを使用してエージェント設定を読み込み、DIコンテナに登録
-    agent_config_loader = AgentConfigLoader(settings=settings)
-    agent_definitions = agent_config_loader.load_config()
-    container.register(AgentConfigList, instance=AgentConfigList(agents=agent_definitions))
 
     return container
 

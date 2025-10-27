@@ -1,0 +1,9 @@
+agents:
+  - role: BACKENDCODER
+    description: "Robert C. MartinのクリーンアーキテクチャとTDDの原則に基づき、バックエンドのビジネスロジック、テスト、リファクタリングを担当します。"
+  - role: FRONTENDCODER
+    description: "ReactやVueなどのフレームワークを用いたフロントエンドの実装、UIコンポーネントの作成、および関連するテストを担当します。"
+  - role: SYSTEM_ARCHITECT
+    description: "システム全体のアーキテクチャ設計、技術選定、非機能要件の定義、および設計ドキュメントの作成を担当します。"
+  - role: PRODUCT_MANAGER
+    description: "ユーザーの要求分析、Issueの優先順位付け、ストーリーの定義、および開発プロセスの管理を担当します。"
