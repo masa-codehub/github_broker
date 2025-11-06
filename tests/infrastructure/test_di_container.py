@@ -5,7 +5,7 @@ import pytest
 
 import github_broker.infrastructure.di_container as di_container_module
 from github_broker.application.task_service import TaskService
-from github_broker.infrastructure.agent.models import AgentConfigList, AgentDefinition
+from github_broker.infrastructure.agent.models import AgentDefinition
 
 
 @pytest.fixture(autouse=True)
@@ -51,37 +51,3 @@ def test_di_container_resolves_task_service_instance(mock_load_config):
         assert len(service.agent_configs) == 1
         assert service.agent_configs[0].role == "TEST_AGENT"
 
-
-@pytest.mark.integration
-@patch(
-    "github_broker.infrastructure.agent.loader.AgentConfigLoader.load_config",
-    return_value=[
-        AgentDefinition(role="BACKENDCODER", description="Backend Coder"),
-        AgentDefinition(role="FRONTENDCODER", description="Frontend Coder"),
-    ],
-)
-def test_di_container_resolves_agent_config_list(mock_load_config):
-    """
-    DIコンテナがAgentConfigListを正しく解決できることを検証する。
-    """
-    test_env = {
-        "GITHUB_REPOSITORY": "test/repo",
-        "GITHUB_TOKEN": "fake-token",
-        "GEMINI_API_KEY": "fake-gemini-key",
-        "REDIS_HOST": "localhost",
-        "REDIS_PORT": "6379",
-        "REDIS_DB": "0",
-    }
-    with patch.dict(os.environ, test_env):
-        # Act
-        container = di_container_module.get_container()
-        agent_config = container.resolve(AgentConfigList)
-        agent_config_list = agent_config.agents
-
-        # Assert
-        assert isinstance(agent_config, AgentConfigList)
-        assert isinstance(agent_config_list, list)
-        assert len(agent_config_list) == 2
-        assert all(isinstance(item, AgentDefinition) for item in agent_config_list)
-        assert agent_config_list[0].role == "BACKENDCODER"
-        assert agent_config_list[1].role == "FRONTENDCODER"

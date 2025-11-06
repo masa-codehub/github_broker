@@ -411,7 +411,7 @@ class TaskService:
 
                 # 役割ラベルを抽出
                 role_labels = [
-                    label for label in task.labels if task.labels and label in self.agent_roles
+                    label for label in task.labels if label in self.agent_roles
                 ]
 
                 # _find_candidates_for_any_role で役割ラベルが1つ以上あることは保証されているはず

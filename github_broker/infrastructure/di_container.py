@@ -5,7 +5,6 @@ from redis import Redis
 from github_broker.application.task_service import TaskService
 from github_broker.domain.agent_config import AgentConfig
 from github_broker.infrastructure.agent.loader import AgentConfigLoader
-from github_broker.infrastructure.agent.models import AgentConfigList
 from github_broker.infrastructure.config import Settings
 from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
 from github_broker.infrastructure.github_client import GitHubClient
@@ -49,8 +48,7 @@ def _create_container() -> punq.Container:
     # 5. AgentConfigLoaderを使用してエージェント設定を読み込み、DIコンテナに登録
     agent_config_loader = AgentConfigLoader(settings=settings)
     agent_definitions = agent_config_loader.load_config()
-    agent_config_list = AgentConfigList(agents=agent_definitions)
-    container.register(AgentConfigList, instance=agent_config_list)
+
 
     agent_configs = [AgentConfig(role=d.role, description=d.description) for d in agent_definitions]
 
