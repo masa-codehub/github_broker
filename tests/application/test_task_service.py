@@ -632,10 +632,10 @@ async def test_request_task_stores_current_task_in_redis(
 
 @pytest.mark.unit
 @pytest.mark.anyio
-async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
+async def test_request_task_uses_review_prompt_for_review_issue(
     task_service, mock_redis_client, mock_github_client
 ):
-    """'needs-review'ラベルを持つIssueが割り当てられた際に、task_typeが'review'に設定されることをテストします。"""
+    """'needs-review'ラベルを持つIssueが割り当てられた際に、TaskTypeが'review'に設定され、レビュー用プロンプトが使用されることをテストします。"""
     # Arrange
     issue_id = 1
     pr_number = 101
@@ -644,30 +644,16 @@ async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
     issue = create_mock_issue(
         number=issue_id,
         title="Review Task",
-        body="""## 成果物\n- review.py""",
+        body="""## 成果物
+- review.py""",
         labels=["BACKENDCODER", "needs-review"],
     )
     cached_issues = [issue]
-    issue_keys = [
-        f"repo::owner::repo:issue:{issue['number']}" for issue in cached_issues
-    ]
+    issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
     mock_redis_client.get_keys_by_pattern.return_value = issue_keys
     mock_redis_client.get_values.return_value = [
         json.dumps(issue) for issue in cached_issues
     ]
-    mock_github_client.find_issues_by_labels.return_value = []
-    mock_redis_client.acquire_lock.return_value = True
-    # Set the timestamp to be older than the delay
-    old_timestamp = datetime.now(UTC) - timedelta(
-        minutes=task_service.REVIEW_ASSIGNMENT_DELAY_MINUTES + 1
-    )
-    mock_redis_client.get_value.return_value = old_timestamp.isoformat()
-
-    # モックのPRオブジェクトを作成し、get_pr_for_issueが返すように設定
-    mock_pr = MagicMock()
-    mock_pr.number = pr_number
-    mock_pr.html_url = pr_url
-    mock_github_client.get_pr_for_issue.return_value = mock_pr
 
     # レビューコメントのモック設定
     mock_review_comments_raw = [{"body": "Comment 1"}, {"body": "Comment 2"}]
@@ -675,6 +661,20 @@ async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
     mock_github_client.get_pull_request_review_comments.return_value = (
         mock_review_comments_raw
     )
+
+    # 必須モック（Issue #1819の前提）
+    # ★レビューコメントによる修正箇所
+    # get_pr_for_issueのモックは、(url, number)のタプルではなく、
+    # html_urlとnumberプロパティを持つMagicMockオブジェクトを返すように修正
+    mock_github_client.get_pr_for_issue.return_value = MagicMock(html_url=pr_url, number=pr_number)
+
+    mock_github_client.find_issues_by_labels.return_value = []
+    mock_redis_client.acquire_lock.return_value = True
+    # Set the timestamp to be older than the delay
+    old_timestamp = datetime.now(UTC) - timedelta(
+        minutes=task_service.REVIEW_ASSIGNMENT_DELAY_MINUTES + 1
+    )
+    mock_redis_client.get_value.return_value = old_timestamp.isoformat()
 
     agent_id = "test-agent"
 
@@ -684,7 +684,7 @@ async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
     # Assert
     assert result is not None
     assert result.required_role == "BACKENDCODER"
-    assert result.issue_id == 1
+    assert result.issue_id == issue_id
     assert result.task_type == TaskType.REVIEW
     mock_redis_client.get_keys_by_pattern.assert_called_once_with("issue:*")
     mock_redis_client.acquire_lock.assert_called_once_with(

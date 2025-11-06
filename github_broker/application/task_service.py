@@ -391,7 +391,13 @@ class TaskService:
 
                 self.github_client.create_branch(branch_name)
 
-                if self.LABEL_NEEDS_REVIEW in task.labels:
+                task_type = (
+                    TaskType.REVIEW
+                    if self.LABEL_NEEDS_REVIEW in task.labels
+                    else TaskType.DEVELOPMENT
+                )
+
+                if task_type == TaskType.REVIEW:
                     logger.info(
                         f"[issue_id={task.issue_id}] Task is a review task. Finding linked PR and retrieving review comments."
                     )
@@ -400,6 +406,11 @@ class TaskService:
                     if not pull_request:
                         logger.warning(
                             f"[issue_id={task.issue_id}] No linked PR found for review task. Skipping."
+                        )
+                        # ロックを解放して次のIssueを試す
+                        self.redis_client.release_lock(lock_key)
+                        logger.info(
+                            f"[issue_id={task.issue_id}, agent_id={agent_id}] Released lock."
                         )
                         continue
 
@@ -464,11 +475,6 @@ class TaskService:
 
                 required_role = role_labels[0]
 
-                task_type = (
-                    TaskType.REVIEW
-                    if self.LABEL_NEEDS_REVIEW in task.labels
-                    else TaskType.DEVELOPMENT
-                )
                 return TaskResponse(
                     issue_id=task.issue_id,
                     issue_url=HttpUrl(task.html_url),
