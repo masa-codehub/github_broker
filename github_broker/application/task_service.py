@@ -393,20 +393,33 @@ class TaskService:
 
                 if self.LABEL_NEEDS_REVIEW in task.labels:
                     logger.info(
-                        f"[issue_id={task.issue_id}] Task is a review task. Retrieving review comments."
+                        f"[issue_id={task.issue_id}] Task is a review task. Finding linked PR and retrieving review comments."
                     )
-                    # Issue番号をPR番号として使用
-                    pr_number = task.issue_id
-                    
+                    # Issueに紐づくPRを取得
+                    pull_request = self.github_client.get_pr_for_issue(task.issue_id)
+                    if not pull_request:
+                        logger.warning(
+                            f"[issue_id={task.issue_id}] No linked PR found for review task. Skipping."
+                        )
+                        continue
+
+                    pr_number = pull_request.number
+                    pr_url = pull_request.html_url
+
                     # レビューコメントを取得
-                    review_comments = self.github_client.get_pull_request_review_comments(pr_number)
-                    
+                    review_comments_raw = (
+                        self.github_client.get_pull_request_review_comments(pr_number)
+                    )
+                    review_comments = [
+                        comment["body"] for comment in review_comments_raw
+                    ]
+
                     # プロンプト生成
                     prompt = self.gemini_executor.build_code_review_prompt(
-                        pr_url=task.html_url, review_comments=review_comments
+                        pr_url=pr_url, review_comments=review_comments
                     )
                     logger.info(
-                        f"[issue_id={task.issue_id}] Used gemini_executor.build_code_review_prompt."
+                        f"[issue_id={task.issue_id}, pr_number={pr_number}] Used gemini_executor.build_code_review_prompt."
                     )
                 else:
                     # 開発タスクの場合
