@@ -21,12 +21,6 @@ REQUIRED_SECTIONS = {
         "## 設計 / Design",
         "## 考慮事項 / Considerations",
     ],
-    "plans": [
-        "# 目的とゴール / Purpose and Goals",
-        "## 実施内容 / Implementation",
-        "## 検証結果 / Validation Results",
-        "## 影響範囲と今後の課題 / Impact and Future Issues",
-    ],
 }
 
 
@@ -34,7 +28,7 @@ def validate_filename_and_folder_structure(filepath: str):
     path = Path(filepath)
 
     # Check if the file is under 'plans' directory (first part of the path)
-    if path.parts[0] != "plans":
+    if "plans" not in path.parts:
         return []
 
     errors = []
@@ -56,9 +50,7 @@ def validate_filename_and_folder_structure(filepath: str):
             elif prefix in ("story-", "task-"):
                 # story-*.md は plans/*/stories/ に、 task-*.md は plans/*/tasks/ にあるべき
                 # path.parent.name が 'stories' または 'tasks' であることを確認
-                expected_parent_name = expected_dir.split("/")[
-                    -1
-                ]  # 'stories' or 'tasks'
+                expected_parent_name = expected_dir.split('/')[-1] # 'stories' or 'tasks'
                 if path.parent.name != expected_parent_name:
                     errors.append(
                         f"File '{filepath}' with prefix '{prefix}' must be in a '{expected_parent_name}/' subdirectory under 'plans/'."
@@ -92,25 +84,33 @@ def validate_required_sections(filepath: str, sections: list[str]):
 
 def main():
     all_errors = []
-    for target_path, sections in REQUIRED_SECTIONS.items():
-        target_path_obj = Path(target_path)
 
-        # Check if path exists and is a directory
+    # 1. ADR と Design Doc のセクション検証
+    for target_path_str in ["docs/adr", "docs/design-docs"]:
+        sections = REQUIRED_SECTIONS.get(target_path_str, [])
+        if not sections:
+            continue
+        target_path_obj = Path(target_path_str)
         if not target_path_obj.exists() or not target_path_obj.is_dir():
             continue
-
-        for root, _, files in os.walk(target_path):
+        for root, _, files in os.walk(target_path_obj):
             for file in files:
                 if file.endswith(".md"):
                     filepath = Path(root) / file
-
                     try:
-                        all_errors.extend(
-                            validate_filename_and_folder_structure(str(filepath))
-                        )
-                        all_errors.extend(
-                            validate_required_sections(str(filepath), sections)
-                        )
+                        all_errors.extend(validate_required_sections(str(filepath), sections))
+                    except Exception as e:
+                        all_errors.append(f"Internal Error validating {filepath}: {e}")
+
+    # 2. plans ディレクトリのファイル名とフォルダ構造検証
+    plans_path_obj = Path("plans")
+    if plans_path_obj.exists() and plans_path_obj.is_dir():
+        for root, _, files in os.walk(plans_path_obj):
+            for file in files:
+                if file.endswith(".md"):
+                    filepath = Path(root) / file
+                    try:
+                        all_errors.extend(validate_filename_and_folder_structure(str(filepath)))
                     except Exception as e:
                         all_errors.append(f"Internal Error validating {filepath}: {e}")
 

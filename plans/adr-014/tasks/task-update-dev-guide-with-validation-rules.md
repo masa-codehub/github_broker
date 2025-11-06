@@ -1,10 +1,13 @@
 # 【Task】開発者ガイドに新しい検証ルールに関する説明を追記する
 
 ## 親Issue (Parent Issue)
-- (Story起票後に追記)
+- #1720
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/014-improve-adr-validation-rules.md`
+
+## Issue: #1727
+## Status: Open
 
 # 目的とゴール / Purpose and Goals
 ADR-014で導入された新しいドキュメント検証ルールについて、開発者ガイドに説明を追記し、開発者がルールを理解できるようにする。

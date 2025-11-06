@@ -1,10 +1,14 @@
 # 【Story】ADR検証ロジックを更新する
 
 ## 親Issue (Parent Issue)
-- (Epic起票後に追記)
+- #1716
 
 ## 子Issue (Sub-Issues)
-- (Task起票後に追記)
+- #1721
+- #1722
+
+## Issue: #1717
+## Status: Open
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/014-improve-adr-validation-rules.md`
