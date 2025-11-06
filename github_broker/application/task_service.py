@@ -358,10 +358,12 @@ class TaskService:
 
         # 最高優先度バケットのIssueのみをフィルタリング
         top_priority_key = self._get_priority_key(sorted_issues[0])
-        top_priority_issues = list(itertools.takewhile(
-            lambda issue: self._get_priority_key(issue) == top_priority_key,
-            sorted_issues,
-        ))
+        top_priority_issues = list(
+            itertools.takewhile(
+                lambda issue: self._get_priority_key(issue) == top_priority_key,
+                sorted_issues,
+            )
+        )
 
         logger.info(
             "最高優先度バケットのIssueにフィルタリングしました: %s",
@@ -490,7 +492,9 @@ class TaskService:
                     )
                 raise
 
-        logger.info(f"[agent_id={agent_id}] No assignable and unlocked issues found in the top priority bucket.")
+        logger.info(
+            f"[agent_id={agent_id}] No assignable and unlocked issues found in the top priority bucket."
+        )
         return None
 
     async def request_task(self, agent_id: str) -> TaskResponse | None:

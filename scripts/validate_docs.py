@@ -56,7 +56,9 @@ def validate_filename_and_folder_structure(filepath: str):
             elif prefix in ("story-", "task-"):
                 # story-*.md は plans/*/stories/ に、 task-*.md は plans/*/tasks/ にあるべき
                 # path.parent.name が 'stories' または 'tasks' であることを確認
-                expected_parent_name = expected_dir.split('/')[-1] # 'stories' or 'tasks'
+                expected_parent_name = expected_dir.split("/")[
+                    -1
+                ]  # 'stories' or 'tasks'
                 if path.parent.name != expected_parent_name:
                     errors.append(
                         f"File '{filepath}' with prefix '{prefix}' must be in a '{expected_parent_name}/' subdirectory under 'plans/'."
@@ -103,8 +105,12 @@ def main():
                     filepath = Path(root) / file
 
                     try:
-                        all_errors.extend(validate_filename_and_folder_structure(str(filepath)))
-                        all_errors.extend(validate_required_sections(str(filepath), sections))
+                        all_errors.extend(
+                            validate_filename_and_folder_structure(str(filepath))
+                        )
+                        all_errors.extend(
+                            validate_required_sections(str(filepath), sections)
+                        )
                     except Exception as e:
                         all_errors.append(f"Internal Error validating {filepath}: {e}")
 
