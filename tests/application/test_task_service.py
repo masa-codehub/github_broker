@@ -325,6 +325,69 @@ async def test_request_task_with_various_agent_configs(
 
 @pytest.mark.unit
 @pytest.mark.anyio
+async def test_request_task_with_dynamic_agent_config_integration_style(
+    task_service_factory,
+    mock_redis_client,
+    mock_github_client,
+):
+    """
+    動的なエージェント設定を使用してrequest_taskが正しくタスクを割り当てることをテストします。
+    これはIssue #1693の統合テストシナリオをモックで再現します。
+    """
+    # Arrange
+    integration_tester_role = "INTEGRATION_TESTER"
+    dynamic_agent_configs = [
+        AgentConfig(role=integration_tester_role, description="Integration Tester tasks")
+    ]
+    task_service = task_service_factory(dynamic_agent_configs)
+    agent_id = "integration-agent"
+
+    # テスト用のIssueを作成（INTEGRATION_TESTERラベルを持つ）
+    issue_for_integration_test = create_mock_issue(
+        number=9999,
+        title="Integration Test Task for Issue 1693",
+        body="""## 成果物\n- integration_test.py""",
+        labels=[integration_tester_role, "P1"],
+    )
+    cached_issues = [issue_for_integration_test]
+    issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
+
+    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
+    mock_redis_client.get_values.return_value = [
+        json.dumps(issue) for issue in cached_issues
+    ]
+    mock_github_client.find_issues_by_labels.return_value = []
+    mock_redis_client.acquire_lock.return_value = True
+
+    # Act
+    result = await task_service.request_task(agent_id=agent_id)
+
+    # Assert
+    assert result is not None
+    assert result.issue_id == issue_for_integration_test["number"]
+    assert result.required_role == integration_tester_role
+    mock_redis_client.acquire_lock.assert_called_once_with(
+        f"issue_lock_{issue_for_integration_test['number']}", agent_id, timeout=600
+    )
+    task_service.gemini_executor.build_prompt.assert_called_once_with(
+        html_url=issue_for_integration_test["html_url"],
+        branch_name="feature/issue-9999"
+
+    )
+    mock_redis_client.set_value.assert_called_once_with(
+        f"agent_current_task:{agent_id}", str(issue_for_integration_test["number"]), timeout=3600
+    )
+    # TaskServiceによってラベルが追加されることを検証
+    # add_labelがacquire_lockより後に何度も呼ばれるため、正確な呼び出し順序を追跡するためにall_callsを使用
+    add_label_calls = list(mock_github_client.add_label.call_args_list)
+    assert len(add_label_calls) >= 2 # in-progressとエージェントIDのラベル
+    assert any(call.args == (issue_for_integration_test["number"], "in-progress") for call in add_label_calls)
+    assert any(call.args == (issue_for_integration_test["number"], agent_id) for call in add_label_calls)
+
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
 async def test_request_task_no_matching_role_label_issue(
     task_service, mock_redis_client, mock_github_client
 ):
