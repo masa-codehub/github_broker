@@ -1,33 +1,51 @@
+import logging
 from pathlib import Path
 
 import yaml
+from pydantic import ValidationError
 
 from github_broker.domain.agent_config import AgentConfig
+from github_broker.infrastructure.config import Settings
 
 
 class AgentConfigLoader:
     """
-    Loads and validates agent configuration from a YAML file.
+    エージェント設定ファイル（YAML）を読み込み、バリデーションを行うクラス。
     """
-    def __init__(self, config_path: Path):
-        self.config_path = config_path
+
+    def __init__(self, settings: Settings):
+        self.settings = settings
+        self.logger = logging.getLogger(self.__class__.__name__)
 
     def load_config(self) -> AgentConfig:
         """
-        Loads the YAML file, validates it against the AgentConfig model,
-        and returns the validated AgentConfig object.
+        設定ファイルパスからエージェント設定を読み込み、AgentConfigを返します。
 
         Raises:
-            FileNotFoundError: If the configuration file does not exist.
-            yaml.YAMLError: If the file content is not valid YAML syntax.
-            ValidationError: If the YAML content does not conform to the Pydantic model.
+            FileNotFoundError: 設定ファイルが見つからない場合。
+            ValueError: 設定ファイルの形式が不正な場合。
         """
-        if not self.config_path.exists():
-            raise FileNotFoundError(f"Agent configuration file not found at: {self.config_path}")
+        config_path = Path(self.settings.AGENT_CONFIG_PATH)
 
-        with open(self.config_path, encoding="utf-8") as f:
-            raw_config = yaml.safe_load(f)
+        if not config_path.exists():
+            error_msg = f"Agent configuration file not found at: {config_path.resolve()}"
+            self.logger.error(error_msg)
+            raise FileNotFoundError(error_msg)
 
-        # Pydanticによる検証
-        return AgentConfig.model_validate(raw_config)
+        self.logger.info(f"Loading agent configuration from: {config_path.resolve()}")
 
+        try:
+            with open(config_path, encoding="utf-8") as f:
+                raw_config = yaml.safe_load(f)
+        except yaml.YAMLError as e:
+            error_msg = f"Error parsing YAML file at {config_path.resolve()}: {e}"
+            self.logger.error(error_msg)
+            raise ValueError(error_msg) from e
+
+        try:
+            # Pydanticモデルでバリデーション
+            return AgentConfig.model_validate(raw_config)
+        except ValidationError as e:
+            error_msg = f"Agent configuration validation failed for {config_path.resolve()}: {e}"
+            self.logger.error(error_msg)
+            raise ValueError(error_msg) from e

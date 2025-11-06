@@ -1,8 +1,7 @@
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
-import yaml
-from pydantic import ValidationError
 
 # 存在しないが、テスト対象のクラスとモデルをインポート
 from github_broker.domain.agent_config import AgentConfig, AgentDefinition
@@ -65,8 +64,10 @@ def create_temp_yaml_file(tmp_path: Path):
 def test_load_config_success(create_temp_yaml_file, valid_yaml_content: str):
     """有効なYAMLファイルを正常に読み込み、AgentConfigオブジェクトを返すことを検証する。"""
     yaml_path = create_temp_yaml_file(valid_yaml_content)
+    settings = MagicMock()
+    settings.AGENT_CONFIG_PATH = str(yaml_path)
 
-    loader = AgentConfigLoader(config_path=yaml_path)
+    loader = AgentConfigLoader(settings=settings)
     result = loader.load_config()
 
     assert isinstance(result, AgentConfig)
@@ -84,28 +85,32 @@ def test_load_config_success(create_temp_yaml_file, valid_yaml_content: str):
 
 def test_load_config_file_not_found():
     """ファイルが存在しない場合にFileNotFoundErrorをスローすることを検証する。"""
-    non_existent_path = Path("/non/existent/path/agents.yml")
-    loader = AgentConfigLoader(config_path=non_existent_path)
+    non_existent_path = "/non/existent/path/agents.yml"
+    settings = MagicMock()
+    settings.AGENT_CONFIG_PATH = non_existent_path
+    loader = AgentConfigLoader(settings=settings)
 
     with pytest.raises(FileNotFoundError):
         loader.load_config()
 
 
 def test_load_config_invalid_yaml_syntax(create_temp_yaml_file, invalid_yaml_syntax: str):
-    """不正なYAML構文の場合にyaml.YAMLErrorをスローすることを検証する。"""
+    """不正なYAML構文の場合にValueErrorをスローすることを検証する。"""
     yaml_path = create_temp_yaml_file(invalid_yaml_syntax)
+    settings = MagicMock()
+    settings.AGENT_CONFIG_PATH = str(yaml_path)
+    loader = AgentConfigLoader(settings=settings)
 
-    loader = AgentConfigLoader(config_path=yaml_path)
-
-    with pytest.raises(yaml.YAMLError):
+    with pytest.raises(ValueError):
         loader.load_config()
 
 
 def test_load_config_pydantic_validation_error(create_temp_yaml_file, invalid_pydantic_data: str):
-    """Pydanticの検証に失敗した場合にValidationErrorをスローすることを検証する。"""
+    """Pydanticの検証に失敗した場合にValueErrorをスローすることを検証する。"""
     yaml_path = create_temp_yaml_file(invalid_pydantic_data)
+    settings = MagicMock()
+    settings.AGENT_CONFIG_PATH = str(yaml_path)
+    loader = AgentConfigLoader(settings=settings)
 
-    loader = AgentConfigLoader(config_path=yaml_path)
-
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValueError):
         loader.load_config()
