@@ -8,8 +8,19 @@ import pytest
 from github import GithubException
 
 from github_broker.application.task_service import TaskService
+from github_broker.domain.agent_config import AgentDefinition
 from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
 from github_broker.interface.models import TaskType
+
+
+@pytest.fixture
+def mock_agent_configs():
+    """テスト用のAgentConfigリストを提供します。"""
+    return [
+        AgentDefinition(role="BACKENDCODER", description="Backend tasks"),
+        AgentDefinition(role="FRONTENDCODER", description="Frontend tasks"),
+        AgentDefinition(role="PRODUCT_MANAGER", description="PM tasks"),
+    ]
 
 
 @pytest.fixture
@@ -25,7 +36,7 @@ def mock_github_client():
 
 
 @pytest.fixture
-def task_service(mock_redis_client, mock_github_client):
+def task_service(mock_redis_client, mock_github_client, mock_agent_configs):
     """TaskServiceのテストインスタンスを提供します。"""
     mock_settings = MagicMock()
     mock_settings.GITHUB_REPOSITORY = "test/repo"
@@ -42,13 +53,45 @@ def task_service(mock_redis_client, mock_github_client):
     mock_gemini_executor_instance.execute = AsyncMock(
         return_value="Gemini Executor Output"
     )
-
     return TaskService(
         redis_client=mock_redis_client,
         github_client=mock_github_client,
         settings=mock_settings,
         gemini_executor=mock_gemini_executor_instance,
+        agent_configs=mock_agent_configs,
     )
+
+
+@pytest.fixture
+def task_service_factory(mock_redis_client, mock_github_client):
+    """TaskServiceのインスタンスを動的に作成するファクトリを提供します。"""
+
+    def _factory(agent_configs):
+        mock_settings = MagicMock()
+        mock_settings.GITHUB_REPOSITORY = "test/repo"
+        mock_settings.GITHUB_INDEXING_WAIT_SECONDS = 0
+        mock_settings.POLLING_INTERVAL_SECONDS = 60
+        mock_settings.LONG_POLLING_CHECK_INTERVAL = 5
+        mock_settings.REVIEW_TIMEOUT_MINUTES = 10
+
+        mock_gemini_executor_instance = MagicMock(spec=GeminiExecutor)
+        mock_gemini_executor_instance.build_prompt.return_value = "Generated Prompt"
+        mock_gemini_executor_instance.build_code_review_prompt.return_value = (
+            "Generated Code Review Prompt"
+        )
+        mock_gemini_executor_instance.execute = AsyncMock(
+            return_value="Gemini Executor Output"
+        )
+
+        return TaskService(
+            redis_client=mock_redis_client,
+            github_client=mock_github_client,
+            settings=mock_settings,
+            gemini_executor=mock_gemini_executor_instance,
+            agent_configs=agent_configs,
+        )
+
+    return _factory
 
 
 def create_mock_issue(
@@ -191,6 +234,156 @@ async def test_request_task_selects_and_sets_required_role_from_cache(
     mock_redis_client.set_value.assert_called_once_with(
         f"agent_current_task:{agent_id}", str(issue2["number"]), timeout=3600
     )
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "name, agent_roles, expected_issue_id, expected_role",
+    [
+        (
+            "default_config_selects_backend",
+            [
+                AgentDefinition(role="BACKENDCODER", description="Backend tasks"),
+                AgentDefinition(role="FRONTENDCODER", description="Frontend tasks"),
+                AgentDefinition(role="PRODUCT_MANAGER", description="PM tasks"),
+            ],
+            1,
+            "BACKENDCODER",
+        ),
+        (
+            "frontend_only_selects_frontend",
+            [AgentDefinition(role="FRONTENDCODER", description="Frontend tasks")],
+            2,
+            "FRONTENDCODER",
+        ),
+        (
+            "system_architect_only_selects_system_architect",
+            [AgentDefinition(role="SYSTEM_ARCHITECT", description="Arch tasks")],
+            3,
+            "SYSTEM_ARCHITECT",
+        ),
+    ],
+)
+async def test_request_task_with_various_agent_configs(
+    name,
+    agent_roles,
+    expected_issue_id,
+    expected_role,
+    task_service_factory,
+    mock_redis_client,
+    mock_github_client,
+):
+    """異なるAgentConfig設定でタスク割り当てが正しく行われることをテストします。"""
+    # Arrange
+    task_service = task_service_factory(agent_roles)
+    agent_id = "test-agent"
+
+    issue_backend = create_mock_issue(
+        number=1,
+        title="Backend Task",
+        body="""## 成果物\n- backend.py""",
+        labels=["BACKENDCODER", "P1"],
+    )
+    issue_frontend = create_mock_issue(
+        number=2,
+        title="Frontend Task",
+        body="""## 成果物\n- frontend.js""",
+        labels=["FRONTENDCODER", "P1"],
+    )
+    issue_unconfigured = create_mock_issue(
+        number=3,
+        title="Unconfigured Task",
+        body="""## 成果物\n- unconfigured.py""",
+        labels=["SYSTEM_ARCHITECT", "P1"],
+    )
+
+    # 優先度順にソートされるため、Issue 1, 2, 3 の順に処理される
+    cached_issues = [issue_backend, issue_frontend, issue_unconfigured]
+    issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
+    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
+    mock_redis_client.get_values.return_value = [
+        json.dumps(issue) for issue in cached_issues
+    ]
+    mock_github_client.find_issues_by_labels.return_value = []
+    mock_redis_client.acquire_lock.return_value = True
+
+    # Act
+    result = await task_service.request_task(agent_id=agent_id)
+
+    # Assert
+    if expected_issue_id is None:
+        assert result is None
+    else:
+        assert result is not None
+        assert result.issue_id == expected_issue_id
+        assert result.required_role == expected_role
+        mock_redis_client.acquire_lock.assert_called_once_with(
+            f"issue_lock_{expected_issue_id}", agent_id, timeout=600
+        )
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
+async def test_request_task_with_dynamic_agent_config_integration_style(
+    task_service_factory,
+    mock_redis_client,
+    mock_github_client,
+):
+    """
+    動的なエージェント設定を使用してrequest_taskが正しくタスクを割り当てることをテストします。
+    これはIssue #1693の統合テストシナリオをモックで再現します。
+    """
+    # Arrange
+    integration_tester_role = "INTEGRATION_TESTER"
+    dynamic_agent_configs = [
+        AgentDefinition(role=integration_tester_role, description="Integration Tester tasks")
+    ]
+    task_service = task_service_factory(dynamic_agent_configs)
+    agent_id = "integration-agent"
+
+    # テスト用のIssueを作成（INTEGRATION_TESTERラベルを持つ）
+    issue_for_integration_test = create_mock_issue(
+        number=9999,
+        title="Integration Test Task for Issue 1693",
+        body="""## 成果物\n- integration_test.py""",
+        labels=[integration_tester_role, "P1"],
+    )
+    cached_issues = [issue_for_integration_test]
+    issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
+
+    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
+    mock_redis_client.get_values.return_value = [
+        json.dumps(issue) for issue in cached_issues
+    ]
+    mock_github_client.find_issues_by_labels.return_value = []
+    mock_redis_client.acquire_lock.return_value = True
+
+    # Act
+    result = await task_service.request_task(agent_id=agent_id)
+
+    # Assert
+    assert result is not None
+    assert result.issue_id == issue_for_integration_test["number"]
+    assert result.required_role == integration_tester_role
+    mock_redis_client.acquire_lock.assert_called_once_with(
+        f"issue_lock_{issue_for_integration_test['number']}", agent_id, timeout=600
+    )
+    task_service.gemini_executor.build_prompt.assert_called_once_with(
+        html_url=issue_for_integration_test["html_url"],
+        branch_name="feature/issue-9999"
+
+    )
+    mock_redis_client.set_value.assert_called_once_with(
+        f"agent_current_task:{agent_id}", str(issue_for_integration_test["number"]), timeout=3600
+    )
+    # TaskServiceによってラベルが追加されることを検証
+    # add_labelがacquire_lockより後に何度も呼ばれるため、正確な呼び出し順序を追跡するためにall_callsを使用
+    add_label_calls = list(mock_github_client.add_label.call_args_list)
+    assert len(add_label_calls) >= 2 # in-progressとエージェントIDのラベル
+    assert any(call.args == (issue_for_integration_test["number"], "in-progress") for call in add_label_calls)
+    assert any(call.args == (issue_for_integration_test["number"], agent_id) for call in add_label_calls)
+
 
 
 @pytest.mark.unit

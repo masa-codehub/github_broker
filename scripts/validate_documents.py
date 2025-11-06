@@ -11,7 +11,7 @@ from github_broker.infrastructure.document_validation.document_validator import 
     validate_sections,
 )
 
-logging.basicConfig(level=logging.ERROR, stream=sys.stderr, format='%(message)s')
+logging.basicConfig(level=logging.ERROR, stream=sys.stderr, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 
