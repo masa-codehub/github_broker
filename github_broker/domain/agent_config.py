@@ -8,7 +8,7 @@ class AgentDefinition(BaseModel):
     """
     role: str = Field(..., description="The unique role name of the agent (e.g., BACKENDCODER).")
     description: str = Field(..., description="A brief description of the agent's responsibilities.")
-    prompt: str = Field(..., description="The full system prompt/persona for the agent.")
+    prompt: str | None = Field(None, description="The full system prompt/persona for the agent.")
 
 class AgentConfig(BaseModel):
     """

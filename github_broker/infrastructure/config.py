@@ -29,4 +29,4 @@ class Settings(BaseSettings):
     GEMINI_EXECUTOR_PROMPT_FILE: str = (
         "github_broker/infrastructure/prompts/gemini_executor.yml"
     )
-    AGENT_CONFIG_PATH: str = os.environ.get("AGENT_CONFIG_PATH", "/app/agents.yml")
+    AGENT_CONFIG_PATH: str = "/app/agents.yml"

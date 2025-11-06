@@ -25,7 +25,7 @@ class AgentConfigLoader:
         if not self.config_path.exists():
             raise FileNotFoundError(f"Agent configuration file not found at: {self.config_path}")
 
-        with open(self.config_path) as f:
+        with open(self.config_path, encoding="utf-8") as f:
             raw_config = yaml.safe_load(f)
 
         # Pydanticによる検証

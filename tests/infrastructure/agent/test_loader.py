@@ -42,9 +42,8 @@ def invalid_pydantic_data() -> str:
     """Pydanticの検証に失敗する（必須フィールド欠落）YAMLコンテンツを返すフィクスチャ。"""
     return """
 agents:
-  - role: BACKENDCODER
-    description: Backend development and architecture.
-    # promptフィールドが欠落
+  - description: Backend development and architecture.
+    prompt: The system prompt for the backend coder.
   - role: FRONTENDCODER
     description: Frontend development and UI/UX.
     prompt: The system prompt for the frontend coder.
@@ -57,7 +56,7 @@ def create_temp_yaml_file(tmp_path: Path):
         d = tmp_path / "config"
         d.mkdir(exist_ok=True)
         p = d / "agents.yml"
-        p.write_text(content)
+        p.write_text(content, encoding="utf-8")
         return p
     return _create_temp_yaml_file
 
