@@ -398,19 +398,47 @@ class TaskService:
                 )
 
                 if task_type == TaskType.REVIEW:
-                    # Issue #1819: レビューに必要な情報の取得
-                    review_pr_url, pr_number = self.github_client.get_pr_for_issue(task.issue_id)
-                    review_comments = self.github_client.get_pull_request_review_comments(pr_number)
+                    logger.info(
+                        f"[issue_id={task.issue_id}] Task is a review task. Finding linked PR and retrieving review comments."
+                    )
+                    # Issueに紐づくPRを取得
+                    pull_request = self.github_client.get_pr_for_issue(task.issue_id)
+                    if not pull_request:
+                        logger.warning(
+                            f"[issue_id={task.issue_id}] No linked PR found for review task. Skipping."
+                        )
+                        # ロックを解放して次のIssueを試す
+                        self.redis_client.release_lock(lock_key)
+                        logger.info(
+                            f"[issue_id={task.issue_id}, agent_id={agent_id}] Released lock."
+                        )
+                        continue
 
-                    # Issue #1820: レビュー用プロンプトの生成
+                    pr_number = pull_request.number
+                    pr_url = pull_request.html_url
+
+                    # レビューコメントを取得
+                    review_comments_raw = (
+                        self.github_client.get_pull_request_review_comments(pr_number)
+                    )
+                    review_comments = [
+                        comment["body"] for comment in review_comments_raw
+                    ]
+
+                    # プロンプト生成
                     prompt = self.gemini_executor.build_code_review_prompt(
-                        pr_url=review_pr_url,
-                        review_comments=review_comments,
+                        pr_url=pr_url, review_comments=review_comments
+                    )
+                    logger.info(
+                        f"[issue_id={task.issue_id}, pr_number={pr_number}] Used gemini_executor.build_code_review_prompt."
                     )
                 else:
-                    # Issue #1820: 開発用プロンプトの生成
+                    # 開発タスクの場合
                     prompt = self.gemini_executor.build_prompt(
                         html_url=task.html_url, branch_name=branch_name
+                    )
+                    logger.info(
+                        f"[issue_id={task.issue_id}] Used gemini_executor.build_prompt."
                     )
 
                 gemini_response = await self.gemini_executor.execute(

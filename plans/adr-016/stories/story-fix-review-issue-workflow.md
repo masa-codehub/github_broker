@@ -1,10 +1,15 @@
 # 【Story】レビュー修正タスクのワークフロー修正
+# Issue: #1817
 
 ## 親Issue (Parent Issue)
 - (Epic起票後に追記)
 
 ## 子Issue (Sub-Issues)
-- (起票後に追記)
+- #1818
+- #1819
+- #1820
+- #1821
+- #1823
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/016-fix-review-issue-assignment-logic.md`
@@ -23,7 +28,8 @@
 2. `Task: プロンプト生成に必要な情報取得ロジックの追加` を実行する。
 3. `Task: プロンプト切り替えロジックの追加` を実行する。
 4. `Task: 動作検証のためのログ追加とテストコード修正` を実行する。
-5. 統合テストを通じて、Storyの目標が達成されていることを確認する。
+5. `Task: ADR-016の設計ドキュメントへの反映` を実行する。
+6. 統合テストを通じて、Storyの目標が達成されていることを確認する。
 
 ## 完了条件 (Acceptance Criteria)
 - このStoryを構成する全てのTaskの実装が完了していること。
