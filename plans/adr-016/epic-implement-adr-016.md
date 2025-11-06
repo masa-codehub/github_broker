@@ -1,10 +1,11 @@
 # 【Epic】ADR-016: レビュー修正タスクのワークフロー改善
+# Issue: #1816
 
 ## 親Issue (Parent Issue)
 - (なし)
 
 ## 子Issue (Sub-Issues)
-- (起票後に追記)
+- #1817
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/016-fix-review-issue-assignment-logic.md`

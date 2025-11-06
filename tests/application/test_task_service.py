@@ -637,8 +637,12 @@ async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
 ):
     """'needs-review'ラベルを持つIssueが割り当てられた際に、task_typeが'review'に設定されることをテストします。"""
     # Arrange
+    issue_id = 1
+    pr_number = 101
+    pr_url = f"https://github.com/test/repo/pull/{pr_number}"
+
     issue = create_mock_issue(
-        number=1,
+        number=issue_id,
         title="Review Task",
         body="""## 成果物\n- review.py""",
         labels=["BACKENDCODER", "needs-review"],
@@ -659,6 +663,19 @@ async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
     )
     mock_redis_client.get_value.return_value = old_timestamp.isoformat()
 
+    # モックのPRオブジェクトを作成し、get_pr_for_issueが返すように設定
+    mock_pr = MagicMock()
+    mock_pr.number = pr_number
+    mock_pr.html_url = pr_url
+    mock_github_client.get_pr_for_issue.return_value = mock_pr
+
+    # レビューコメントのモック設定
+    mock_review_comments_raw = [{"body": "Comment 1"}, {"body": "Comment 2"}]
+    mock_review_comments = [comment["body"] for comment in mock_review_comments_raw]
+    mock_github_client.get_pull_request_review_comments.return_value = (
+        mock_review_comments_raw
+    )
+
     agent_id = "test-agent"
 
     # Act
@@ -673,10 +690,11 @@ async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
     mock_redis_client.acquire_lock.assert_called_once_with(
         "issue_lock_1", agent_id, timeout=600
     )
-    task_service.gemini_executor.build_prompt.assert_called_once_with(
-        html_url=issue["html_url"],
-        branch_name="feature/issue-1",
+    task_service.gemini_executor.build_code_review_prompt.assert_called_once_with(
+        pr_url=pr_url,
+        review_comments=mock_review_comments,
     )
+    task_service.gemini_executor.build_prompt.assert_not_called()
     mock_redis_client.set_value.assert_called_once_with(
         f"agent_current_task:{agent_id}", str(issue["number"]), timeout=3600
     )
@@ -1272,3 +1290,137 @@ async def test_request_task_returns_none_immediately_if_no_task_available(
         labels=["in-progress", agent_id]
     )
     mock_redis_client.get_keys_by_pattern.assert_called_once_with("issue:*")
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
+async def test_find_first_assignable_task_uses_build_code_review_prompt_for_review_task(
+    task_service, mock_redis_client, mock_github_client, caplog
+):
+    """
+    needs-reviewラベルを持つIssueが割り当てられた際に、
+    build_code_review_promptが呼び出され、適切なログが出力されることをテストします。
+    """
+    # Arrange
+    agent_id = "test-agent"
+    issue_id = 1
+    pr_number = 101  # Issueとは異なる番号を意図的に使用
+    pr_url = f"https://github.com/test/repo/pull/{pr_number}"
+
+    issue = create_mock_issue(
+        number=issue_id,
+        title="Review Task",
+        body="""## 成果物\n- review.py""",
+        labels=["BACKENDCODER", task_service.LABEL_NEEDS_REVIEW],
+    )
+
+    # モックのPRオブジェクトを作成し、get_pr_for_issueが返すように設定
+    mock_pr = MagicMock()
+    mock_pr.number = pr_number
+    mock_pr.html_url = pr_url
+    mock_github_client.get_pr_for_issue.return_value = mock_pr
+
+    # レビュータスクとして認識させるためのRedis設定
+    old_timestamp = datetime.now(UTC) - timedelta(
+        minutes=task_service.REVIEW_ASSIGNMENT_DELAY_MINUTES + 1
+    )
+    mock_redis_client.get_value.return_value = old_timestamp.isoformat()
+
+    # モックのレビューコメント
+    mock_review_comments = [{"body": "Comment 1"}, {"body": "Comment 2"}]
+    mock_github_client.get_pull_request_review_comments.return_value = (
+        mock_review_comments
+    )
+
+    mock_redis_client.acquire_lock.return_value = True
+
+    candidate_issues = [issue]
+
+    with caplog.at_level(logging.INFO):
+        # Act
+        result = await task_service._find_first_assignable_task(
+            candidate_issues, agent_id
+        )
+
+        # Assert
+        assert result is not None
+        assert result.task_type == TaskType.REVIEW
+
+        # 1. get_pr_for_issueが正しいissue_idで呼び出されたことを検証
+        mock_github_client.get_pr_for_issue.assert_called_once_with(issue_id)
+
+        # 2. PRの番号でコメントが取得されることを検証
+        mock_github_client.get_pull_request_review_comments.assert_called_once_with(
+            pr_number
+        )
+
+        # 3. PRのURLでプロンプトが生成されることを検証
+        task_service.gemini_executor.build_code_review_prompt.assert_called_once_with(
+            pr_url=pr_url, review_comments=[c["body"] for c in mock_review_comments]
+        )
+
+        # 4. build_promptが呼び出されていないことを検証
+        task_service.gemini_executor.build_prompt.assert_not_called()
+
+        # 5. ログの検証
+        log_messages = [record.message for record in caplog.records]
+        assert any(
+            f"[issue_id={issue_id}, pr_number={pr_number}] Used gemini_executor.build_code_review_prompt."
+            in m
+            for m in log_messages
+        )
+        assert any(
+            f"[issue_id={issue_id}] Task is a review task. Finding linked PR and retrieving review comments."
+            in m
+            for m in log_messages
+        )
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
+async def test_find_first_assignable_task_uses_build_prompt_for_development_task(
+    task_service, mock_redis_client, mock_github_client, caplog
+):
+    """
+    needs-reviewラベルを持たないIssueが割り当てられた際に、
+    build_promptが呼び出され、適切なログが出力されることをテストします。
+    """
+    # Arrange
+    agent_id = "test-agent"
+    issue_id = 2
+    issue = create_mock_issue(
+        number=issue_id,
+        title="Development Task",
+        body="""## 成果物\n- dev.py""",
+        labels=["BACKENDCODER", "P1"],
+    )
+
+    mock_redis_client.acquire_lock.return_value = True
+
+    candidate_issues = [issue]
+
+    with caplog.at_level(logging.INFO):
+        # Act
+        result = await task_service._find_first_assignable_task(candidate_issues, agent_id)
+
+        # Assert
+        assert result is not None
+        assert result.task_type == TaskType.DEVELOPMENT
+
+        # 1. build_promptが呼び出されたことを検証
+        task_service.gemini_executor.build_prompt.assert_called_once_with(
+            html_url=issue["html_url"], branch_name=f"feature/issue-{issue_id}"
+        )
+
+        # 2. build_code_review_promptが呼び出されていないことを検証
+        task_service.gemini_executor.build_code_review_prompt.assert_not_called()
+
+        # 3. ログの検証
+        log_messages = [record.message for record in caplog.records]
+        assert any(
+            f"[issue_id={issue_id}] Used gemini_executor.build_prompt." in m
+            for m in log_messages
+        )
+
+        # 4. GitHubクライアントの呼び出し検証
+        mock_github_client.get_pull_request_review_comments.assert_not_called()
