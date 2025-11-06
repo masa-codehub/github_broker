@@ -4,7 +4,7 @@ from pathlib import Path
 import yaml
 from pydantic import ValidationError
 
-from github_broker.infrastructure.agent.models import AgentConfigList, AgentDefinition
+from github_broker.domain.agent_config import AgentConfig
 from github_broker.infrastructure.config import Settings
 
 
@@ -17,9 +17,9 @@ class AgentConfigLoader:
         self.settings = settings
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def load_config(self) -> list[AgentDefinition]:
+    def load_config(self) -> AgentConfig:
         """
-        設定ファイルパスからエージェント設定を読み込み、AgentDefinitionのリストを返します。
+        設定ファイルパスからエージェント設定を読み込み、AgentConfigを返します。
 
         Raises:
             FileNotFoundError: 設定ファイルが見つからない場合。
@@ -44,10 +44,8 @@ class AgentConfigLoader:
 
         try:
             # Pydanticモデルでバリデーション
-            validated_config = AgentConfigList.model_validate(raw_config)
-            return validated_config.agents
+            return AgentConfig.model_validate(raw_config)
         except ValidationError as e:
             error_msg = f"Agent configuration validation failed for {config_path.resolve()}: {e}"
             self.logger.error(error_msg)
             raise ValueError(error_msg) from e
-

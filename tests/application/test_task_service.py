@@ -8,7 +8,7 @@ import pytest
 from github import GithubException
 
 from github_broker.application.task_service import TaskService
-from github_broker.domain.agent_config import AgentConfig
+from github_broker.domain.agent_config import AgentDefinition
 from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
 from github_broker.interface.models import TaskType
 
@@ -17,9 +17,9 @@ from github_broker.interface.models import TaskType
 def mock_agent_configs():
     """テスト用のAgentConfigリストを提供します。"""
     return [
-        AgentConfig(role="BACKENDCODER", description="Backend tasks"),
-        AgentConfig(role="FRONTENDCODER", description="Frontend tasks"),
-        AgentConfig(role="PRODUCT_MANAGER", description="PM tasks"),
+        AgentDefinition(role="BACKENDCODER", description="Backend tasks"),
+        AgentDefinition(role="FRONTENDCODER", description="Frontend tasks"),
+        AgentDefinition(role="PRODUCT_MANAGER", description="PM tasks"),
     ]
 
 
@@ -244,22 +244,22 @@ async def test_request_task_selects_and_sets_required_role_from_cache(
         (
             "default_config_selects_backend",
             [
-                AgentConfig(role="BACKENDCODER", description="Backend tasks"),
-                AgentConfig(role="FRONTENDCODER", description="Frontend tasks"),
-                AgentConfig(role="PRODUCT_MANAGER", description="PM tasks"),
+                AgentDefinition(role="BACKENDCODER", description="Backend tasks"),
+                AgentDefinition(role="FRONTENDCODER", description="Frontend tasks"),
+                AgentDefinition(role="PRODUCT_MANAGER", description="PM tasks"),
             ],
             1,
             "BACKENDCODER",
         ),
         (
             "frontend_only_selects_frontend",
-            [AgentConfig(role="FRONTENDCODER", description="Frontend tasks")],
+            [AgentDefinition(role="FRONTENDCODER", description="Frontend tasks")],
             2,
             "FRONTENDCODER",
         ),
         (
             "system_architect_only_selects_system_architect",
-            [AgentConfig(role="SYSTEM_ARCHITECT", description="Arch tasks")],
+            [AgentDefinition(role="SYSTEM_ARCHITECT", description="Arch tasks")],
             3,
             "SYSTEM_ARCHITECT",
         ),
@@ -337,7 +337,7 @@ async def test_request_task_with_dynamic_agent_config_integration_style(
     # Arrange
     integration_tester_role = "INTEGRATION_TESTER"
     dynamic_agent_configs = [
-        AgentConfig(role=integration_tester_role, description="Integration Tester tasks")
+        AgentDefinition(role=integration_tester_role, description="Integration Tester tasks")
     ]
     task_service = task_service_factory(dynamic_agent_configs)
     agent_id = "integration-agent"

@@ -9,7 +9,7 @@ from github import GithubException
 from pydantic import HttpUrl
 from redis.exceptions import RedisError
 
-from github_broker.domain.agent_config import AgentConfig
+from github_broker.domain.agent_config import AgentDefinition
 from github_broker.domain.task import Task
 from github_broker.infrastructure.github_client import GitHubClient
 from github_broker.infrastructure.redis_client import RedisClient
@@ -47,7 +47,7 @@ class TaskService:
         github_client: GitHubClient,
         settings: "Settings",
         gemini_executor: "GeminiExecutor",
-        agent_configs: list[AgentConfig] | None = None,
+        agent_configs: list[AgentDefinition] | None = None,
     ):
         self.redis_client = redis_client
         self.github_client = github_client

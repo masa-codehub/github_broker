@@ -5,7 +5,7 @@ import pytest
 
 import github_broker.infrastructure.di_container as di_container_module
 from github_broker.application.task_service import TaskService
-from github_broker.infrastructure.agent.models import AgentDefinition
+from github_broker.domain.agent_config import AgentConfig, AgentDefinition
 
 
 @pytest.fixture(autouse=True)
@@ -17,7 +17,7 @@ def reset_container():
 @pytest.mark.integration
 @patch(
     "github_broker.infrastructure.agent.loader.AgentConfigLoader.load_config",
-    return_value=[AgentDefinition(role="TEST_AGENT", description="A test agent")],
+    return_value=AgentConfig(agents=[AgentDefinition(role="TEST_AGENT", description="A test agent", prompt="Test prompt")]),
 )
 def test_di_container_resolves_task_service_instance(mock_load_config):
     """
