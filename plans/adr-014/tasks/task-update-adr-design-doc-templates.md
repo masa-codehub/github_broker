@@ -1,10 +1,13 @@
 # 【Task】ADRおよびDesign Docのテンプレートを更新する
 
 ## 親Issue (Parent Issue)
-- (Story起票後に追記)
+- #1720
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/014-improve-adr-validation-rules.md`
+
+## Issue: #1728
+## Status: Open
 
 # 目的とゴール / Purpose and Goals
 ADR-014で定義された新しい検証ルールに合わせて、ADRおよびDesign Docのテンプレートを更新し、作成者が新しい規約に沿ったドキュメントを容易に作成できるようにする。

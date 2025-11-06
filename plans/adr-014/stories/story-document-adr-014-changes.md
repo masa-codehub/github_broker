@@ -1,10 +1,14 @@
 # 【Story】ADR-014の変更点をドキュメント化する
 
 ## 親Issue (Parent Issue)
-- (Epic起票後に追記)
+- #1716
 
 ## 子Issue (Sub-Issues)
-- (Task起票後に追記)
+- #1727
+- #1728
+
+## Issue: #1720
+## Status: Open
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/014-improve-adr-validation-rules.md`

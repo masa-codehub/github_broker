@@ -1,10 +1,13 @@
 # 【Task】scripts/validate_docs.pyのテストにADRの新しい検証ケースを追加する
 
 ## 親Issue (Parent Issue)
-- (Story起票後に追記)
+- #1719
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/014-improve-adr-validation-rules.md`
+
+## Issue: #1725
+## Status: Open
 
 # 目的とゴール / Purpose and Goals
 ADRの新しい検証ルールが正しく機能することを保証するため、`scripts/validate_docs.py`のテストにADRの新しい検証ケースを追加する。
