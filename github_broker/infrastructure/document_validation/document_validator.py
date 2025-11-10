@@ -137,10 +137,8 @@ def validate_design_doc_overview(content: str) -> bool:
     Design Docの概要セクションのフォーマットを検証します。
     「# 概要 / Overview」の次の行が「デザインドキュメント:」で始まっている必要があります。
     """
-    match = re.search(r"^# 概要 / Overview\n(.*)", content, re.MULTILINE)
-    if not match:
-        return False
-    return match.group(1).strip().startswith("デザインドキュメント:")
+    pattern = r"^# 概要 / Overview\n[ \t]*デザインドキュメント:"
+    return bool(re.search(pattern, content, re.MULTILINE))
 
 
 def validate_adr_meta(content: str) -> list[str]:
