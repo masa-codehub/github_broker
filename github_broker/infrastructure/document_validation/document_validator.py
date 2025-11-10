@@ -113,7 +113,7 @@ def validate_folder_structure(file_path: str, base_path: str) -> bool:
 def _extract_headers_from_content(content: str) -> list[str]:
     """Markdownコンテンツから `#`, `##`, `###` で始まるヘッダーを抽出します。"""
     headers = re.findall(r"^(#{1,3})\s+(.*)$", content, re.MULTILINE)
-    return [f"{level} {title}".strip() for level, title in headers]
+    return [f"{level} {title.strip()}" for level, title in headers]
 
 
 def validate_sections(content: str, required_headers: list[str]) -> list[str]:
