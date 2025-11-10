@@ -3,14 +3,14 @@ from pydantic import BaseModel, Field
 
 class AgentDefinition(BaseModel):
     """
-    Defines the configuration for a single agent role.
+    単一のエージェントの役割に関する設定を定義します。
     """
-    role: str = Field(..., description="The unique role name of the agent (e.g., BACKENDCODER).")
-    description: str = Field(..., description="A brief description of the agent's responsibilities.")
-    prompt: str | None = Field(None, description="The full system prompt/persona for the agent.")
+    role: str = Field(..., description="エージェントの一意な役割名（例: BACKENDCODER）。")
+    description: str = Field(..., description="エージェントの責務に関する簡単な説明。")
+    prompt: str | None = Field(None, description="エージェントの完全なシステムプロンプト/ペルソナ。")
 
 class AgentConfig(BaseModel):
     """
-    The root configuration model for all agents.
+    すべてのエージェントのルート設定モデル。
     """
-    agents: list[AgentDefinition] = Field(..., description="A list of all agent definitions.")
+    agents: list[AgentDefinition] = Field(..., description="すべてのエージェント定義のリスト。")

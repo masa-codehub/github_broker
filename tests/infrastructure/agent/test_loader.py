@@ -3,7 +3,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-# 存在しないが、テスト対象のクラスとモデルをインポート
 from github_broker.domain.agent_config import AgentConfig, AgentDefinition
 from github_broker.infrastructure.agent.loader import AgentConfigLoader
 
