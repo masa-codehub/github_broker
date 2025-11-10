@@ -41,3 +41,5 @@ ADR-014で定義された正規表現 `^\\\[ADR-\\d+\\\]` に概要行が一致�
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/update-adr-validation-logic`
 - **作業ブランチ (Feature Branch):** `task/add-adr-summary-regex-validation`
+
+## 子Issue (Sub-Issues)

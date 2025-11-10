@@ -44,3 +44,4 @@
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/refactor-task-service-for-external-config`
 - **作業ブランチ (Feature Branch):** `task/remove-hardcoded-agent-roles`
+## 子Issue (Sub-Issues)

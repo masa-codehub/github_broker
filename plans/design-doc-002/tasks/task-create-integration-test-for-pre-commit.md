@@ -44,3 +44,5 @@
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/integrate-with-pre-commit`
 - **作業ブランチ (Feature Branch):** `task/create-integration-test-for-pre-commit`
+
+## 子Issue (Sub-Issues)
