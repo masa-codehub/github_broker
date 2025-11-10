@@ -18,11 +18,19 @@ REQUIRED_HEADERS = MappingProxyType(
             "結果 (Consequences)",
         ],
         DocumentType.DESIGN_DOC: [
-            "目的と背景 (Purpose and Background)",
-            "目標 (Goals)",
-            "非目標 (Non-Goals)",
-            "設計 (Design)",
-            "代替案 (Alternatives)",
+            "# 概要 / Overview",
+            "## 背景と課題 / Background",
+            "## ゴール / Goals",
+            "### 機能要件 / Functional Requirements",
+            "### 非機能要件 / Non-Functional Requirements",
+            "## 設計 / Design",
+            "### ハイレベル設計 / High-Level Design",
+            "### 詳細設計 / Detailed Design",
+            "## 検討した代替案 / Alternatives Considered",
+            "## セキュリティとプライバシー / Security & Privacy",
+            "## 未解決の問題 / Open Questions & Unresolved Issues",
+            "## 検証基準 / Verification Criteria",
+            "## 実装状況 / Implementation Status",
         ],
         DocumentType.PLAN: [
             "親Issue (Parent Issue)",
@@ -98,9 +106,9 @@ def validate_folder_structure(file_path: str, base_path: str) -> bool:
 
 
 def _extract_headers_from_content(content: str) -> list[str]:
-    """Markdownコンテンツから `## ` で始まるヘッダーを抽出します。"""
-    headers = re.findall(r"^##\s+(.*)$", content, re.MULTILINE)
-    return [header.strip() for header in headers]
+    """Markdownコンテンツから `#`, `##`, `###` で始まるヘッダーを抽出します。"""
+    headers = re.findall(r"^(#{1,3})\s+(.*)$", content, re.MULTILINE)
+    return [f"{level} {title}".strip() for level, title in headers]
 
 
 def validate_sections(content: str, required_headers: list[str]) -> list[str]:
@@ -117,4 +125,16 @@ def validate_sections(content: str, required_headers: list[str]) -> list[str]:
 def get_required_headers(doc_type: DocumentType) -> list[str]:
     """ドキュメントタイプに応じた必須ヘッダーのリストを返します。"""
     return REQUIRED_HEADERS.get(doc_type, [])
+
+
+def validate_design_doc_overview(content: str) -> bool:
+    """
+    Design Docの概要セクションのフォーマットを検証します。
+    「# 概要 / Overview」の次の行が「デザインドキュメント:」で始まっている必要があります。
+    """
+    match = re.search(r"^# 概要 / Overview\n(.*)", content, re.MULTILINE)
+    if not match:
+        return False
+    return match.group(1).strip().startswith("デザインドキュメント:")
+
 
