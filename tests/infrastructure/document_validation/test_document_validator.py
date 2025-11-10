@@ -232,10 +232,43 @@ def test_validate_design_doc_overview_success():
     assert validate_design_doc_overview(content) is True
 
 
+def test_validate_design_doc_overview_success_with_whitespace():
+    content = """
+# 概要 / Overview
+  デザインドキュメント: test
+"""
+    assert validate_design_doc_overview(content) is True
+
+
+def test_validate_design_doc_overview_success_no_extra_text():
+    content = """
+# 概要 / Overview
+デザインドキュメント:
+"""
+    assert validate_design_doc_overview(content) is True
+
+
 def test_validate_design_doc_overview_failure():
     content = """
 # 概要 / Overview
 これはデザインドキュメントです
+"""
+    assert validate_design_doc_overview(content) is False
+
+
+def test_validate_design_doc_overview_failure_not_at_start():
+    content = """
+# 概要 / Overview
+これは デザインドキュメント: です
+"""
+    assert validate_design_doc_overview(content) is False
+
+
+def test_validate_design_doc_overview_failure_with_newline():
+    content = """
+# 概要 / Overview
+
+デザインドキュメント: test
 """
     assert validate_design_doc_overview(content) is False
 

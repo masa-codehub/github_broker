@@ -42,3 +42,5 @@ ADR-014で定義された全ての必須セクションが`scripts/validate_docs
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/update-design-doc-validation-logic`
 - **作業ブランチ (Feature Branch):** `task/add-design-doc-required-sections-validation`
+
+## 子Issue (Sub-Issues)

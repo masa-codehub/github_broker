@@ -40,3 +40,5 @@
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/integrate-with-pre-commit`
 - **作業ブランチ (Feature Branch):** `task/update-pre-commit-config`
+
+## 子Issue (Sub-Issues)

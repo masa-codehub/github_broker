@@ -41,3 +41,4 @@
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/introduce-yaml-based-agent-config`
 - **作業ブランチ (Feature Branch):** `task/create-agents-yml-sample`
+## 子Issue (Sub-Issues)

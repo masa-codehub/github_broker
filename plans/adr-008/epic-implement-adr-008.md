@@ -17,3 +17,14 @@ Epic: Implement ADR-008: Issue Branch Name Validation
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `main`
 - **作業ブランチ (Feature Branch):** `epic/implement-adr-008`
+
+
+
+
+## 親Issue (Parent Issue)
+## 子Issue (Sub-Issues)
+## As-is (現状)
+## To-be (あるべき姿)
+## 完了条件 (Acceptance Criteria)
+## 成果物 (Deliverables)
+## ブランチ戦略 (Branching Strategy)

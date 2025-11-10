@@ -38,13 +38,13 @@ REQUIRED_HEADERS = MappingProxyType(
             "## 実装状況 / Implementation Status",
         ],
         DocumentType.PLAN: [
-            "親Issue (Parent Issue)",
-            "子Issue (Sub-Issues)",
-            "As-is (現状)",
-            "To-be (あるべき姿)",
-            "完了条件 (Acceptance Criteria)",
-            "成果物 (Deliverables)",
-            "ブランチ戦略 (Branching Strategy)",
+            "## 親Issue (Parent Issue)",
+            "## 子Issue (Sub-Issues)",
+            "## As-is (現状)",
+            "## To-be (あるべき姿)",
+            "## 完了条件 (Acceptance Criteria)",
+            "## 成果物 (Deliverables)",
+            "## ブランチ戦略 (Branching Strategy)",
         ],
     }
 )
@@ -137,10 +137,8 @@ def validate_design_doc_overview(content: str) -> bool:
     Design Docの概要セクションのフォーマットを検証します。
     「# 概要 / Overview」の次の行が「デザインドキュメント:」で始まっている必要があります。
     """
-    match = re.search(r"^# 概要 / Overview\n(.*)", content, re.MULTILINE)
-    if not match:
-        return False
-    return match.group(1).strip().startswith("デザインドキュメント:")
+    pattern = r"^# 概要 / Overview\n[ \t]*デザインドキュメント:"
+    return bool(re.search(pattern, content, re.MULTILINE))
 
 
 def validate_adr_meta(content: str) -> list[str]:

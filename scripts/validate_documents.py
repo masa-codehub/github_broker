@@ -6,6 +6,8 @@ from github_broker.infrastructure.document_validation.document_validator import 
     DocumentType,
     find_target_files,
     get_required_headers,
+    validate_adr_meta,
+    validate_design_doc_overview,
     validate_filename_prefix,
     validate_folder_structure,
     validate_sections,
@@ -46,7 +48,7 @@ def main() -> int:
             )
             error_found = True
 
-        # Validate sections
+        # Validate sections and meta
         doc_type = get_doc_type(file_path)
         if doc_type:
             required_headers = get_required_headers(doc_type)
@@ -56,6 +58,22 @@ def main() -> int:
             if missing_headers:
                 logger.error(
                     f"ERROR: {file_path} - Missing required sections: {', '.join(missing_headers)}",
+                )
+                error_found = True
+
+            if doc_type == DocumentType.ADR:
+                missing_meta = validate_adr_meta(content)
+                if missing_meta:
+                    logger.error(
+                        f"ERROR: {file_path} - Missing required meta fields: {', '.join(missing_meta)}",
+                    )
+                    error_found = True
+
+            if doc_type == DocumentType.DESIGN_DOC and not validate_design_doc_overview(
+                content
+            ):
+                logger.error(
+                    f"ERROR: {file_path} - Invalid overview section. The line after '# 概要 / Overview' must start with 'デザインドキュメント:'.",
                 )
                 error_found = True
 

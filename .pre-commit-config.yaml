@@ -24,7 +24,7 @@ repos:
         types: [python]
     -   id: doc-validation
         name: Document Validation
-        entry: python scripts/validate_docs.py
+        entry: python scripts/validate_documents.py
         language: system
         files: ^(docs/adr/|docs/design-docs/|plans/).*\.md$
         pass_filenames: false
