@@ -2,9 +2,12 @@ import pytest
 
 from github_broker.infrastructure.document_validation.document_validator import (
     REQUIRED_HEADERS,
+    DocumentType,
     _extract_headers_from_content,
     find_target_files,
     get_required_headers,
+    validate_adr_meta,
+    validate_design_doc_overview,
     validate_filename_prefix,
     validate_folder_structure,
     validate_sections,
@@ -113,28 +116,38 @@ Some text.
 
 ## Section 2
 
-- list
-- item
-
 ### Subsection
 
 ## Another Section
 """
     expected_headers = [
-        "Section 1",
-        "Section 2",
-        "Another Section",
+        "# Title",
+        "## Section 1",
+        "## Section 2",
+        "### Subsection",
+        "## Another Section",
+    ]
+    assert _extract_headers_from_content(content) == expected_headers
+
+
+def test_extract_headers_from_content_all_levels():
+    content = """
+# Title 1
+## Title 2
+### Title 3
+#### Title 4
+"""
+    expected_headers = [
+        "# Title 1",
+        "## Title 2",
+        "### Title 3",
     ]
     assert _extract_headers_from_content(content) == expected_headers
 
 
 def test_extract_headers_from_content_no_headers():
     content = """
-# Title
-
 No double-sharp headers here.
-
-### Subsection
 """
     assert _extract_headers_from_content(content) == []
 
@@ -149,7 +162,7 @@ def test_validate_sections_success():
 ## Section 2
 ## Section 3
 """
-    required_headers = ["Section 1", "Section 2"]
+    required_headers = ["## Section 1", "## Section 2"]
     missing = validate_sections(content, required_headers)
     assert missing == []
 
@@ -159,16 +172,16 @@ def test_validate_sections_missing():
 ## Section 1
 ## Section 3
 """
-    required_headers = ["Section 1", "Section 2", "Section 3"]
+    required_headers = ["## Section 1", "## Section 2", "## Section 3"]
     missing = validate_sections(content, required_headers)
-    assert missing == ["Section 2"]
+    assert missing == ["## Section 2"]
 
 
 def test_validate_sections_no_headers():
     content = "No headers here."
-    required_headers = ["Section 1"]
+    required_headers = ["## Section 1"]
     missing = validate_sections(content, required_headers)
-    assert missing == ["Section 1"]
+    assert missing == ["## Section 1"]
 
 
 def test_validate_sections_empty_required():
@@ -176,6 +189,21 @@ def test_validate_sections_empty_required():
     required_headers = []
     missing = validate_sections(content, required_headers)
     assert missing == []
+
+
+def test_validate_sections_design_doc_missing_new_sections():
+    content = """
+# 概要 / Overview
+デザインドキュメント: test
+## ゴール / Goals
+## 設計 / Design
+"""
+    required_headers = get_required_headers(DocumentType.DESIGN_DOC)
+    missing = validate_sections(content, required_headers)
+    assert "## 背景と課題 / Background" in missing
+    assert "### 機能要件 / Functional Requirements" in missing
+    assert "### 非機能要件 / Non-Functional Requirements" in missing
+
 
 
 @pytest.mark.parametrize(
@@ -194,3 +222,52 @@ def test_get_required_headers_unknown_type():
         UNKNOWN = auto()
 
     assert get_required_headers(UnknownType.UNKNOWN) == []
+
+
+def test_validate_design_doc_overview_success():
+    content = """
+# 概要 / Overview
+デザインドキュメント: test
+"""
+    assert validate_design_doc_overview(content) is True
+
+
+def test_validate_design_doc_overview_failure():
+    content = """
+# 概要 / Overview
+これはデザインドキュメントです
+"""
+    assert validate_design_doc_overview(content) is False
+
+
+def test_validate_design_doc_overview_no_overview():
+    content = """
+## ゴール / Goals
+"""
+    assert validate_design_doc_overview(content) is False
+
+
+def test_validate_adr_meta_success():
+    content = """
+- Status: 提案中
+- Date: 2025-10-23
+"""
+    assert validate_adr_meta(content) == []
+
+
+def test_validate_adr_meta_failure():
+    content = """
+- state: 提案中
+- day: 2025-10-23
+"""
+    assert validate_adr_meta(content) == ["- Status:", "- Date:"]
+
+
+def test_validate_adr_meta_partial():
+    content = """
+- Status: 提案中
+- day: 2025-10-23
+"""
+    assert validate_adr_meta(content) == ["- Date:"]
+
+

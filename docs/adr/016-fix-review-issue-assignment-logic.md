@@ -1,8 +1,8 @@
 # 概要 / Summary
 [ADR-016] レビュー修正タスクのワークフロー改善
 
-- **Status**: 提案中
-- **Date**: 2025-10-25
+- Status: 提案中
+- Date: 2025-10-25
 
 ## 状況 / Context
 
@@ -115,12 +115,12 @@
 
 - 特になし。これはシステムの機能改善とバグ修正を兼ねるものです。
 
-## Verification Criteria (検証基準)
+## 検証基準 / Verification Criteria
 
 - `redis-cli` 等のツールでRedisの `issue:*` キーを確認し、`needs-review` ラベルを持つIssueのデータがキャッシュにJSON形式で保存されていること。
 - 修正後、エージェントがタスクをリクエストした際に、`needs-review` ラベルを持つIssueがタスクとして割り当てられること。
 - Brokerのログで、レビュー修正タスクが割り当てられる際、`gemini_executor.build_code_review_prompt` が使用され、開発タスクの際には `gemini_executor.build_prompt` が使用されていることが確認できること（要ログ追加）。
 - エージェントに渡されるプロンプトの内容が、タスクの種類に応じて適切に異なっていること。
 
-## Implementation Status (実装状況)
+## 実装状況 / Implementation Status
 未着手

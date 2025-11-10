@@ -2,25 +2,18 @@ import os
 import sys
 from pathlib import Path
 
+from github_broker.infrastructure.document_validation.document_validator import (
+    DocumentType,
+    get_required_headers,
+    validate_adr_meta,
+    validate_design_doc_overview,
+    validate_sections,
+)
+
 FILENAME_PREFIXES = {
     "epic-": "plans",
     "story-": "plans/stories",
     "task-": "plans/tasks",
-}
-
-REQUIRED_SECTIONS = {
-    "docs/adr": [
-        "# 概要 / Summary",
-        "## 決定 / Decision",
-        "## 状況 / Context",
-        "## 結果 / Consequences",
-    ],
-    "docs/design-docs": [
-        "# 概要 / Overview",
-        "## ゴール / Goals",
-        "## 設計 / Design",
-        "## 考慮事項 / Considerations",
-    ],
 }
 
 
@@ -66,29 +59,16 @@ def validate_filename_and_folder_structure(filepath: str):
     return errors
 
 
-def validate_required_sections(filepath: str, sections: list[str]):
-    errors = []
-    try:
-        with open(filepath, encoding="utf-8") as f:
-            content = f.read()
-    except FileNotFoundError:
-        return [f"File not found: {filepath}"]
-
-    for section in sections:
-        if section not in content:
-            errors.append(
-                f"File '{filepath}' is missing required section: '{section}'."
-            )
-    return errors
-
-
 def main():
     all_errors = []
 
     # 1. ADR と Design Doc のセクション検証
-    for target_path_str in ["docs/adr", "docs/design-docs"]:
-        sections = REQUIRED_SECTIONS.get(target_path_str, [])
-        if not sections:
+    for target_path_str, doc_type in [
+        ("docs/adr", DocumentType.ADR),
+        ("docs/design-docs", DocumentType.DESIGN_DOC),
+    ]:
+        required_sections = get_required_headers(doc_type)
+        if not required_sections:
             continue
         target_path_obj = Path(target_path_str)
         if not target_path_obj.exists() or not target_path_obj.is_dir():
@@ -98,7 +78,28 @@ def main():
                 if file.endswith(".md"):
                     filepath = Path(root) / file
                     try:
-                        all_errors.extend(validate_required_sections(str(filepath), sections))
+                        with open(filepath, encoding="utf-8") as f:
+                            content = f.read()
+                        missing_sections = validate_sections(content, required_sections)
+                        if missing_sections:
+                            for section in missing_sections:
+                                all_errors.append(
+                                    f"File '{filepath}' is missing required section: '{section}'."
+                                )
+                        if doc_type == DocumentType.ADR:
+                            missing_meta = validate_adr_meta(content)
+                            if missing_meta:
+                                for meta in missing_meta:
+                                    all_errors.append(
+                                        f"File '{filepath}' is missing required meta field: '{meta}'."
+                                    )
+                        if (
+                            doc_type == DocumentType.DESIGN_DOC
+                            and not validate_design_doc_overview(content)
+                        ):
+                            all_errors.append(
+                                f"File '{filepath}' has an invalid overview section. The line after '# 概要 / Overview' must start with 'デザインドキュメント:'."
+                            )
                     except Exception as e:
                         all_errors.append(f"Internal Error validating {filepath}: {e}")
 
