@@ -6,6 +6,7 @@ from github_broker.infrastructure.document_validation.document_validator import 
     _extract_headers_from_content,
     find_target_files,
     get_required_headers,
+    validate_adr_meta,
     validate_design_doc_overview,
     validate_filename_prefix,
     validate_folder_structure,
@@ -244,4 +245,29 @@ def test_validate_design_doc_overview_no_overview():
 ## ゴール / Goals
 """
     assert validate_design_doc_overview(content) is False
+
+
+def test_validate_adr_meta_success():
+    content = """
+- Status: 提案中
+- Date: 2025-10-23
+"""
+    assert validate_adr_meta(content) == []
+
+
+def test_validate_adr_meta_failure():
+    content = """
+- state: 提案中
+- day: 2025-10-23
+"""
+    assert validate_adr_meta(content) == ["- Status:", "- Date:"]
+
+
+def test_validate_adr_meta_partial():
+    content = """
+- Status: 提案中
+- day: 2025-10-23
+"""
+    assert validate_adr_meta(content) == ["- Date:"]
+
 

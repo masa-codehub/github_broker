@@ -5,6 +5,7 @@ from pathlib import Path
 from github_broker.infrastructure.document_validation.document_validator import (
     DocumentType,
     get_required_headers,
+    validate_adr_meta,
     validate_design_doc_overview,
     validate_sections,
 )
@@ -85,6 +86,13 @@ def main():
                                 all_errors.append(
                                     f"File '{filepath}' is missing required section: '{section}'."
                                 )
+                        if doc_type == DocumentType.ADR:
+                            missing_meta = validate_adr_meta(content)
+                            if missing_meta:
+                                for meta in missing_meta:
+                                    all_errors.append(
+                                        f"File '{filepath}' is missing required meta field: '{meta}'."
+                                    )
                         if (
                             doc_type == DocumentType.DESIGN_DOC
                             and not validate_design_doc_overview(content)

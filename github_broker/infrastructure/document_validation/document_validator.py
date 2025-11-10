@@ -13,9 +13,14 @@ class DocumentType(Enum):
 REQUIRED_HEADERS = MappingProxyType(
     {
         DocumentType.ADR: [
-            "背景 (Context)",
-            "意思決定 (Decision)",
-            "結果 (Consequences)",
+            "# 概要 / Summary",
+            "## 状況 / Context",
+            "## 決定 / Decision",
+            "## 結果 / Consequences",
+            "### メリット (Positive consequences)",
+            "### デメリット (Negative consequences)",
+            "## 検証基準 / Verification Criteria",
+            "## 実装状況 / Implementation Status",
         ],
         DocumentType.DESIGN_DOC: [
             "# 概要 / Overview",
@@ -136,5 +141,21 @@ def validate_design_doc_overview(content: str) -> bool:
     if not match:
         return False
     return match.group(1).strip().startswith("デザインドキュメント:")
+
+
+def validate_adr_meta(content: str) -> list[str]:
+    """
+    ADRファイルのメタデータを検証します。
+    - Status:
+    - Date:
+    が存在するかどうかをチェックします。
+    """
+    errors = []
+    if "- Status:" not in content:
+        errors.append("- Status:")
+    if "- Date:" not in content:
+        errors.append("- Date:")
+    return errors
+
 
 
