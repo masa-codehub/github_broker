@@ -1,4 +1,3 @@
-import re
 
 REQUIRED_SECTIONS = {
     "# 概要 / Summary",
@@ -44,26 +43,3 @@ def _extract_headers_from_content(content: str) -> set[str]:
     return headers
 
 
-def validate_adr_summary_format(content: str) -> list[str]:
-    errors = []
-    lines = content.splitlines()
-    summary_found = False
-    for i, line in enumerate(lines):
-        if line.strip() == "# 概要 / Summary":
-            summary_found = True
-            if i + 1 < len(lines):
-                next_line = lines[i + 1].strip()
-                if not re.match(r"^\[ADR-\d+\]", next_line):
-                    errors.append(
-                        "ADR summary must be followed by a line in the format '[ADR-xxx]'."
-                    )
-            else:
-                errors.append(
-                    "ADR summary must be followed by a line in the format '[ADR-xxx]'."
-                )
-            break
-
-    if not summary_found:
-        errors.append("ADR must contain a '# 概要 / Summary' section.")
-
-    return errors
