@@ -95,6 +95,7 @@ class Settings(BaseSettings):
     github_agent_config_file: str = Field(
         "agents.toml", validation_alias="GITHUB_AGENT_CONFIG_FILE"
     )
+    BROKER_PORT: int = Field(8000, validation_alias="BROKER_PORT")
 
 
 def get_settings() -> Settings:
