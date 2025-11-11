@@ -7,9 +7,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
 from github_broker.application.exceptions import LockAcquisitionError
-from github_broker.application.task_service import TaskService
 from github_broker.infrastructure.config import Settings
-from github_broker.infrastructure.di_container import create_container
 from github_broker.interface.api import router as api_router
 
 logger = logging.getLogger(__name__)
@@ -17,31 +15,15 @@ logger = logging.getLogger(__name__)
 stop_event = threading.Event()
 
 
-def run_polling_service(stop_event: threading.Event):
-    """バックグラウンドのポーリングサービスを初期化して実行します。"""
-    logger.info("Starting the GitHub Broker polling service...")
-    container = create_container()
-    task_service = container.resolve(TaskService)
-    logger.info(f"Target Repository: {task_service.repo_name}")
-    task_service.start_polling(stop_event)
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("Uvicorn server starting up...")
-    polling_thread = threading.Thread(
-        target=run_polling_service, args=(stop_event,), name="PollingService"
-    )
-    polling_thread.start()
     try:
         yield
     finally:
         # Shutdown
         logger.info("Uvicorn server shutting down...")
-        stop_event.set()
-        polling_thread.join()
-        logger.info("Polling service stopped.")
 
 
 app = FastAPI(lifespan=lifespan)

@@ -15,18 +15,32 @@ REQUIRED_SECTIONS = {
 
 
 def validate_sections(content: str) -> list[str]:
+    present_headers = _extract_headers_from_content(content)
+    content_lines = content.splitlines()
     missing_sections = []
+
     for section in REQUIRED_SECTIONS:
-        if section not in content:
+        found = False
+        if section.startswith("#"):
+            if section in present_headers:
+                found = True
+        elif section.startswith("-"):
+            for line in content_lines:
+                if line.strip().startswith(section):
+                    found = True
+                    break
+        if not found:
             missing_sections.append(section)
     return missing_sections
 
 
 def _extract_headers_from_content(content: str) -> set[str]:
+    """Extracts only Markdown headers (lines starting with #) from the content."""
     headers = set()
     for line in content.splitlines():
-        if line.startswith("#"):
-            headers.add(line.strip())
+        stripped_line = line.strip()
+        if stripped_line.startswith("#"):
+            headers.add(stripped_line)
     return headers
 
 

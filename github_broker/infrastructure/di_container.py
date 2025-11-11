@@ -34,7 +34,7 @@ def create_container(settings: Settings | None = None) -> punq.Container:
 
     # Load agent configurations
     agent_config_loader = AgentConfigLoader()
-    agent_definitions = agent_config_loader.load_from_file("agents.toml")
+    agent_definitions = agent_config_loader.load_from_file(s.github_agent_config_file)
 
     # Build container
     container = punq.Container()

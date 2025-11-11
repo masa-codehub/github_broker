@@ -92,6 +92,9 @@ class Settings(BaseSettings):
         "/app/prompts/context",
         validation_alias="GITHUB_AGENT_PROMPT_TEMPLATE_CONTEXT_SCHEMA_DIR",
     )
+    github_agent_config_file: str = Field(
+        "agents.toml", validation_alias="GITHUB_AGENT_CONFIG_FILE"
+    )
 
 
 def get_settings() -> Settings:
