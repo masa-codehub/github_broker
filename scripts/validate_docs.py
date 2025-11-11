@@ -40,6 +40,7 @@ REQUIRED_SECTIONS = {
 }
 
 ADR_SUMMARY_REGEX = re.compile(r"^\[ADR-\d+]")
+DESIGN_DOC_OVERVIEW_REGEX = re.compile(r"^デザインドキュメント:.+")
 
 
 def validate_filename_and_folder_structure(filepath: str):
@@ -118,6 +119,39 @@ def validate_adr_summary_regex(filepath: str):
     return errors
 
 
+def validate_design_doc_overview(filepath: str):
+    """
+    Validates that the line after '# 概要 / Overview' in a Design Doc
+    starts with 'デザインドキュメント:'.
+    """
+    errors = []
+    try:
+        with open(filepath, encoding="utf-8") as f:
+            content = f.readlines()
+    except FileNotFoundError:
+        return [f"File not found: {filepath}"]
+
+    try:
+        overview_index = [i for i, line in enumerate(content) if line.strip() == "# 概要 / Overview"][0]
+        overview_line = ""
+        for line in content[overview_index + 1:]:
+            stripped_line = line.strip()
+            if stripped_line:
+                overview_line = stripped_line
+                break
+        if not overview_line:
+            errors.append(f"File '{filepath}' has no overview content after '# 概要 / Overview' header.")
+            return errors
+    except IndexError:
+        return []
+
+    if not DESIGN_DOC_OVERVIEW_REGEX.match(overview_line):
+        errors.append(
+            f"File '{filepath}' overview line must match regex '{DESIGN_DOC_OVERVIEW_REGEX.pattern}'. Found: '{overview_line}'"
+        )
+    return errors
+
+
 def get_files_to_validate(files_from_args):
     if files_from_args:
         return [f for f in files_from_args if f.endswith(".md")]
@@ -148,6 +182,8 @@ def main():
                     all_errors.extend(validate_required_sections(filepath, sections))
                     if doc_type_path == "docs/adr":
                         all_errors.extend(validate_adr_summary_regex(filepath))
+                    elif doc_type_path == "docs/design-docs":
+                        all_errors.extend(validate_design_doc_overview(filepath))
 
         except Exception as e:
             all_errors.append(f"Internal Error validating {filepath}: {e}")
