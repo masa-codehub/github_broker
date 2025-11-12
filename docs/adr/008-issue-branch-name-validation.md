@@ -1,5 +1,5 @@
 # 概要 / Summary
-008-issue-branch-name-validation
+[ADR-008] issue-branch-name-validation
 
 - **Status**: Completed
 - **Completed Date**: 2025-10-19
