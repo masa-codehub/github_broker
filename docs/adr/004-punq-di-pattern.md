@@ -1,5 +1,5 @@
 # 概要 / Summary
-ADR 004: punq DIコンテナの実装パターン
+[ADR-004] punq DIコンテナの実装パターン
 
 ## 状況 / Context
 

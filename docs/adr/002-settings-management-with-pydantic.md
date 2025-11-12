@@ -1,5 +1,5 @@
 # 概要 / Summary
-ADR 002: 設定管理のリファクタリングとDocker Secretsへの移行
+[ADR-002] 設定管理のリファクタリングとDocker Secretsへの移行
 
 ## 状況 / Context
 
