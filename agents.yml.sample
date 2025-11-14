@@ -4,7 +4,7 @@
 # 実際の設定ファイルとして使用するには、プロジェクトルートに `agents.yml` としてコピーし、
 # 必要に応じて内容を編集してください。
 #
-# 詳細については、設計ドキュメント ADR-013 を参照してください。
+# 詳細については、設計ドキュメント [ADR-013](./docs/adr/013-agent-role-configuration.md) を参照してください。
 #
 agents:
   - role: BACKENDCODER
