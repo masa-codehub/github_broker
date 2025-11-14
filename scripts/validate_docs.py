@@ -12,9 +12,15 @@ FILENAME_PREFIXES = {
 REQUIRED_SECTIONS = {
     "docs/adr": [
         "# 概要 / Summary",
-        "## 決定 / Decision",
+        "- Status:",
+        "- Date:",
         "## 状況 / Context",
+        "## 決定 / Decision",
         "## 結果 / Consequences",
+        "### メリット (Positive consequences)",
+        "### デメリット (Negative consequences)",
+        "## 検証基準 / Verification Criteria",
+        "## 実装状況 / Implementation Status",
     ],
     "docs/design-docs": [
         "# 概要 / Overview",
