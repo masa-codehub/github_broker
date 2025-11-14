@@ -109,12 +109,9 @@ def validate_sections(content: str, required_headers: list[str]) -> list[str]:
         return []
 
     present_headers = set(_extract_headers_from_content(content))
-    return [
-        header for header in required_headers if header not in present_headers
-    ]
+    return [header for header in required_headers if header not in present_headers]
 
 
 def get_required_headers(doc_type: DocumentType) -> list[str]:
     """ドキュメントタイプに応じた必須ヘッダーのリストを返します。"""
     return REQUIRED_HEADERS.get(doc_type, [])
-

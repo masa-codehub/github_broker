@@ -1,7 +1,9 @@
+
 import punq
 from redis import Redis
 
 from github_broker.application.task_service import TaskService
+from github_broker.infrastructure.agent.loader import AgentConfigLoader
 from github_broker.infrastructure.config import Settings
 from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
 from github_broker.infrastructure.github_client import GitHubClient
@@ -40,17 +42,23 @@ def _create_container() -> punq.Container:
         github_token=settings.GITHUB_TOKEN,
     )
 
+    # 3. GeminiExecutorをインスタンス化
     gemini_executor = GeminiExecutor(prompt_file=settings.GEMINI_EXECUTOR_PROMPT_FILE)
 
-    # 3. 構築した依存関係をすべて使ってTaskServiceをインスタンス化
+    # 4. AgentConfigLoaderを使用してエージェント設定を読み込み
+    agent_config_loader = AgentConfigLoader(settings=settings)
+    agent_config = agent_config_loader.load_config()
+
+    # 5. 構築した依存関係をすべて使ってTaskServiceをインスタンス化
     task_service = TaskService(
         redis_client=redis_client,
         github_client=github_client,
         settings=settings,
         gemini_executor=gemini_executor,
+        agent_configs=agent_config.agents,
     )
 
-    # 4. すべての主要なインスタンスをコンテナに登録
+    # 6. すべての主要なインスタンスをコンテナに登録
     container.register(Settings, instance=settings)
     container.register(RedisClient, instance=redis_client)
     container.register(GitHubClient, instance=github_client)
