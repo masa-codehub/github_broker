@@ -183,10 +183,10 @@ Design Docには、以下のセクションがすべて含まれている必要�
 - `## 背景と課題 / Background`
 - `## ゴール / Goals`
 - `### 機能要件 / Functional Requirements`
-- `### 非機能要要件 / Non-Functional Requirements`
+- `### 非機能要件 / Non-Functional Requirements`
 - `## 設計 / Design`
 - `### ハイレベル設計 / High-Level Design`
-- `### 詳細設計 / Detailedデザイン`
+- `### 詳細設計 / Detailed Design`
 - `## 検討した代替案 / Alternatives Considered`
 - `## セキュリティとプライバシー / Security & Privacy`
 - `## 未解決の問題 / Open Questions & Unresolved Issues`
