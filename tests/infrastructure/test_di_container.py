@@ -5,6 +5,7 @@ import pytest
 
 import github_broker.infrastructure.di_container as di_container_module
 from github_broker.application.task_service import TaskService
+from github_broker.domain.agent_config import AgentConfig, AgentDefinition
 
 
 @pytest.fixture(autouse=True)
@@ -14,10 +15,15 @@ def reset_container():
 
 
 @pytest.mark.integration
-def test_di_container_resolves_task_service_instance():
+@patch(
+    "github_broker.infrastructure.agent.loader.AgentConfigLoader.load_config",
+    return_value=AgentConfig(agents=[AgentDefinition(role="TEST_AGENT", description="A test agent", prompt="Test prompt")]),
+)
+def test_di_container_resolves_task_service_instance(mock_load_config):
     """
     DIコンテナが設定と依存関係を解決し、TaskServiceのインスタンスを
     正常に作成できることを検証する統合テスト。
+    AgentConfigLoader.load_configをモック化し、ファイルシステムの存在に依存しないようにする。
     """
 
     test_env = {
@@ -40,3 +46,8 @@ def test_di_container_resolves_task_service_instance():
         # 内部のクライアントも正しく設定されているかを確認
         assert service.repo_name == "test/repo"
         assert service.github_indexing_wait_seconds == 10
+        # モックが呼ばれ、設定が反映されていることを確認
+        mock_load_config.assert_called_once()
+        assert len(service.agent_configs) == 1
+        assert service.agent_configs[0].role == "TEST_AGENT"
+
