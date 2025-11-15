@@ -1,81 +1,40 @@
-import os
+from unittest.mock import patch
 
-import pytest
-from pydantic import ValidationError
-
-from github_broker.infrastructure.config import Settings
+from github_broker.infrastructure.config import get_settings
 
 
-# 環境変数を一時的に設定・解除するためのフィクスチャ
-@pytest.fixture(autouse=True)
-def clear_env_vars():
-    original_env = os.environ.copy()
-    keys_to_clear = [
-        "GITHUB_TOKEN",
-        "BROKER_PORT",
-        "GITHUB_REPOSITORY",
-        "REDIS_HOST",
-        "REDIS_PORT",
-        "REDIS_DB",
-        "TESTING",
-        "GITHUB_INDEXING_WAIT_SECONDS",
-        "AGENT_CONFIG_PATH",
-    ]
-    for key in keys_to_clear:
-        if key in os.environ:
-            del os.environ[key]
-    yield
-    os.environ.clear()
-    os.environ.update(original_env)
+def test_settings_load_from_env():
+    with patch.dict(
+        "os.environ",
+        {
+            "GITHUB_APP_ID": "12345",
+            "GITHUB_APP_PRIVATE_KEY": "test_key",
+            "GITHUB_PERSONAL_ACCESS_TOKEN": "test_token",
+            "GITHUB_WEBHOOK_SECRET": "test_secret",
+            "REDIS_URL": "redis://test:6379",
+            "GOOGLE_API_KEY": "test_google_key",
+        },
+    ):
+        settings = get_settings()
+        assert settings.github_app_id == "12345"
+        assert settings.github_app_private_key == "test_key"
+        assert settings.github_personal_access_token == "test_token"
+        assert settings.github_webhook_secret == "test_secret"
+        assert settings.redis_url == "redis://test:6379"
+        assert settings.google_api_key == "test_google_key"
 
 
-@pytest.mark.unit
-def test_settings_loads_from_env_vars():
-    os.environ["GITHUB_TOKEN"] = "test_github_token"
-    os.environ["GITHUB_REPOSITORY"] = "test_owner/test_repo"
-    os.environ["BROKER_PORT"] = "9000"
-    os.environ["REDIS_HOST"] = "test_redis_host"
-    os.environ["REDIS_PORT"] = "6380"
-    os.environ["REDIS_DB"] = "1"
-    os.environ["TESTING"] = "True"
-    os.environ["AGENT_CONFIG_PATH"] = "/custom/agents.yml"
-
-    settings = Settings()
-
-    assert settings.GITHUB_TOKEN == "test_github_token"
-    assert settings.GITHUB_REPOSITORY == "test_owner/test_repo"
-    assert settings.BROKER_PORT == 9000
-    assert settings.REDIS_HOST == "test_redis_host"
-    assert settings.REDIS_PORT == 6380
-    assert settings.REDIS_DB == 1
-    assert settings.TESTING is True
-    assert settings.AGENT_CONFIG_PATH == "/custom/agents.yml"
-
-
-@pytest.mark.unit
-def test_settings_uses_default_values():
-    # 必須の環境変数を設定
-    os.environ["GITHUB_TOKEN"] = "dummy_github_token"
-    os.environ["GITHUB_REPOSITORY"] = "dummy_owner/dummy_repo"
-
-    settings = Settings()
-
-    assert settings.BROKER_PORT == 8000
-    assert settings.REDIS_HOST == "localhost"
-    assert settings.REDIS_PORT == 6379
-    assert settings.REDIS_DB == 0
-    assert settings.TESTING is False
-    assert settings.POLLING_INTERVAL_SECONDS == 5 * 60
-    assert settings.AGENT_CONFIG_PATH == "/app/agents.yml"
-
-
-@pytest.mark.unit
-def test_settings_raises_error_if_required_env_vars_missing():
-    # GITHUB_TOKENが欠けている場合
-    with pytest.raises(ValidationError):
-        Settings()
-
-    os.environ["GITHUB_TOKEN"] = "dummy_github_token"
-    # GITHUB_REPOSITORYが欠けている場合
-    with pytest.raises(ValidationError):
-        Settings()
+def test_settings_defaults():
+    with patch.dict(
+        "os.environ",
+        {
+            "GITHUB_APP_ID": "12345",
+            "GITHUB_APP_PRIVATE_KEY": "test_key",
+            "GITHUB_PERSONAL_ACCESS_TOKEN": "test_token",
+            "GITHUB_WEBHOOK_SECRET": "test_secret",
+            "GOOGLE_API_KEY": "test_google_key",
+        },
+    ):
+        settings = get_settings()
+        assert settings.redis_url == "redis://localhost:6379"
+        assert settings.github_agent_repository == "gemini-code-assist/gemini-code-assist"

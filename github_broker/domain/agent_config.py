@@ -1,16 +1,24 @@
+from __future__ import annotations
+
 from pydantic import BaseModel, Field
 
 
 class AgentDefinition(BaseModel):
-    """
-    単一のエージェントの役割に関する設定を定義します。
-    """
-    role: str = Field(..., description="エージェントの一意な役割名（例: BACKENDCODER）。")
-    description: str = Field(..., description="エージェントの責務に関する簡単な説明。")
-    prompt: str | None = Field(None, description="エージェントの完全なシステムプロンプト/ペルソナ。")
+    role: str = Field(..., description="The role of the agent.")
+    persona: str = Field(..., description="The persona of the agent.")
+    # Eventually, we can add more fields here, like the tools available to the agent.
 
-class AgentConfig(BaseModel):
-    """
-    すべてのエージェントのルート設定モデル。
-    """
-    agents: list[AgentDefinition] = Field(..., description="すべてのエージェント定義のリスト。")
+
+class AgentConfigList(BaseModel):
+    agents: list[AgentDefinition] = Field(
+        default_factory=list, description="A list of agent definitions."
+    )
+
+    def get_all(self) -> list[AgentDefinition]:
+        return self.agents
+
+    def find_by_role(self, role: str) -> AgentDefinition | None:
+        for agent in self.agents:
+            if agent.role == role:
+                return agent
+        return None

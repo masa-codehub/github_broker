@@ -1,82 +1,57 @@
+from __future__ import annotations
+
+from typing import cast
 
 import punq
-from redis import Redis
+import redis
 
 from github_broker.application.task_service import TaskService
+from github_broker.domain.agent_config import AgentConfigList
 from github_broker.infrastructure.agent.loader import AgentConfigLoader
-from github_broker.infrastructure.config import Settings
-from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
+from github_broker.infrastructure.config import Settings, get_settings
 from github_broker.infrastructure.github_client import GitHubClient
 from github_broker.infrastructure.redis_client import RedisClient
 
-_container: punq.Container | None = None
 
+def create_container(settings: Settings | None = None) -> punq.Container:
+    s = settings or get_settings()
 
-def _create_container() -> punq.Container:
-    """
-    DIコンテナを初期化し、依存関係を手動で構築して登録します。
-    punqの自動解決機能は使用せず、明示的な依存性注入を行います。
-    """
-    container = punq.Container()
-
-    # 1. 依存関係のトップレベルであるSettingsをインスタンス化
-    settings = Settings()  # type: ignore
-
-    # 2. Settingsを使って、下位の依存関係を構築
-    redis_instance = Redis(
-        host=settings.REDIS_HOST,
-        port=settings.REDIS_PORT,
-        db=settings.REDIS_DB,
-        decode_responses=True,
-    )
+    # Parse owner and repo from repository string
     try:
-        owner, repo_name = settings.GITHUB_REPOSITORY.split("/")
-    except ValueError as e:
+        owner, repo_name = s.github_agent_repository.split("/")
+    except ValueError:
         raise ValueError(
-            "GITHUB_REPOSITORY in settings must be in 'owner/repo_name' format."
-        ) from e
+            "github_agent_repository must be in the format 'owner/repo_name'"
+        ) from None
+
+    # Create clients with correct arguments
+    github_client = GitHubClient(
+        github_repository=s.github_agent_repository,
+        github_token=s.github_personal_access_token,
+    )
+    redis_instance = redis.from_url(s.redis_url, decode_responses=True)
     redis_client = RedisClient(redis=redis_instance, owner=owner, repo_name=repo_name)
 
-    github_client = GitHubClient(
-        github_repository=settings.GITHUB_REPOSITORY,
-        github_token=settings.GITHUB_TOKEN,
-    )
+    # Load agent configurations
+    agent_config_loader = AgentConfigLoader()
+    agent_definitions = agent_config_loader.load_from_file(s.github_agent_config_file)
 
-    # 3. GeminiExecutorをインスタンス化
-    gemini_executor = GeminiExecutor(prompt_file=settings.GEMINI_EXECUTOR_PROMPT_FILE)
-
-    # 4. AgentConfigLoaderを使用してエージェント設定を読み込み
-    agent_config_loader = AgentConfigLoader(settings=settings)
-    agent_config = agent_config_loader.load_config()
-
-    # 5. 構築した依存関係をすべて使ってTaskServiceをインスタンス化
-    task_service = TaskService(
-        redis_client=redis_client,
-        github_client=github_client,
-        settings=settings,
-        gemini_executor=gemini_executor,
-        agent_configs=agent_config.agents,
-    )
-
-    # 6. すべての主要なインスタンスをコンテナに登録
-    container.register(Settings, instance=settings)
-    container.register(RedisClient, instance=redis_client)
+    # Build container
+    container = punq.Container()
+    container.register(Settings, instance=s)
     container.register(GitHubClient, instance=github_client)
-    container.register(GeminiExecutor, instance=gemini_executor)
-    container.register(TaskService, instance=task_service)
-
+    container.register(RedisClient, instance=redis_client)
+    container.register(AgentConfigLoader, instance=agent_config_loader)
+    container.register(AgentConfigList, instance=cast(AgentConfigList, agent_definitions))
+    container.register(
+        TaskService,
+        factory=lambda: TaskService(
+            github_client=container.resolve(GitHubClient),
+            redis_client=container.resolve(RedisClient),
+            agent_configs=container.resolve(AgentConfigList),
+        ),
+    )
     return container
 
 
-def get_container() -> punq.Container:
-    """
-    シングルトンDIコンテナを返します。
 
-    コンテナがまだ初期化されていない場合は、この関数が最初の呼び出しで
-    コンテナを生成します。これにより、テスト中に環境変数を設定した後に
-    コンテナを初期化するなどの柔軟な対応が可能になります。
-    """
-    global _container
-    if _container is None:
-        _container = _create_container()
-    return _container
