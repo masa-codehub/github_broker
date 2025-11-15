@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 
 from github_broker.application.exceptions import LockAcquisitionError
 from github_broker.infrastructure.config import Settings
+from github_broker.infrastructure.di_container import create_container
 from github_broker.interface.api import router as api_router
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,7 @@ stop_event = threading.Event()
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("Uvicorn server starting up...")
+    app.state.di_container = create_container()
     try:
         yield
     finally:

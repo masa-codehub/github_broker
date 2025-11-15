@@ -48,4 +48,4 @@ def test_create_container(mock_load_from_file, monkeypatch):
     assert isinstance(container.resolve(TaskService), TaskService)
 
     # Verify that load_from_file was called
-    mock_load_from_file.assert_called_once_with("agents.toml")
+    mock_load_from_file.assert_called_once_with("agents.yml")

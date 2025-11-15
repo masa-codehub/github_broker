@@ -93,7 +93,7 @@ class Settings(BaseSettings):
         validation_alias="GITHUB_AGENT_PROMPT_TEMPLATE_CONTEXT_SCHEMA_DIR",
     )
     github_agent_config_file: str = Field(
-        "agents.toml", validation_alias="GITHUB_AGENT_CONFIG_FILE"
+        "agents.yml", validation_alias="GITHUB_AGENT_CONFIG_FILE"
     )
     BROKER_PORT: int = Field(8000, validation_alias="BROKER_PORT")
 

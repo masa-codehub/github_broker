@@ -7,33 +7,31 @@ from github_broker.infrastructure.agent.loader import AgentConfigLoader
 
 
 @pytest.fixture
-def valid_toml_content() -> str:
+def valid_yaml_content() -> str:
     return """
-    [[agents]]
-    role = "BACKEND_CODER"
-    persona = "You are an expert backend coder..."
-
-    [[agents]]
-    role = "FRONTEND_CODER"
-    persona = "You are a skilled frontend developer..."
-    """
+agents:
+  - role: "BACKEND_CODER"
+    persona: "You are an expert backend coder..."
+  - role: "FRONTEND_CODER"
+    persona: "You are a skilled frontend developer..."
+"""
 
 
 @pytest.fixture
-def invalid_toml_content() -> str:
-    return "this is not valid toml"
+def invalid_yaml_content() -> str:
+    return "this is not valid yaml: :"
 
 
 @pytest.fixture
-def temp_toml_file(tmp_path: Path, valid_toml_content: str) -> Path:
-    file_path = tmp_path / "agents.toml"
-    file_path.write_text(valid_toml_content)
+def temp_yaml_file(tmp_path: Path, valid_yaml_content: str) -> Path:
+    file_path = tmp_path / "agents.yml"
+    file_path.write_text(valid_yaml_content)
     return file_path
 
 
-def test_load_from_file_success(temp_toml_file: Path):
+def test_load_from_file_success(temp_yaml_file: Path):
     # Act
-    config_list = AgentConfigLoader.load_from_file(temp_toml_file)
+    config_list = AgentConfigLoader.load_from_file(temp_yaml_file)
 
     # Assert
     assert isinstance(config_list, AgentConfigList)
@@ -45,7 +43,7 @@ def test_load_from_file_success(temp_toml_file: Path):
 def test_load_from_file_not_found():
     # Act & Assert
     with pytest.raises(FileNotFoundError):
-        AgentConfigLoader.load_from_file("non_existent_file.toml")
+        AgentConfigLoader.load_from_file("non_existent_file.yml")
 
 
 def test_load_from_dict_success():

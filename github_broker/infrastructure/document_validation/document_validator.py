@@ -51,13 +51,18 @@ def validate_adr_summary_format(content: str) -> list[str]:
     for i, line in enumerate(lines):
         if line.strip() == "# 概要 / Summary":
             summary_found = True
-            if i + 1 < len(lines):
-                next_line = lines[i + 1].strip()
-                if not re.match(r"^\[ADR-\d+\]", next_line):
-                    errors.append(
-                        "ADR summary must be followed by a line in the format '[ADR-xxx]'."
-                    )
-            else:
+            # Find the next non-empty line
+            next_line_found = False
+            for j in range(i + 1, len(lines)):
+                next_line = lines[j].strip()
+                if next_line:
+                    if not re.match(r"^\[ADR-\d+\]", next_line):
+                        errors.append(
+                            "ADR summary must be followed by a line in the format '[ADR-xxx]'."
+                        )
+                    next_line_found = True
+                    break
+            if not next_line_found:
                 errors.append(
                     "ADR summary must be followed by a line in the format '[ADR-xxx]'."
                 )

@@ -1,17 +1,15 @@
 import logging
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 
 from github_broker.application.task_service import TaskService
-from github_broker.infrastructure.di_container import create_container
 from github_broker.interface.models import AgentTaskRequest, TaskResponse
 
 logger = logging.getLogger(__name__)
 
 
-def get_task_service() -> TaskService:
-    container = create_container()
-    return container.resolve(TaskService)
+def get_task_service(request: Request) -> TaskService:
+    return request.app.state.di_container.resolve(TaskService)
 
 
 router = APIRouter()
