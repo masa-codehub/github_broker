@@ -1,11 +1,10 @@
 # 概要 / Summary
 [ADR-004] punq DIコンテナの実装パターン
 
+- Status: 完了
+- Date: 2025-11-14
+
 ## 状況 / Context
-
-## Status
-
-**Context:**
 
 ADR 002に基づく設定管理のリファクタリングにおいて、DIコンテナライブラリ`punq`を導入した際、依存関係の解決で複数のテストが長時間にわたり失敗し続けた。特に、`container.resolve(TaskService)`を呼び出す過程で、`TypeError: missing required positional argument`や`punq.InvalidRegistrationError`といったエラーが頻発した。
 
@@ -52,12 +51,16 @@ def create_container() -> punq.Container:
 
 ## 結果 / Consequences
 
-## Consequences
+### メリット (Positive consequences)
+- 依存関係の構築方法が明確になり、コンテナの挙動が予測しやすくなる。`punq`の「魔法」に頼りすぎないため、デバッグが容易になる。
+- 新しいサービスを追加する際も、このパターンに従うことで、同様の問題の再発を防げる。
 
-- **Pro:** 依存関係の構築方法が明確になり、コンテナの挙動が予測しやすくなる。`punq`の「魔法」に頼りすぎないため、デバッグが容易になる。
-- **Pro:** 新しいサービスを追加する際も、このパターンに従うことで、同様の問題の再発を防げる。
-- **Con:** 依存関係が非常に複雑な場合、`di_container.py`が少し長くなる可能性があるが、その明示性がリスクを上回るメリットとなる。
+### デメリット (Negative consequences)
+- 依存関係が非常に複雑な場合、`di_container.py`が少し長くなる可能性があるが、その明示性がリスクを上回るメリットとなる。
 
-## Implementation Status (実装状況)
+## 検証基準 / Verification Criteria
+- (TBD)
+
+## 実装状況 / Implementation Status
 
 完了
