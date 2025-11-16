@@ -1,10 +1,13 @@
+import logging
+from unittest.mock import mock_open, patch
+
 import pytest
 
 from github_broker.infrastructure.document_validation.document_validator import (
     DocumentType,
     _extract_headers_from_content,
     get_required_headers,
-    validate_adr_meta,
+    main,
     validate_adr_summary_format,
     validate_design_doc_overview,
     validate_sections,
@@ -61,6 +64,32 @@ Some decision here.
 """
 
 
+@pytest.fixture
+def invalid_adr_content_missing_meta():
+    return """
+# 概要 / Summary
+[ADR-001]
+
+## 状況 / Context
+Some context here.
+
+## 決定 / Decision
+Some decision here.
+
+## 結果 / Consequences
+### メリット (Positive consequences)
+- Pro 1
+
+### デメリット (Negative consequences)
+- Con 1
+
+## 検証基準 / Verification Criteria
+Verification criteria.
+
+## 実装状況 / Implementation Status
+Implementation status.
+"""
+
 
 @pytest.fixture
 def valid_design_doc_content():
@@ -102,12 +131,8 @@ Implementation status.
 
 def test_validate_sections_valid_adr(valid_adr_content):
     required_headers = get_required_headers(DocumentType.ADR)
-    # Validate headers and metadata separately to ensure both aspects are properly checked
-    required_headers_without_meta = [h for h in required_headers if h.startswith("#")]
-    missing = validate_sections(valid_adr_content, required_headers_without_meta)
+    missing = validate_sections(valid_adr_content, required_headers)
     assert not missing, f"Missing headers: {missing}"
-    missing_meta = validate_adr_meta(valid_adr_content)
-    assert not missing_meta, f"Missing meta: {missing_meta}"
 
 
 def test_validate_sections_valid_design_doc(valid_design_doc_content):
@@ -123,6 +148,14 @@ def test_validate_sections_invalid(invalid_adr_content):
     assert "### デメリット (Negative consequences)" in missing
     assert "## 検証基準 / Verification Criteria" in missing
     assert "## 実装状況 / Implementation Status" in missing
+
+
+def test_validate_sections_invalid_missing_meta(invalid_adr_content_missing_meta):
+    required_headers = get_required_headers(DocumentType.ADR)
+    missing = validate_sections(invalid_adr_content_missing_meta, required_headers)
+    assert "- Status:" in missing
+    assert "- Date:" in missing
+
 
 
 def test_extract_headers_from_content():
@@ -213,6 +246,8 @@ def test_validate_sections_design_doc_missing_new_sections():
     [
         (DocumentType.ADR, [
             "# 概要 / Summary",
+            "- Status:",
+            "- Date:",
             "## 状況 / Context",
             "## 決定 / Decision",
             "## 結果 / Consequences",
@@ -308,28 +343,6 @@ def test_validate_design_doc_overview_no_overview():
     assert validate_design_doc_overview(content) is False
 
 
-def test_validate_adr_meta_success():
-    content = """
-- Status: 提案中
-- Date: 2025-10-23
-"""
-    assert validate_adr_meta(content) == []
-
-
-def test_validate_adr_meta_failure():
-    content = """
-- state: 提案中
-- day: 2025-10-23
-"""
-    assert validate_adr_meta(content) == ["- Status:", "- Date:"]
-
-
-def test_validate_adr_meta_partial():
-    content = """
-- Status: 提案中
-- day: 2025-10-23
-"""
-    assert validate_adr_meta(content) == ["- Date:"]
 
 
 @pytest.mark.parametrize(
@@ -379,3 +392,60 @@ def test_validate_adr_meta_partial():
 )
 def test_validate_adr_summary_format(content, expected):
     assert validate_adr_summary_format(content) == expected
+
+
+def test_main_success(caplog):
+    caplog.set_level(logging.INFO)
+    with patch(
+        "github_broker.infrastructure.document_validation.document_validator.find_target_files",
+        return_value=["/app/docs/adr/valid.md"],
+    ), patch(
+        "builtins.open",
+        mock_open(read_data="""
+# 概要 / Summary
+[ADR-001]
+
+- Status: Proposed
+- Date: 2023-10-26
+
+## 状況 / Context
+Some context here.
+
+## 決定 / Decision
+Some decision here.
+
+## 結果 / Consequences
+### メリット (Positive consequences)
+- Pro 1
+### デメリット (Negative consequences)
+- Con 1
+
+## 検証基準 / Verification Criteria
+Verification criteria.
+
+## 実装状況 / Implementation Status
+Implementation status.
+"""),
+    ):
+        assert main() == 0
+        assert "✅ All documents are valid." in caplog.text
+
+
+def test_main_failure(caplog):
+    caplog.set_level(logging.INFO)
+    with patch(
+        "github_broker.infrastructure.document_validation.document_validator.find_target_files",
+        return_value=["/app/docs/adr/invalid.md"],
+    ), patch(
+        "builtins.open",
+        mock_open(read_data="""
+# 概要 / Summary
+[ADR-001]
+
+## 状況 / Context
+Some context here.
+"""),
+    ):
+        assert main() == 1
+        assert "❌ /app/docs/adr/invalid.md: Missing sections:" in caplog.text
+        assert "Found 1 errors." in caplog.text

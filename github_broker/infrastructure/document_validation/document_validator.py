@@ -1,7 +1,11 @@
+import logging
 import re
+import sys
 from enum import Enum, auto
 from pathlib import Path
 from types import MappingProxyType
+
+logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 
 class DocumentType(Enum):
@@ -14,6 +18,8 @@ REQUIRED_HEADERS = MappingProxyType(
     {
         DocumentType.ADR: [
             "# 概要 / Summary",
+            "- Status:",
+            "- Date:",
             "## 状況 / Context",
             "## 決定 / Decision",
             "## 結果 / Consequences",
@@ -149,19 +155,6 @@ def validate_design_doc_overview(content: str) -> bool:
     pattern = r"^# 概要 / Overview\n[ \t]*デザインドキュメント:"
     return bool(re.search(pattern, content, re.MULTILINE))
 
-def validate_adr_meta(content: str) -> list[str]:
-    """
-    ADRファイルのメタデータを検証します。
-    - Status:
-    - Date:
-    が存在するかどうかをチェックします。
-    """
-    errors = []
-    if "- Status:" not in content:
-        errors.append("- Status:")
-    if "- Date:" not in content:
-        errors.append("- Date:")
-    return errors
 
 def validate_adr_summary_format(content: str) -> bool:
     """
@@ -170,3 +163,59 @@ def validate_adr_summary_format(content: str) -> bool:
     """
     pattern = r"^# 概要 / Summary\s*\[ADR-\d+\]"
     return bool(re.search(pattern, content, re.MULTILINE | re.DOTALL))
+
+
+def get_document_type(file_path: str) -> DocumentType | None:
+    """ファイルパスからドキュメントタイプを判定します。"""
+    p = Path(file_path)
+    if "docs/adr" in str(p.parent):
+        return DocumentType.ADR
+    if "docs/design-docs" in str(p.parent):
+        return DocumentType.DESIGN_DOC
+    if "plans" in str(p.parts):
+        return DocumentType.PLAN
+    return None
+
+
+def main() -> int:
+    """
+    すべての対象ドキュメントを検証し、エラーがあれば報告します。
+    """
+    project_root = str(Path(__file__).parent.parent.parent.parent)
+    target_files = find_target_files(project_root)
+    error_count = 0
+
+    for file_path in target_files:
+        doc_type = get_document_type(file_path)
+        if not doc_type:
+            continue
+
+        with open(file_path, encoding="utf-8") as f:
+            content = f.read()
+
+        # 共通のセクション検証
+        required_headers = get_required_headers(doc_type)
+        missing_sections = validate_sections(content, required_headers)
+        if missing_sections:
+            error_count += 1
+            logging.error(f"❌ {file_path}: Missing sections: {', '.join(missing_sections)}")
+
+        # ドキュメントタイプ別の追加検証
+        if doc_type == DocumentType.ADR:
+            if not validate_adr_summary_format(content):
+                error_count += 1
+                logging.error(f"❌ {file_path}: Invalid ADR summary format.")
+        elif doc_type == DocumentType.DESIGN_DOC and not validate_design_doc_overview(content):
+            error_count += 1
+            logging.error(f"❌ {file_path}: Invalid Design Doc overview format.")
+
+    if error_count > 0:
+        logging.error(f"\nFound {error_count} errors.")
+        return 1
+
+    logging.info("✅ All documents are valid.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
