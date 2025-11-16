@@ -102,7 +102,7 @@ Implementation status.
 
 def test_validate_sections_valid_adr(valid_adr_content):
     required_headers = get_required_headers(DocumentType.ADR)
-    # The fixture now includes meta, so we need to check for them separately
+    # Validate headers and metadata separately to ensure both aspects are properly checked
     required_headers_without_meta = [h for h in required_headers if h.startswith("#")]
     missing = validate_sections(valid_adr_content, required_headers_without_meta)
     assert not missing, f"Missing headers: {missing}"

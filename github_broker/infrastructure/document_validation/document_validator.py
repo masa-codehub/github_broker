@@ -168,5 +168,5 @@ def validate_adr_summary_format(content: str) -> bool:
     ADRの概要セクションのフォーマットを検証します。
     「# 概要 / Summary」の次の行が「[ADR-xxx]」で始まっている必要があります。
     """
-    pattern = r"^# 概要 / Summary\n\s*\[ADR-\d+\]"
-    return bool(re.search(pattern, content, re.MULTILINE))
+    pattern = r"^# 概要 / Summary\s*\[ADR-\d+\]"
+    return bool(re.search(pattern, content, re.MULTILINE | re.DOTALL))
