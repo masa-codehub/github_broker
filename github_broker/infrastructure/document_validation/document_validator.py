@@ -168,15 +168,5 @@ def validate_adr_summary_format(content: str) -> bool:
     ADRの概要セクションのフォーマットを検証します。
     「# 概要 / Summary」の次の行が「[ADR-xxx]」で始まっている必要があります。
     """
-    lines = content.splitlines()
-    summary_found = False
-    for i, line in enumerate(lines):
-        if line.strip() == "# 概要 / Summary":
-            summary_found = True
-            # Find the next non-empty line
-            for j in range(i + 1, len(lines)):
-                next_line = lines[j].strip()
-                if next_line:
-                    return re.match(r"^\[ADR-\d+\]", next_line) is not None
-            return False # No non-empty line found after summary
-    return not summary_found # Return True if no summary is found, as another validation will catch it.
+    pattern = r"^# 概要 / Summary\n\s*\[ADR-\d+\]"
+    return bool(re.search(pattern, content, re.MULTILINE))
