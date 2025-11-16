@@ -41,3 +41,5 @@ Design Docの新しい検証ルールが正しく機能することを保証す�
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/strengthen-doc-validation-tests`
 - **作業ブランチ (Feature Branch):** `task/add-design-doc-validation-test-cases`
+
+## 子Issue (Sub-Issues)

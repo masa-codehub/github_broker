@@ -44,3 +44,4 @@ YAML形式のエージェント設定を読み込み、検証する仕組みが�
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/introduce-yaml-based-agent-config`
 - **作業ブランチ (Feature Branch):** `task/create-agent-config-loader`
+## 子Issue (Sub-Issues)

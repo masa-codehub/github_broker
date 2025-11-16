@@ -36,10 +36,9 @@
 - **`docs/design-docs/webhook-based-architecture.md` の廃止:** このアーキテクチャドキュメントは現状と一致しなくなるため、**廃止 (Deprecated)** されます。今後のアーキテクチャに関する参照は、このADRおよび将来作成されるポーリング方式の設計ドキュメントを参照してください。
 
 ### デメリット (Negative consequences)
-- (特になし)
+- Issueの変更がシステムに反映されるまでに遅延が生じる
 
 ## 検証基準 / Verification Criteria
-- (TBD)
 
 ## 実装状況 / Implementation Status
 

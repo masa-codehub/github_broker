@@ -43,3 +43,4 @@ DIコンテナ（`di_container.py`）が `AgentConfigLoader` を利用してYAML
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/refactor-task-service-for-external-config`
 - **作業ブランチ (Feature Branch):** `task/register-agent-config-in-di`
+## 子Issue (Sub-Issues)

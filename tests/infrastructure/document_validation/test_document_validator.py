@@ -1,8 +1,12 @@
 import pytest
 
 from github_broker.infrastructure.document_validation.document_validator import (
+    DocumentType,
     _extract_headers_from_content,
+    get_required_headers,
+    validate_adr_meta,
     validate_adr_summary_format,
+    validate_design_doc_overview,
     validate_sections,
 )
 
@@ -58,12 +62,14 @@ Some decision here.
 
 
 def test_validate_sections_valid(valid_adr_content):
-    missing = validate_sections(valid_adr_content)
+    required_headers = get_required_headers(DocumentType.ADR)
+    missing = validate_sections(valid_adr_content, required_headers)
     assert not missing
 
 
 def test_validate_sections_invalid(invalid_adr_content):
-    missing = validate_sections(invalid_adr_content)
+    required_headers = get_required_headers(DocumentType.ADR)
+    missing = validate_sections(invalid_adr_content, required_headers)
     assert "### デメリット (Negative consequences)" in missing
     assert "## 検証基準 / Verification Criteria" in missing
     assert "## 実装状況 / Implementation Status" in missing
@@ -78,34 +84,228 @@ Some text.
 - Not a header
 """
     headers = _extract_headers_from_content(content)
-    assert headers == {"# Header 1", "## Header 2", "### Header 3"}
+    assert headers == ["# Header 1", "## Header 2", "### Header 3"]
+
+
+def test_extract_headers_from_content_all_levels():
+    content = """
+# Title 1
+## Title 2
+### Title 3
+#### Title 4
+"""
+    expected_headers = [
+        "# Title 1",
+        "## Title 2",
+        "### Title 3",
+    ]
+    assert _extract_headers_from_content(content) == expected_headers
+
+
+def test_extract_headers_from_content_no_headers():
+    content = """
+No double-sharp headers here.
+"""
+    assert _extract_headers_from_content(content) == []
+
+
+def test_validate_sections_success():
+    content = """
+## Section 1
+## Section 2
+## Section 3
+"""
+    required_headers = ["## Section 1", "## Section 2"]
+    missing = validate_sections(content, required_headers)
+    assert missing == []
+
+
+def test_validate_sections_missing():
+    content = """
+## Section 1
+## Section 3
+"""
+    required_headers = ["## Section 1", "## Section 2", "## Section 3"]
+    missing = validate_sections(content, required_headers)
+    assert missing == ["## Section 2"]
+
+
+def test_validate_sections_no_headers():
+    content = "No headers here."
+    required_headers = ["## Section 1"]
+    missing = validate_sections(content, required_headers)
+    assert missing == ["## Section 1"]
+
+
+def test_validate_sections_empty_required():
+    content = "## A header"
+    required_headers = []
+    missing = validate_sections(content, required_headers)
+    assert missing == []
+
+
+def test_validate_sections_design_doc_missing_new_sections():
+    content = """
+# 概要 / Overview
+デザインドキュメント: test
+## ゴール / Goals
+## 設計 / Design
+"""
+    required_headers = get_required_headers(DocumentType.DESIGN_DOC)
+    missing = validate_sections(content, required_headers)
+    assert "## 背景と課題 / Background" in missing
+    assert "### 機能要件 / Functional Requirements" in missing
+    assert "### 非機能要件 / Non-Functional Requirements" in missing
 
 
 @pytest.mark.parametrize(
-    "content, expected_errors",
+    "doc_type, expected_headers",
+    [
+        (DocumentType.ADR, [
+            "# 概要 / Summary",
+            "## 状況 / Context",
+            "## 決定 / Decision",
+            "## 結果 / Consequences",
+            "### メリット (Positive consequences)",
+            "### デメリット (Negative consequences)",
+            "## 検証基準 / Verification Criteria",
+            "## 実装状況 / Implementation Status",
+        ]),
+        (DocumentType.DESIGN_DOC, [
+            "# 概要 / Overview",
+            "## 背景と課題 / Background",
+            "## ゴール / Goals",
+            "### 機能要件 / Functional Requirements",
+            "### 非機能要件 / Non-Functional Requirements",
+            "## 設計 / Design",
+            "### ハイレベル設計 / High-Level Design",
+            "### 詳細設計 / Detailed Design",
+            "## 検討した代替案 / Alternatives Considered",
+            "## セキュリティとプライバシー / Security & Privacy",
+            "## 未解決の問題 / Open Questions & Unresolved Issues",
+            "## 検証基準 / Verification Criteria",
+            "## 実装状況 / Implementation Status",
+        ]),
+    ],
+)
+def test_get_required_headers(doc_type, expected_headers):
+    assert get_required_headers(doc_type) == expected_headers
+
+
+def test_get_required_headers_unknown_type():
+    """未知のドキュメントタイプが渡された場合に空のリストを返すことをテストします。"""
+    from enum import Enum, auto
+
+    class UnknownType(Enum):
+        UNKNOWN = auto()
+
+    assert get_required_headers(UnknownType.UNKNOWN) == []
+
+
+def test_validate_design_doc_overview_success():
+    content = """
+# 概要 / Overview
+デザインドキュメント: test
+"""
+    assert validate_design_doc_overview(content) is True
+
+
+def test_validate_design_doc_overview_success_with_whitespace():
+    content = """
+# 概要 / Overview
+  デザインドキュメント: test
+"""
+    assert validate_design_doc_overview(content) is True
+
+
+def test_validate_design_doc_overview_success_no_extra_text():
+    content = """
+# 概要 / Overview
+デザインドキュメント:
+"""
+    assert validate_design_doc_overview(content) is True
+
+
+def test_validate_design_doc_overview_failure():
+    content = """
+# 概要 / Overview
+これはデザインドキュメントです
+"""
+    assert validate_design_doc_overview(content) is False
+
+
+def test_validate_design_doc_overview_failure_not_at_start():
+    content = """
+# 概要 / Overview
+これは デザインドキュメント: です
+"""
+    assert validate_design_doc_overview(content) is False
+
+
+def test_validate_design_doc_overview_failure_with_newline():
+    content = """
+# 概要 / Overview
+
+デザインドキュメント: test
+"""
+    assert validate_design_doc_overview(content) is False
+
+
+def test_validate_design_doc_overview_no_overview():
+    content = """
+## ゴール / Goals
+"""
+    assert validate_design_doc_overview(content) is False
+
+
+def test_validate_adr_meta_success():
+    content = """
+- Status: 提案中
+- Date: 2025-10-23
+"""
+    assert validate_adr_meta(content) == []
+
+
+def test_validate_adr_meta_failure():
+    content = """
+- state: 提案中
+- day: 2025-10-23
+"""
+    assert validate_adr_meta(content) == ["- Status:", "- Date:"]
+
+
+def test_validate_adr_meta_partial():
+    content = """
+- Status: 提案中
+- day: 2025-10-23
+"""
+    assert validate_adr_meta(content) == ["- Date:"]
+
+
+@pytest.mark.parametrize(
+    "content, expected",
     [
         (
             "# 概要 / Summary\n[ADR-123] This is a title",
-            [],
+            True,
         ),
         (
             "# 概要 / Summary\n[ADR-1] Another title",
-            [],
+            True,
         ),
         (
             "# 概要 / Summary\nThis is not a valid summary format.",
-            ["ADR summary must be followed by a line in the format '[ADR-xxx]'."],
+            False,
         ),
         (
             "Some other content\n# Not the summary",
-            ["ADR must contain a '# 概要 / Summary' section."],
+            True, # This is considered valid because another check will catch the missing summary
         ),
         (
             "# 概要 / Summary",
-            ["ADR summary must be followed by a line in the format '[ADR-xxx]'."],
+            False,
         ),
     ],
 )
-def test_validate_adr_summary_format(content, expected_errors):
-    errors = validate_adr_summary_format(content)
-    assert errors == expected_errors
+def test_validate_adr_summary_format(content, expected):
+    assert validate_adr_summary_format(content) == expected

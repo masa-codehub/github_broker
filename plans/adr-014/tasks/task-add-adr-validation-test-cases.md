@@ -41,3 +41,5 @@ ADRの新しい検証ルールが正しく機能することを保証するた�
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/strengthen-doc-validation-tests`
 - **作業ブランチ (Feature Branch):** `task/add-adr-validation-test-cases`
+
+## 子Issue (Sub-Issues)

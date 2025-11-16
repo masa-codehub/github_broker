@@ -47,3 +47,5 @@
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/implement-script-structure`
 - **作業ブランチ (Feature Branch):** `task/implement-script-base-structure`
+
+## 子Issue (Sub-Issues)
