@@ -104,7 +104,7 @@ class DiContainer:
         self.settings = settings
         self.redis_client = RedisClient(
             host=self.settings.REDIS_HOST,
-            port=self.settings.PORT,
+            port=self.settings.REDIS_PORT,
             db=self.settings.REDIS_DB
         )
         # ... 他のクライアントも同様にsettingsオブジェクトから設定を渡す

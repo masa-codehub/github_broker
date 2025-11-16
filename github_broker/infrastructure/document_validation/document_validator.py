@@ -131,8 +131,8 @@ def validate_sections(content: str, required_headers: list[str]) -> list[str]:
             if header not in present_headers:
                 missing.append(header)
         else: # For meta fields like "- Status:"
-            if not any(line.startswith(header) for line in present_content_lines):
-                 missing.append(header)
+                        if not any(line.startswith(header) for line in present_content_lines):
+                            missing.append(header)
     return missing
 
 

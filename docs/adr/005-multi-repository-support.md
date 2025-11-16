@@ -1,7 +1,7 @@
 # 概要 / Summary
 [ADR-005] マルチリポジトリ対応
 
-- Status: 完了
+- Status: Completed
 - Date: 2025-11-14
 
 ## 状況 / Context
