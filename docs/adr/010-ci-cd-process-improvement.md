@@ -1,7 +1,9 @@
 # 概要 / Summary
 [ADR-010] CI/CDプロセスの改善による開発ワークフローの高速化と自動化
 
-- Status: Completed
+## 状況 / Context
+
+- Status: 完了
 - Date: 2025-10-19
 
 ## 状況 / Context

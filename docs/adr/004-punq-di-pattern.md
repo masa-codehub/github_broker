@@ -1,8 +1,8 @@
 # 概要 / Summary
-ADR 004: punq DIコンテナの実装パターン
+[ADR-004] punq DIコンテナの実装パターン
 
-- Status: Accepted
-- Date: 2025-08-17
+- Status: 完了
+- Date: 2025-11-14
 
 ## 状況 / Context
 
@@ -50,8 +50,7 @@ def create_container() -> punq.Container:
 ## 結果 / Consequences
 
 ### メリット (Positive consequences)
-- 依存関係の構築方法が明確になり、コンテナの挙動が予測しやすくなる。
-- `punq`の「魔法」に頼りすぎないため、デバッグが容易になる。
+- 依存関係の構築方法が明確になり、コンテナの挙動が予測しやすくなる。`punq`の「魔法」に頼りすぎないため、デバッグが容易になる。
 - 新しいサービスを追加する際も、このパターンに従うことで、同様の問題の再発を防げる。
 
 ### デメリット (Negative consequences)

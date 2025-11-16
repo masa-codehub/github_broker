@@ -149,6 +149,55 @@ docker-compose -f .build/context/docker-compose.yml logs -f
 
 ---
 
+## ドキュメントの検証規約 (Document Validation Conventions)
+
+コミット前にドキュメントの一貫性と品質を保証するため、`pre-commit`フックによる自動検証が実行されます。特に、ADR (`docs/adr/*.md`) と Design Doc (`docs/design-docs/*.md`) には厳格なテンプレートが定められています。
+
+詳細は [ADR-014](https://github.com/masa-codehub/github_broker/blob/main/docs/adr/014-improve-adr-validation-rules.md) を参照してください。
+
+### 1. ADR (`docs/adr/*.md`) の規約
+
+#### 必須セクション
+ADRには、以下のセクションがすべて含まれている必要があります。
+
+- `# 概要 / Summary`
+- `- Status:`
+- `- Date:`
+- `## 状況 / Context`
+- `## 決定 / Decision`
+- `## 結果 / Consequences`
+- `### メリット (Positive consequences)`
+- `### デメリット (Negative consequences)`
+- `## 検証基準 / Verification Criteria`
+- `## 実装状況 / Implementation Status`
+
+#### タイトルの検証
+- `# 概要 / Summary` の直後の行は、`[ADR-XXX]` という形式で始まる必要があります（例: `[ADR-001] タイトル`）。
+
+### 2. Design Doc (`docs/design-docs/*.md`) の規約
+
+#### 必須セクション
+Design Docには、以下のセクションがすべて含まれている必要があります。
+
+- `# 概要 / Overview`
+- `## 背景と課題 / Background`
+- `## ゴール / Goals`
+- `### 機能要件 / Functional Requirements`
+- `### 非機能要件 / Non-Functional Requirements`
+- `## 設計 / Design`
+- `### ハイレベル設計 / High-Level Design`
+- `### 詳細設計 / Detailed Design`
+- `## 検討した代替案 / Alternatives Considered`
+- `## セキュリティとプライバシー / Security & Privacy`
+- `## 未解決の問題 / Open Questions & Unresolved Issues`
+- `## 検証基準 / Verification Criteria`
+- `## 実装状況 / Implementation Status`
+
+#### タイトルの検証
+- `# 概要 / Overview` の直後の行は、`デザインドキュメント:` で始まる必要があります。
+
+---
+
 ## 分析に基づくプロセスの課題と改善策
 
 本ワークフローの分析を通じて、プロジェクトの進行を妨げる可能性のある以下の3つの課題（ボトルネック）が特定されました。

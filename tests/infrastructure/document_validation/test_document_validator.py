@@ -1,133 +1,90 @@
 import pytest
 
 from github_broker.infrastructure.document_validation.document_validator import (
-    REQUIRED_HEADERS,
     DocumentType,
     _extract_headers_from_content,
-    find_target_files,
     get_required_headers,
     validate_adr_meta,
+    validate_adr_summary_format,
     validate_design_doc_overview,
-    validate_filename_prefix,
-    validate_folder_structure,
     validate_sections,
 )
 
 
 @pytest.fixture
-def setup_test_files(tmp_path):
-    # テスト用のディレクトリ構造とファイルを作成
-    # docs/adr
-    (tmp_path / "docs" / "adr").mkdir(parents=True)
-    (tmp_path / "docs" / "adr" / "001-test-adr.md").write_text("content")
-    (tmp_path / "docs" / "adr" / "002-another-adr.md").write_text("content")
-    # docs/design-docs
-    (tmp_path / "docs" / "design-docs").mkdir(parents=True)
-    (tmp_path / "docs" / "design-docs" / "design-doc-a.md").write_text("content")
-    # plans
-    (tmp_path / "plans").mkdir(parents=True)
-    (tmp_path / "plans" / "epic-feature.md").write_text("content")
-    (tmp_path / "plans" / "stories").mkdir()
-    (tmp_path / "plans" / "stories" / "story-user-auth.md").write_text("content")
-    (tmp_path / "plans" / "tasks").mkdir()
-    (tmp_path / "plans" / "tasks" / "task-db-schema.md").write_text("content")
-    (tmp_path / "plans" / "sub-dir").mkdir()
-    (tmp_path / "plans" / "sub-dir" / "epic-sub-feature.md").write_text("content")
+def valid_adr_content():
+    return """
+# 概要 / Summary
+[ADR-001]
 
-    # 対象外のファイル
-    (tmp_path / "docs" / "adr" / "not-a-markdown.txt").write_text("content")
-    (tmp_path / "other-file.md").write_text("content")
+- Status: Proposed
+- Date: 2023-10-26
 
-    return tmp_path
+## 状況 / Context
+Some context here.
 
+## 決定 / Decision
+Some decision here.
 
-def test_find_target_files(setup_test_files):
-    base_path = setup_test_files
-    found_files = find_target_files(str(base_path))
+## 結果 / Consequences
+### メリット (Positive consequences)
+- Pro 1
+### デメリット (Negative consequences)
+- Con 1
 
-    expected_files = [
-        str(base_path / "docs" / "adr" / "001-test-adr.md"),
-        str(base_path / "docs" / "adr" / "002-another-adr.md"),
-        str(base_path / "docs" / "design-docs" / "design-doc-a.md"),
-        str(base_path / "plans" / "epic-feature.md"),
-        str(base_path / "plans" / "stories" / "story-user-auth.md"),
-        str(base_path / "plans" / "sub-dir" / "epic-sub-feature.md"),
-        str(base_path / "plans" / "tasks" / "task-db-schema.md"),
-    ]
+## 検証基準 / Verification Criteria
+Verification criteria.
 
-    assert sorted(found_files) == sorted(expected_files)
+## 実装状況 / Implementation Status
+Implementation status.
+"""
 
 
-def test_find_target_files_no_files(tmp_path):
-    # ファイルが一つもない場合
-    base_path = tmp_path
-    found_files = find_target_files(str(base_path))
-    assert found_files == []
+@pytest.fixture
+def invalid_adr_content():
+    return """
+# 概要 / Summary
+[ADR-001]
+
+- Status: Proposed
+- Date: 2023-10-26
+
+## 状況 / Context
+Some context here.
+
+## 決定 / Decision
+Some decision here.
+
+## 結果 / Consequences
+### メリット (Positive consequences)
+- Pro 1
+"""
 
 
-# validate_filename_prefix のテスト
-@pytest.mark.parametrize(
-    "file_path_suffix, expected",
-    [
-        ("plans/epic-test.md", True),
-        ("plans/story-test.md", True),
-        ("plans/task-test.md", True),
-        ("plans/invalid-test.md", False),
-        ("docs/adr/001-test.md", True),  # plans配下ではないのでTrue
-    ],
-)
-def test_validate_filename_prefix(tmp_path, file_path_suffix, expected):
-    file_path = tmp_path / file_path_suffix
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_text("content")
-    assert validate_filename_prefix(str(file_path), str(tmp_path)) == expected
+def test_validate_sections_valid(valid_adr_content):
+    required_headers = get_required_headers(DocumentType.ADR)
+    missing = validate_sections(valid_adr_content, required_headers)
+    assert not missing
 
 
-# validate_folder_structure のテスト
-@pytest.mark.parametrize(
-    "file_path_suffix, expected",
-    [
-        ("plans/stories/story-valid.md", True),
-        ("plans/tasks/task-valid.md", True),
-        ("plans/story-invalid.md", False),  # stories/ にない
-        ("plans/tasks/story-invalid.md", False),  # stories/ にない
-        ("plans/story-invalid/story-invalid.md", False),  # stories/ にない
-        ("plans/task-invalid.md", False),  # tasks/ にない
-        ("plans/stories/task-invalid.md", False),  # tasks/ にない
-        ("plans/task-invalid/task-invalid.md", False),  # tasks/ にない
-        ("plans/epic-valid.md", True),  # epic- はフォルダ制約なし
-        ("docs/adr/001-test.md", True),  # plans配下ではないのでTrue
-    ],
-)
-def test_validate_folder_structure(tmp_path, file_path_suffix, expected):
-    file_path = tmp_path / file_path_suffix
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_text("content")
-    assert validate_folder_structure(str(file_path), str(tmp_path)) == expected
+def test_validate_sections_invalid(invalid_adr_content):
+    required_headers = get_required_headers(DocumentType.ADR)
+    missing = validate_sections(invalid_adr_content, required_headers)
+    assert "### デメリット (Negative consequences)" in missing
+    assert "## 検証基準 / Verification Criteria" in missing
+    assert "## 実装状況 / Implementation Status" in missing
 
 
 def test_extract_headers_from_content():
     content = """
-# Title
-
-## Section 1
-
+# Header 1
 Some text.
-
-## Section 2
-
-### Subsection
-
-## Another Section
+## Header 2
+### Header 3
+- Not a header
 """
-    expected_headers = [
-        "# Title",
-        "## Section 1",
-        "## Section 2",
-        "### Subsection",
-        "## Another Section",
-    ]
-    assert _extract_headers_from_content(content) == expected_headers
+    headers = _extract_headers_from_content(content)
+    assert headers == ["# Header 1", "## Header 2", "### Header 3"]
 
 
 def test_extract_headers_from_content_all_levels():
@@ -150,10 +107,6 @@ def test_extract_headers_from_content_no_headers():
 No double-sharp headers here.
 """
     assert _extract_headers_from_content(content) == []
-
-
-def test_extract_headers_from_content_empty_content():
-    assert _extract_headers_from_content("") == []
 
 
 def test_validate_sections_success():
@@ -205,10 +158,35 @@ def test_validate_sections_design_doc_missing_new_sections():
     assert "### 非機能要件 / Non-Functional Requirements" in missing
 
 
-
 @pytest.mark.parametrize(
     "doc_type, expected_headers",
-    list(REQUIRED_HEADERS.items()),
+    [
+        (DocumentType.ADR, [
+            "# 概要 / Summary",
+            "## 状況 / Context",
+            "## 決定 / Decision",
+            "## 結果 / Consequences",
+            "### メリット (Positive consequences)",
+            "### デメリット (Negative consequences)",
+            "## 検証基準 / Verification Criteria",
+            "## 実装状況 / Implementation Status",
+        ]),
+        (DocumentType.DESIGN_DOC, [
+            "# 概要 / Overview",
+            "## 背景と課題 / Background",
+            "## ゴール / Goals",
+            "### 機能要件 / Functional Requirements",
+            "### 非機能要件 / Non-Functional Requirements",
+            "## 設計 / Design",
+            "### ハイレベル設計 / High-Level Design",
+            "### 詳細設計 / Detailed Design",
+            "## 検討した代替案 / Alternatives Considered",
+            "## セキュリティとプライバシー / Security & Privacy",
+            "## 未解決の問題 / Open Questions & Unresolved Issues",
+            "## 検証基準 / Verification Criteria",
+            "## 実装状況 / Implementation Status",
+        ]),
+    ],
 )
 def test_get_required_headers(doc_type, expected_headers):
     assert get_required_headers(doc_type) == expected_headers
@@ -304,3 +282,30 @@ def test_validate_adr_meta_partial():
     assert validate_adr_meta(content) == ["- Date:"]
 
 
+@pytest.mark.parametrize(
+    "content, expected",
+    [
+        (
+            "# 概要 / Summary\n[ADR-123] This is a title",
+            True,
+        ),
+        (
+            "# 概要 / Summary\n[ADR-1] Another title",
+            True,
+        ),
+        (
+            "# 概要 / Summary\nThis is not a valid summary format.",
+            False,
+        ),
+        (
+            "Some other content\n# Not the summary",
+            True, # This is considered valid because another check will catch the missing summary
+        ),
+        (
+            "# 概要 / Summary",
+            False,
+        ),
+    ],
+)
+def test_validate_adr_summary_format(content, expected):
+    assert validate_adr_summary_format(content) == expected

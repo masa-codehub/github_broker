@@ -1,8 +1,8 @@
 # 概要 / Summary
-ADR 002: 設定管理のリファクタリングとDocker Secretsへの移行
+[ADR-002] 設定管理のリファクタリングとDocker Secretsへの移行
 
 - Status: Accepted
-- Date: 2025-08-17
+- Date: 2025-11-14
 
 ## 状況 / Context
 
@@ -123,6 +123,7 @@ class DiContainer:
 - **依存ライブラリの追加:** `pydantic-settings` への依存が新たに追加されます。
 
 ## 検証基準 / Verification Criteria
+
 
 ## 実装状況 / Implementation Status
 

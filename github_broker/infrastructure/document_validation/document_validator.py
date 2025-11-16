@@ -122,9 +122,18 @@ def validate_sections(content: str, required_headers: list[str]) -> list[str]:
         return []
 
     present_headers = set(_extract_headers_from_content(content))
-    return [
-        header for header in required_headers if header not in present_headers
-    ]
+    # Also check for headers without the # prefix for meta fields
+    present_content_lines = {line.strip() for line in content.splitlines()}
+
+    missing = []
+    for header in required_headers:
+        if header.startswith("#"):
+            if header not in present_headers:
+                missing.append(header)
+        else: # For meta fields like "- Status:"
+            if not any(line.startswith(header) for line in present_content_lines):
+                 missing.append(header)
+    return missing
 
 
 def get_required_headers(doc_type: DocumentType) -> list[str]:
@@ -140,7 +149,6 @@ def validate_design_doc_overview(content: str) -> bool:
     pattern = r"^# 概要 / Overview\n[ \t]*デザインドキュメント:"
     return bool(re.search(pattern, content, re.MULTILINE))
 
-
 def validate_adr_meta(content: str) -> list[str]:
     """
     ADRファイルのメタデータを検証します。
@@ -155,5 +163,20 @@ def validate_adr_meta(content: str) -> list[str]:
         errors.append("- Date:")
     return errors
 
-
-
+def validate_adr_summary_format(content: str) -> bool:
+    """
+    ADRの概要セクションのフォーマットを検証します。
+    「# 概要 / Summary」の次の行が「[ADR-xxx]」で始まっている必要があります。
+    """
+    lines = content.splitlines()
+    summary_found = False
+    for i, line in enumerate(lines):
+        if line.strip() == "# 概要 / Summary":
+            summary_found = True
+            # Find the next non-empty line
+            for j in range(i + 1, len(lines)):
+                next_line = lines[j].strip()
+                if next_line:
+                    return re.match(r"^\[ADR-\d+\]", next_line) is not None
+            return False # No non-empty line found after summary
+    return not summary_found # Return True if no summary is found, as another validation will catch it.

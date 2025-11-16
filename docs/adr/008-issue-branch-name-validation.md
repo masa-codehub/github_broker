@@ -1,5 +1,5 @@
 # 概要 / Summary
-ADR 008: Issueのブランチ名検証
+[ADR-008] issue-branch-name-validation
 
 - Status: Completed
 - Date: 2025-10-19
@@ -14,17 +14,18 @@ Issueの品質を向上させ、開発プロセスの手戻りを削減するた
 ## 結果 / Consequences
 
 ### メリット (Positive consequences)
-- Issueの品質が自動的に向上し、開発プロセスの手戻りが削減される。
-- 開発者がブランチ名を意識してIssueを作成するようになる。
-- 自動コメントとラベル付与により、修正が促され、Issue作成者の学習を支援する。
+*   `issue_validator.yml`が更新され、`validate-issue-body`ジョブに新しい検証ロジックが追加される。
+*   `story`または`epic`ラベルを持たないIssueで`## ブランチ名`セクションが欠落している場合、`needs-more-info`ラベルが付与され、修正を促すコメントが自動的に投稿される。
+*   ワークフローはエラーとして終了し、Issue作成者に修正を促す。
+*   開発者はIssue作成時にブランチ名の記載を意識するようになり、Issueの品質が向上する。
 
 ### デメリット (Negative consequences)
-- ワークフローの変更とメンテナンスが必要。
+*   ワークフローの変更とメンテナンスが必要。
 
 ## 検証基準 / Verification Criteria
-- `story`または`epic`ラベルを持たないIssueで`## ブランチ名`セクションが欠落している場合、`needs-more-info`ラベルが付与され、修正を促すコメントが自動的に投稿されること。
-- ワークフローはエラーとして終了し、Issue作成者に修正を促すこと。
+- `story`または`epic`ラベルが付いていないIssueで、`## ブランチ名`セクションが無いものを新規作成または更新すると、GitHub Actionsの`validate-issue-body`ジョブが失敗すること。
+- 上記条件でジョブが失敗した際、対象のIssueに`needs-more-info`ラベルが付与され、修正を促すコメントが投稿されること。
+- `## ブランチ名`セクションが存在するIssue、または`story`/`epic`ラベルが付いているIssueは、`validate-issue-body`ジョブが成功すること。
 
 ## 実装状況 / Implementation Status
-
-完了
+- 完了

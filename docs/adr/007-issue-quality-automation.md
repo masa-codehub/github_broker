@@ -1,8 +1,8 @@
 # 概要 / Summary
-ADR 007: Issue起票プロセスの品質保証自動化
+[ADR-007] Issue起票プロセスの品質保証自動化
 
 - Status: Accepted
-- Date: 2025-08-17
+- Date: 2025-11-14
 
 ## 状況 / Context
 
