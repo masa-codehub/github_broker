@@ -8,8 +8,6 @@
 
 ADR 002に基づく設定管理のリファクタリングにおいて、DIコンテナライブラリ`punq`を導入した際、依存関係の解決で複数のテストが長時間にわたり失敗し続けた。特に、`container.resolve(TaskService)`を呼び出す過程で、`TypeError: missing required positional argument`や`punq.InvalidRegistrationError`といったエラーが頻発した。
 
-**Investigation:**
-
 当初、`punq`がファクトリ関数の引数（例: `def my_factory(settings: Settings)`)を、コンテナに登録されている他のサービス（この場合は`Settings`）を使って自動的に解決してくれるものと期待していた。この仮説に基づき、`@container.register`デコレータや`container.register(factory=...)`といったアプローチを試したが、すべて失敗に終わった。
 
 エラーメッセージを詳細に分析した結果、`punq`の自動解決（オートワイヤリング）は、主に**クラスのコンストラクタ（`__init__`）の型ヒント**に基づいて機能し、ファクトリ関数の引数に対しては再帰的な依存性解決を自動的には行わないことが判明した。
@@ -59,7 +57,6 @@ def create_container() -> punq.Container:
 - 依存関係が非常に複雑な場合、`di_container.py`が少し長くなる可能性があるが、その明示性がリスクを上回るメリットとなる。
 
 ## 検証基準 / Verification Criteria
-- (TBD)
 
 ## 実装状況 / Implementation Status
 

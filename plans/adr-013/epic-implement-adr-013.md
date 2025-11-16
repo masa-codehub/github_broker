@@ -59,3 +59,17 @@ This epic implements the architecture defined in ADR-013 to establish a flexible
   - The `_create_task` method in `TaskService` is updated to use the agent configurations to populate the `agent_roles` dictionary.
   - Unit tests for `TaskService` are updated to reflect the new dependency and logic.
   - End-to-end tests are created to ensure the system correctly processes tasks with the new configuration-driven approach.
+
+## 親Issue (Parent Issue)
+
+## 子Issue (Sub-Issues)
+
+## As-is (現状)
+
+## To-be (あるべき姿)
+
+## 完了条件 (Acceptance Criteria)
+
+## 成果物 (Deliverables)
+
+## ブランチ戦略 (Branching Strategy)

@@ -32,3 +32,9 @@ Story: Modify issue_validator.yml Workflow
 
 ## 優先度 (Priority)
 - P0
+
+
+
+
+## 親Issue (Parent Issue)
+## 子Issue (Sub-Issues)

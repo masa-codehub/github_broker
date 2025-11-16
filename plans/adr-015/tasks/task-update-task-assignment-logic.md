@@ -43,3 +43,5 @@
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/update-task-assignment-logic`
 - **作業ブランチ (Feature Branch):** `task/update-task-assignment-logic`
+
+## 子Issue (Sub-Issues)

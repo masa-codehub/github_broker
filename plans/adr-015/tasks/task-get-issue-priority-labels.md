@@ -43,3 +43,5 @@ GitHubリポジトリ内のオープン状態のIssueから、優先度ラベル
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/implement-highest-priority-logic`
 - **作業ブランチ (Feature Branch):** `task/get-issue-priority-labels`
+
+## 子Issue (Sub-Issues)

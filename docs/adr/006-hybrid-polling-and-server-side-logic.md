@@ -59,7 +59,6 @@
     -   **GeminiExecutor:** 新規開発用とレビュー実施用の2種類のプロンプトを生成する機能が必要になります。
 
 ## 検証基準 / Verification Criteria
-- (TBD)
 
 ## 実装状況 / Implementation Status
 - 完了

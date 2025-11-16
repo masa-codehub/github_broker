@@ -41,3 +41,5 @@ ADR-014で定義された正規表現 `デザインドキュメント:` に概�
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/update-design-doc-validation-logic`
 - **作業ブランチ (Feature Branch):** `task/add-design-doc-summary-regex-validation`
+
+## 子Issue (Sub-Issues)

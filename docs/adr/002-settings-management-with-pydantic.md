@@ -123,7 +123,6 @@ class DiContainer:
 - **依存ライブラリの追加:** `pydantic-settings` への依存が新たに追加されます。
 
 ## 検証基準 / Verification Criteria
-- (TBD)
 
 ## 実装状況 / Implementation Status
 

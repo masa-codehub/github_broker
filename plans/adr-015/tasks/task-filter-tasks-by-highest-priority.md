@@ -42,3 +42,5 @@
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/implement-task-filtering-logic`
 - **作業ブランチ (Feature Branch):** `task/filter-tasks-by-highest-priority`
+
+## 子Issue (Sub-Issues)

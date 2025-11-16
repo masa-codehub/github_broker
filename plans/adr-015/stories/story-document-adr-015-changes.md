@@ -10,8 +10,6 @@
 ## Issue: #1755
 ## Status: Open
 
-## Issue: #1755
-## Status: Open
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/015-strict-priority-bucket-assignment.md`

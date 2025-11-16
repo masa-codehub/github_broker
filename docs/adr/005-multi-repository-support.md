@@ -1,7 +1,7 @@
 # 概要 / Summary
 [ADR-005] マルチリポジトリ対応
 
-- Status: 完了
+- Status: Completed
 - Date: 2025-11-14
 
 ## 状況 / Context
@@ -34,7 +34,6 @@
 - **テストの更新:** Redisキーの生成ロジックが変更されるため、関連する単体テストおよび統合テストの更新が必要になります。
 
 ## 検証基準 / Verification Criteria
-- (TBD)
 
 ## 実装状況 / Implementation Status
 - 完了
