@@ -61,10 +61,60 @@ Some decision here.
 """
 
 
-def test_validate_sections_valid(valid_adr_content):
+
+@pytest.fixture
+def valid_design_doc_content():
+    return """
+# 概要 / Overview
+デザインドキュメント: This is a test design document.
+
+## 背景と課題 / Background
+Background and issues.
+
+## ゴール / Goals
+### 機能要件 / Functional Requirements
+- Requirement 1
+### 非機能要件 / Non-Functional Requirements
+- Requirement 2
+
+## 設計 / Design
+### ハイレベル設計 / High-Level Design
+High-level design.
+### 詳細設計 / Detailed Design
+Detailed design.
+
+## 検討した代替案 / Alternatives Considered
+Alternatives.
+
+## セキュリティとプライバシー / Security & Privacy
+Security and privacy considerations.
+
+## 未解決の問題 / Open Questions & Unresolved Issues
+Open questions.
+
+## 検証基準 / Verification Criteria
+Verification criteria.
+
+## 実装状況 / Implementation Status
+Implementation status.
+"""
+
+
+def test_validate_sections_valid_adr(valid_adr_content):
     required_headers = get_required_headers(DocumentType.ADR)
-    missing = validate_sections(valid_adr_content, required_headers)
-    assert not missing
+    # Validate headers and metadata separately to ensure both aspects are properly checked
+    required_headers_without_meta = [h for h in required_headers if h.startswith("#")]
+    missing = validate_sections(valid_adr_content, required_headers_without_meta)
+    assert not missing, f"Missing headers: {missing}"
+    missing_meta = validate_adr_meta(valid_adr_content)
+    assert not missing_meta, f"Missing meta: {missing_meta}"
+
+
+def test_validate_sections_valid_design_doc(valid_design_doc_content):
+    required_headers = get_required_headers(DocumentType.DESIGN_DOC)
+    missing = validate_sections(valid_design_doc_content, required_headers)
+    assert not missing, f"Missing headers: {missing}"
+
 
 
 def test_validate_sections_invalid(invalid_adr_content):
@@ -285,25 +335,45 @@ def test_validate_adr_meta_partial():
 @pytest.mark.parametrize(
     "content, expected",
     [
-        (
+        pytest.param(
             "# 概要 / Summary\n[ADR-123] This is a title",
             True,
+            id="success_basic",
         ),
-        (
-            "# 概要 / Summary\n[ADR-1] Another title",
+        pytest.param(
+            "# 概要 / Summary\n\n[ADR-1] Another title",
             True,
+            id="success_with_newline",
         ),
-        (
+        pytest.param(
+            "# 概要 / Summary\n   \n[ADR-1] Another title",
+            True,
+            id="success_with_whitespace_and_newline",
+        ),
+        pytest.param(
             "# 概要 / Summary\nThis is not a valid summary format.",
             False,
+            id="failure_invalid_format",
         ),
-        (
+        pytest.param(
             "Some other content\n# Not the summary",
-            True, # This is considered valid because another check will catch the missing summary
+            False,
+            id="failure_no_summary_header",
         ),
-        (
+        pytest.param(
             "# 概要 / Summary",
             False,
+            id="failure_header_only",
+        ),
+        pytest.param(
+            "# 概要 / Summary\n\n",
+            False,
+            id="failure_header_with_newlines_only",
+        ),
+        pytest.param(
+            "# 概要 / Summary\n[ADR-abc]",
+            False,
+            id="failure_non_digit_in_adr_number",
         ),
     ],
 )
