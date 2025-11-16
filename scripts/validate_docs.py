@@ -43,7 +43,7 @@ If not provided, all relevant documents will be validated.""",
                 if not validate_filename_prefix(str(filepath), "."):
                     all_errors.append(f"File '{filepath}' has an invalid filename prefix.")
                 if not validate_folder_structure(str(filepath), "."):
-                    all_errors.append(f"File '{filepath}' has an invalid folder structure.")
+                    all_errors.append(f"File '{filepath}' is in the wrong folder.")
 
             # 2. ADR と Design Doc のセクション検証
             doc_type = None

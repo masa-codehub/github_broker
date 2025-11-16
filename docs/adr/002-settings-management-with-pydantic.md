@@ -124,7 +124,6 @@ class DiContainer:
 
 ## 検証基準 / Verification Criteria
 
-
 ## 実装状況 / Implementation Status
 
 完了
