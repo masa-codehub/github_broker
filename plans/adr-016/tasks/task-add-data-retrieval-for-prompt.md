@@ -30,3 +30,5 @@
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/fix-review-issue-workflow`
 - **作業ブランチ (Feature Branch):** `task/add-data-retrieval-for-prompt`
+
+## 子Issue (Sub-Issues)

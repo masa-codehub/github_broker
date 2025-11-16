@@ -41,3 +41,5 @@
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/implement-strict-priority-testing`
 - **作業ブランチ (Feature Branch):** `task/add-p0-p1-no-assignment-test`
+
+## 子Issue (Sub-Issues)

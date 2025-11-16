@@ -32,3 +32,9 @@ Task: Add Branch Name Validation Logic to Workflow
 
 ## 優先度 (Priority)
 - P0
+
+
+
+
+## 親Issue (Parent Issue)
+## 子Issue (Sub-Issues)

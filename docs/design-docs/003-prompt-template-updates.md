@@ -5,11 +5,7 @@
 - **Status**: 提案中
 - **Last Updated**: 2025-10-23
 
-本ドキュメントは、AIエージェントへの指示の信頼性と一貫性を向上させるため、`github_broker/infrastructure/prompts/gemini_executor.yml` に定義されている2つの主要プロンプトテンプレート (`prompt_template` および `review_fix_prompt_template`) の更新内容を定義します。
-
-具体的には、エージェントが従うべき手順を、より明確かつ詳細なステップ・バイ・ステップ形式に修正します。
-
-## 背景と課題
+## 背景と課題 / Background
 
 現在のプロンプトテンプレートは、エージェントに対して大まかなタスクは指示していますが、具体的な作業手順（例: ベースブランチの取り込み、docsの参照など）までは明記されていません。
 
@@ -17,15 +13,25 @@
 
 ## ゴール / Goals
 
-- エージェントのタスク実行における信頼性・一貫性を向上させる。
-- 新規開発とレビュー修正の両方で、エージェントが常にベストプラクティスに沿ったワークフローを辿ることを保証する。
+### 機能要件 / Functional Requirements
+- 本設計の目的は、エージェントのタスク実行における信頼性・一貫性の向上、およびベストプラクティスに沿ったワークフローの徹底です。
 - エージェントへの指示を明確にし、タスクの成功率を高める。
+- 新規開発とレビュー修正の両方で、エージェントが常にベストプラクティスに沿ったワークフローを辿ることを保証する。
+
+### 非機能要件 / Non-Functional Requirements
+- エージェントのタスク実行における信頼性・一貫性を向上させる。
 
 ## 設計 / Design
 
 `github_broker/infrastructure/prompts/gemini_executor.yml` ファイル内の2つのテンプレートを、以下の通り最終FIX版に更新します。
 
-### `prompt_template` の最終FIX版 (新規開発用)
+### ハイレベル設計 / High-Level Design
+- `prompt_template` の最終FIX版 (新規開発用)
+- `review_fix_prompt_template` の最終FIX版 (レビュー修正用)
+
+### 詳細設計 / Detailed Design
+
+#### `prompt_template` の最終FIX版 (新規開発用)
 
 ```yaml
 prompt_template: >
@@ -50,7 +56,7 @@ prompt_template: >
   - **テストの実行:** 単体テストを実行・確認するには、`run_shell_command`ツールを使って`git commit`を実行してください。pre-commitフックが自動的にテストを実行し、失敗した場合はコミットが中断されます。
 ```
 
-### `review_fix_prompt_template` の最終FIX版 (レビュー修正用)
+#### `review_fix_prompt_template` の最終FIX版 (レビュー修正用)
 
 ```yaml
 review_fix_prompt_template: >
@@ -74,29 +80,22 @@ review_fix_prompt_template: >
   - **テストの実行:** 単体テストを実行・確認するには、`run_shell_command`ツールを使って`git commit`を実行してください。pre-commitフックが自動的にテストを実行し、失敗した場合はコミットが中断されます。
 ```
 
-## 考慮事項 / Considerations
+## 検討した代替案 / Alternatives Considered
+該当なし
 
-### `{review_comments}` 変数の削除と関連データの扱い
+## セキュリティとプライバシー / Security & Privacy
+該当なし
 
-本設計では、`{review_comments}` 変数をプロンプトから完全に削除します。これは、「エージェントは `{pr_url}` さえあれば、自律的にレビューコメントを取得できるべきだ」という設計思想に基づきます。
+## 未解決の問題 / Open Questions & Unresolved Issues
+- `{review_comments}` 変数の削除と関連データの扱い
+- `{base_branch_name}` 変数の導入
 
-この決定に伴い、以下のデータハンドリングの変更が必要となります。
-
--   **Redis上のデータ:** タスク情報を格納するRedisハッシュから `review_comments` フィールドは不要となります。
--   **データ取得処理:** `TaskService` 等のデータ取得処理において、レビューコメントを事前に取得しRedisに保存する必要はなくなります。
--   **エージェントの責務:** レビューコメントの取得は、プロンプトを受け取ったエージェント自身の責務となります。
-
-### `{base_branch_name}` 変数の導入
-
-プロンプトの指示をより正確にするため、ベースブランチ名を `{base_branch_name}` という変数で扱うように変更します。これを実現するには、プロンプトのテキスト変更に加え、以下のバックエンド側のアーキテクチャ変更が必要です。
-
-1.  **データ取得処理の拡張:** Issueの情報を取得するコンポーネント（`TaskService`等を想定）が、Issueのペイロードからベースブランチ名（`base.ref`）を取得する。
-2.  **Redisへの保存:** 取得したベースブランチ名を、タスク情報を格納するRedisのハッシュに `base_branch_name` として保存する。
-3.  **Executorの修正:** `GeminiExecutor`が、Redisから `base_branch_name` を読み込み、プロンプトテンプレートの変数を置換する。
-
-## Verification Criteria (検証基準)
+## 検証基準 / Verification Criteria
 
 本設計が正しく実装されたことは、以下の方法で確認できます。
 
 - 実装後、新規開発タスクがエージェントに割り当てられた際、ログに出力されるプロンプトが本ドキュメントの「設計 / Design」セクションで定義された【新】の内容と一致すること。
 - 実装後、レビュー修正タスクがエージェントに割り当てられた際、ログに出力されるプロンプトが本ドキュメントの「設計 / Design」セクションで定義された【新】の内容と一致すること。
+
+## 実装状況 / Implementation Status
+該当なし

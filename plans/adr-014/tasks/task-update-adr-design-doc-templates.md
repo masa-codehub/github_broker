@@ -43,3 +43,5 @@ ADRおよびDesign Docのテンプレートが、ADR-014で定義された必須
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/document-adr-014-changes`
 - **作業ブランチ (Feature Branch):** `task/update-adr-design-doc-templates`
+
+## 子Issue (Sub-Issues)

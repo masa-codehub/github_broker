@@ -43,3 +43,5 @@ Issueの優先度ラベルリストから最高優先度を特定する機能が
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/implement-highest-priority-logic`
 - **作業ブランチ (Feature Branch):** `task/determine-highest-priority`
+
+## 子Issue (Sub-Issues)
