@@ -1,10 +1,13 @@
 # 【Task】取得した優先度ラベルから現在の最高優先度を特定する関数を実装する
 
 ## 親Issue (Parent Issue)
-- (Story起票後に追記)
+- #1738
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/015-strict-priority-bucket-assignment.md`
+
+## Issue: #1743
+## Status: Open
 
 # 目的とゴール / Purpose and Goals
 取得したIssueの優先度ラベルリストから、現在オープンなIssueの中で最も高い優先度レベル（例: P0）を特定する関数を実装する。
