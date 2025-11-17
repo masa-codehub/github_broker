@@ -294,11 +294,8 @@ class TaskService:
     ) -> list[dict[str, Any]]:
         candidate_issues = []
         for issue in issues:
-            labels = {
-                label.get("name")
-                for label in issue.get("labels", [])
-                if label.get("name")
-            }
+            label_names = (label.get("name") for label in issue.get("labels", []))
+            labels = {name for name in label_names if name is not None}
 
             # 優先度ラベルのフィルタリング
             if highest_priority and highest_priority not in labels:
@@ -388,6 +385,46 @@ class TaskService:
             return min(priority_numbers, default=float("inf"))
 
         return sorted(issues, key=get_priority_key)
+
+    def _determine_highest_priority_label(self, issues: list[dict[str, Any]]) -> str | None:
+        """
+        Issueリストの中から最も高い優先度ラベル（P0, P1, P2...）を決定します。
+        最も高い優先度は、数字が最も小さいラベルです（例: P0）。
+        """
+        # すべてのラベル名を収集
+        all_labels: list[str] = []
+        for issue in issues:
+            for label in issue.get("labels", []):
+                label_name = label.get("name", "")
+                if label_name:
+                    all_labels.append(label_name)
+
+        # 優先度ラベルのみ抽出（P+数字形式）
+        priority_labels = {
+            name for name in all_labels
+            if name.startswith("P") and name[1:].isdigit()
+        }
+
+        if not priority_labels:
+            return None
+
+        # 最も小さい数字のラベル（例: P0）を返す
+        def get_priority(label: str) -> int:
+            return int(label[1:])
+
+        return min(priority_labels, key=get_priority)
+
+    def _filter_by_highest_priority(
+        self, issues: list[dict[str, Any]], highest_priority_label: str
+    ) -> list[dict[str, Any]]:
+        """
+        Issueリストから、指定された最高優先度ラベルを持つIssueのみをフィルタリングします。
+        """
+        return [
+            issue
+            for issue in issues
+            if highest_priority_label in {label.get("name") for label in issue.get("labels", [])}
+        ]
 
     async def _find_first_assignable_task(
         self, candidate_issues: list, agent_id: str
@@ -534,6 +571,9 @@ class TaskService:
             self.complete_previous_task(agent_id)
 
         highest_priority_label = self.get_highest_priority_label()
+        if not highest_priority_label:
+            logger.info("No priority labels found among open issues. No tasks to assign.")
+            return None
 
         issue_keys = self.redis_client.get_keys_by_pattern("issue:*")
 
@@ -559,13 +599,22 @@ class TaskService:
         candidate_issues = self._find_candidates_for_any_role(
             all_issues, highest_priority_label
         )
+
         if candidate_issues:
             logger.info(
-                "役割に紐づく候補Issueが%d件見つかりました。", len(candidate_issues)
+                "Found %d task candidates with the highest priority label '%s'.",
+                len(candidate_issues),
+                highest_priority_label,
             )
             task = await self._find_first_assignable_task(candidate_issues, agent_id)
             if task:
                 return task
+        else:
+            logger.info(
+                "No assignable task candidates found with the highest priority label '%s'.",
+                highest_priority_label,
+            )
+
         return None
 
     def create_task_candidate(self, issue_id: int, agent_id: str):
