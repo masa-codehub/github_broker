@@ -4,7 +4,7 @@ import re
 import threading
 import time
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from github import GithubException
 from pydantic import HttpUrl
@@ -391,28 +391,28 @@ class TaskService:
         Issueリストの中から最も高い優先度ラベル（P0, P1, P2...）を決定します。
         最も高い優先度は、数字が最も小さいラベルです（例: P0）。
         """
+        # すべてのラベル名を収集
         all_labels: list[str] = []
         for issue in issues:
             for label in issue.get("labels", []):
-                label_name = label.get("name")
+                label_name = label.get("name", "")
                 if label_name:
                     all_labels.append(label_name)
 
-        priority_labels: set[str] = set()
-        for label in all_labels:
-            if self._get_priority_from_label(label) is not None:
-                priority_labels.add(label)
+        # 優先度ラベルのみ抽出（P+数字形式）
+        priority_labels = {
+            name for name in all_labels
+            if name.startswith("P") and name[1:].isdigit()
+        }
 
         if not priority_labels:
             return None
 
+        # 最も小さい数字のラベル（例: P0）を返す
         def get_priority(label: str) -> int:
-            return cast(int, self._get_priority_from_label(label))
+            return int(label[1:])
 
-        return min(
-            priority_labels,
-            key=get_priority,
-        )
+        return min(priority_labels, key=get_priority)
 
     def _filter_by_highest_priority(
         self, issues: list[dict[str, Any]], highest_priority_label: str
@@ -610,18 +610,18 @@ class TaskService:
             final_candidates = []
 
             if development_candidates:
-                highest_priority_label = self._determine_highest_priority_label(
+                development_priority_label = self._determine_highest_priority_label(
                     development_candidates
                 )
 
-                if highest_priority_label:
+                if development_priority_label:
                     filtered_development_candidates = self._filter_by_highest_priority(
-                        development_candidates, highest_priority_label
+                        development_candidates, development_priority_label
                     )
                     final_candidates.extend(filtered_development_candidates)
                     logger.info(
                         "最高優先度ラベル '%s' に基づき、開発候補Issueを %d 件にフィルタリングしました。",
-                        highest_priority_label,
+                        development_priority_label,
                         len(filtered_development_candidates),
                     )
                 else:
