@@ -1,10 +1,13 @@
 # 【Task】TaskService内のタスク割り当てロジックを修正し、フィルタリングされた候補リストを使用するように変更する
 
 ## 親Issue (Parent Issue)
-- (Story起票後に追記)
+- #1740
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/015-strict-priority-bucket-assignment.md`
+
+## Issue: #1745
+## Status: Open
 
 # 目的とゴール / Purpose and Goals
 `TaskService`のタスク割り当てロジックを修正し、最高優先度レベルでフィルタリングされたIssueリストのみを考慮してタスクを割り当てるように変更する。

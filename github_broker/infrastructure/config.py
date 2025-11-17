@@ -1,6 +1,14 @@
 import os
 
+from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class AgentDefinition(BaseModel):
+    """エージェントの定義を表すPydanticモデル。"""
+
+    role: str = Field(..., description="The role of the agent.")
+    description: str = Field(..., description="The description of the agent.")
 
 
 class Settings(BaseSettings):
@@ -29,3 +37,4 @@ class Settings(BaseSettings):
     GEMINI_EXECUTOR_PROMPT_FILE: str = (
         "github_broker/infrastructure/prompts/gemini_executor.yml"
     )
+    AGENT_DEFINITIONS: list[AgentDefinition] = []

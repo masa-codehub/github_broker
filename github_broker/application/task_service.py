@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import threading
 import time
 from datetime import UTC, datetime, timedelta
@@ -9,6 +10,7 @@ from github import GithubException
 from pydantic import HttpUrl
 from redis.exceptions import RedisError
 
+from github_broker.domain.agent import AgentDefinition
 from github_broker.domain.task import Task
 from github_broker.infrastructure.github_client import GitHubClient
 from github_broker.infrastructure.redis_client import RedisClient
@@ -40,22 +42,13 @@ class TaskService:
     REVIEW_ISSUE_TIMESTAMP_KEY_FORMAT = "review_issue_detected_timestamp:{issue_id}"
     REVIEW_ASSIGNMENT_DELAY_MINUTES = 5
 
-    AGENT_ROLES = {
-        "BACKENDCODER",
-        "CONTENTS_WRITER",
-        "MARKET_RESEARCHER",
-        "PEST_ANALYST",
-        "PRODUCT_MANAGER",
-        "SYSTEM_ARCHITECT",
-        "UIUX_DESIGNER",
-    }
-
     def __init__(
         self,
         redis_client: RedisClient,
         github_client: GitHubClient,
         settings: "Settings",
         gemini_executor: "GeminiExecutor",
+        agent_definitions: list[AgentDefinition],
     ):
         self.redis_client = redis_client
         self.github_client = github_client
@@ -65,6 +58,8 @@ class TaskService:
         self.polling_interval_seconds = settings.POLLING_INTERVAL_SECONDS
         self.long_polling_check_interval = settings.LONG_POLLING_CHECK_INTERVAL
         self.gemini_executor = gemini_executor
+        self.agent_definitions = agent_definitions
+        self.agent_roles = {agent["role"] for agent in self.agent_definitions}
 
     def start_polling(self, stop_event: "threading.Event | None" = None):
         logger.info("Starting issue polling...")
@@ -102,6 +97,36 @@ class TaskService:
             time.sleep(self.polling_interval_seconds)
 
         logger.info("Polling stopped.")
+
+    def get_highest_priority_label(self) -> str | None:
+        """
+        リポジトリ内のオープンなIssueから最も高い優先度ラベルを特定します。
+
+        Returns:
+            str | None: 最も高い優先度ラベル (例: 'P0')。優先度ラベルがない場合はNone。
+        """
+        logger.info("Determining the highest priority label across all open issues...")
+        try:
+            open_issues = self.github_client.get_open_issues()
+            if not open_issues:
+                logger.info("No open issues found.")
+                return None
+
+            all_labels = [
+                label["name"]
+                for issue in open_issues
+                for label in issue.get("labels", [])
+            ]
+
+            highest_priority = self._determine_highest_priority(all_labels)
+            if highest_priority:
+                logger.info(f"Highest priority label found: {highest_priority}")
+            else:
+                logger.info("No priority labels found among open issues.")
+            return highest_priority
+        except GithubException as e:
+            logger.error(f"An error occurred while fetching open issues: {e}", exc_info=True)
+            return None
 
     def _find_review_task(self) -> None:
         """
@@ -244,19 +269,40 @@ class TaskService:
     def _has_priority_label(self, labels: set[str]) -> bool:
         return any(self._get_priority_from_label(name) is not None for name in labels)
 
+    def _determine_highest_priority(self, labels: list[str]) -> str | None:
+        """
+        優先度ラベルのリストから最も高い優先度（数字が最小）を特定します。
+
+        Args:
+            labels (list[str]): Issueに付与されているラベル名のリスト。
+
+        Returns:
+            str | None: 最も高い優先度ラベル (例: 'P0')。優先度ラベルがない場合はNone。
+        """
+        priority_tuples = [
+            (int(match.group(1)), label)
+            for label in labels
+            if (match := re.match(r"^P(\d+)$", label))
+        ]
+
+        if priority_tuples:
+            return min(priority_tuples)[1]
+        return None
+
     def _find_candidates_for_any_role(
-        self, issues: list[dict[str, Any]]
+        self, issues: list[dict[str, Any]], highest_priority: str | None
     ) -> list[dict[str, Any]]:
         candidate_issues = []
         for issue in issues:
-            labels = {
-                label.get("name")
-                for label in issue.get("labels", [])
-                if label.get("name")
-            }
+            label_names = (label.get("name") for label in issue.get("labels", []))
+            labels = {name for name in label_names if name is not None}
+
+            # 優先度ラベルのフィルタリング
+            if highest_priority and highest_priority not in labels:
+                continue
 
             # 役割ラベルが付いているかチェック
-            role_labels = labels.intersection(self.AGENT_ROLES)
+            role_labels = labels.intersection(self.agent_roles)
             if not role_labels:
                 continue  # 役割ラベルがないIssueはスキップ
 
@@ -413,7 +459,7 @@ class TaskService:
 
                 # 役割ラベルを抽出
                 role_labels = [
-                    label for label in task.labels if label in self.AGENT_ROLES
+                    label for label in task.labels if label in self.agent_roles
                 ]
 
                 # _find_candidates_for_any_role で役割ラベルが1つ以上あることは保証されているはず
@@ -484,6 +530,11 @@ class TaskService:
         if is_first_check:
             self.complete_previous_task(agent_id)
 
+        highest_priority_label = self.get_highest_priority_label()
+        if not highest_priority_label:
+            logger.info("オープンなIssueに優先度ラベルが見つかりませんでした。割り当てるタスクはありません。")
+            return None
+
         issue_keys = self.redis_client.get_keys_by_pattern("issue:*")
 
         if not issue_keys:
@@ -505,14 +556,25 @@ class TaskService:
             )
             return None
 
-        candidate_issues = self._find_candidates_for_any_role(all_issues)
+        candidate_issues = self._find_candidates_for_any_role(
+            all_issues, highest_priority_label
+        )
+
         if candidate_issues:
             logger.info(
-                "役割に紐づく候補Issueが%d件見つかりました。", len(candidate_issues)
+                "最高優先度ラベル '%s' を持つタスク候補が %d 件見つかりました。",
+                highest_priority_label,
+                len(candidate_issues),
             )
             task = await self._find_first_assignable_task(candidate_issues, agent_id)
             if task:
                 return task
+        else:
+            logger.info(
+                "最高優先度ラベル '%s' を持つ割り当て可能なタスク候補は見つかりませんでした。",
+                highest_priority_label,
+            )
+
         return None
 
     def create_task_candidate(self, issue_id: int, agent_id: str):
@@ -536,7 +598,7 @@ class TaskService:
         # 1. Issue情報を取得し、役割ラベルを抽出
         issue_data = self.github_client.get_issue_by_number(pull_request_number)
         issue_labels = {label["name"] for label in issue_data.get("labels", [])}
-        role_labels = list(issue_labels.intersection(self.AGENT_ROLES))
+        role_labels = list(issue_labels.intersection(self.agent_roles))
 
         # 2. 修正タスクのラベルを構築
         fix_labels = ["fix"] + role_labels

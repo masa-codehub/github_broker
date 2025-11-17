@@ -1,10 +1,13 @@
 # 【Task】P0完了後にP1が割り当てられるテスト追加
 
 ## 親Issue (Parent Issue)
-- (Story起票後に追記)
+- #1741
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/015-strict-priority-bucket-assignment.md`
+
+## Issue: #1747
+## Status: Open
 
 # 目的とゴール / Purpose and Goals
 厳格な優先度バケット方式が正しく機能することを検証するため、すべての`P0`のIssueがクローズされた後に`P1`のIssueがエージェントに割り当てられることを確認するテストケースを追加する。
