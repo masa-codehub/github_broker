@@ -572,7 +572,7 @@ class TaskService:
 
         highest_priority_label = self.get_highest_priority_label()
         if not highest_priority_label:
-            logger.info("No priority labels found among open issues. No tasks to assign.")
+            logger.info("オープンなIssueに優先度ラベルが見つかりませんでした。割り当てるタスクはありません。")
             return None
 
         issue_keys = self.redis_client.get_keys_by_pattern("issue:*")
@@ -602,16 +602,16 @@ class TaskService:
 
         if candidate_issues:
             logger.info(
-                "Found %d task candidates with the highest priority label '%s'.",
-                len(candidate_issues),
+                "最高優先度ラベル '%s' を持つタスク候補が %d 件見つかりました。",
                 highest_priority_label,
+                len(candidate_issues),
             )
             task = await self._find_first_assignable_task(candidate_issues, agent_id)
             if task:
                 return task
         else:
             logger.info(
-                "No assignable task candidates found with the highest priority label '%s'.",
+                "最高優先度ラベル '%s' を持つ割り当て可能なタスク候補は見つかりませんでした。",
                 highest_priority_label,
             )
 

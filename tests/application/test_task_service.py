@@ -1338,8 +1338,8 @@ async def test_request_task_logs_detailed_information(
         # 1. Agent ID
         assert f"タスクをリクエストしています: agent_id={agent_id}" in log_messages
         # 2. Candidate count (Removed old assertion)
-        # 3. Candidate count message
-        assert "Found 2 task candidates with the highest priority label 'P0'." in log_messages
+        # 3. 候補数のログメッセージ
+        assert "最高優先度ラベル 'P0' を持つタスク候補が 2 件見つかりました。" in log_messages
         # 4. Sorted order
         assert "候補Issueを優先度順にソートしました: [3, 4]" in log_messages
         # 5. Reasons for skipping
