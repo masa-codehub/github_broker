@@ -571,6 +571,9 @@ class TaskService:
             self.complete_previous_task(agent_id)
 
         highest_priority_label = self.get_highest_priority_label()
+        if not highest_priority_label:
+            logger.info("オープンなIssueに優先度ラベルが見つかりませんでした。割り当てるタスクはありません。")
+            return None
 
         issue_keys = self.redis_client.get_keys_by_pattern("issue:*")
 
@@ -596,51 +599,21 @@ class TaskService:
         candidate_issues = self._find_candidates_for_any_role(
             all_issues, highest_priority_label
         )
+
         if candidate_issues:
-            # Separate candidates into development and review
-            development_candidates = []
-            review_candidates = []
-            for issue in candidate_issues:
-                labels = {label.get("name") for label in issue.get("labels", [])}
-                if self.LABEL_NEEDS_REVIEW in labels:
-                    review_candidates.append(issue)
-                else:
-                    development_candidates.append(issue)
-
-            final_candidates = []
-
-            if development_candidates:
-                development_priority_label = self._determine_highest_priority_label(
-                    development_candidates
-                )
-
-                if development_priority_label:
-                    filtered_development_candidates = self._filter_by_highest_priority(
-                        development_candidates, development_priority_label
-                    )
-                    final_candidates.extend(filtered_development_candidates)
-                    logger.info(
-                        "最高優先度ラベル '%s' に基づき、開発候補Issueを %d 件にフィルタリングしました。",
-                        development_priority_label,
-                        len(filtered_development_candidates),
-                    )
-                else:
-                    # This case should not happen if _find_candidates_for_any_role is correct,
-                    # as it filters out development candidates without a priority label.
-                    logger.warning("開発候補Issueが見つかりましたが、優先度ラベルがありませんでした。")
-
-            # Review candidates are always added, regardless of priority filtering
-            final_candidates.extend(review_candidates)
-
-            if final_candidates:
-                logger.info(
-                    "最終的なタスク候補Issueが%d件見つかりました。", len(final_candidates)
-                )
-                task = await self._find_first_assignable_task(final_candidates, agent_id)
-                if task:
-                    return task
-            else:
-                logger.info("優先度フィルタリングの結果、割り当て可能なタスク候補が見つかりませんでした。")
+            logger.info(
+                "最高優先度ラベル '%s' を持つタスク候補が %d 件見つかりました。",
+                highest_priority_label,
+                len(candidate_issues),
+            )
+            task = await self._find_first_assignable_task(candidate_issues, agent_id)
+            if task:
+                return task
+        else:
+            logger.info(
+                "最高優先度ラベル '%s' を持つ割り当て可能なタスク候補は見つかりませんでした。",
+                highest_priority_label,
+            )
 
         return None
 
