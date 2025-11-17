@@ -59,6 +59,7 @@ class TaskService:
         self.long_polling_check_interval = settings.LONG_POLLING_CHECK_INTERVAL
         self.gemini_executor = gemini_executor
         self.agent_definitions = agent_definitions
+        self.agent_roles = {agent["role"] for agent in self.agent_definitions}
 
     def start_polling(self, stop_event: "threading.Event | None" = None):
         logger.info("Starting issue polling...")
@@ -304,7 +305,7 @@ class TaskService:
                 continue
 
             # 役割ラベルが付いているかチェック
-            role_labels = labels.intersection({agent["role"] for agent in self.agent_definitions})
+            role_labels = labels.intersection(self.agent_roles)
             if not role_labels:
                 continue  # 役割ラベルがないIssueはスキップ
 
@@ -461,7 +462,7 @@ class TaskService:
 
                 # 役割ラベルを抽出
                 role_labels = [
-                    label for label in task.labels if label in {agent["role"] for agent in self.agent_definitions}
+                    label for label in task.labels if label in self.agent_roles
                 ]
 
                 # _find_candidates_for_any_role で役割ラベルが1つ以上あることは保証されているはず
@@ -588,7 +589,7 @@ class TaskService:
         # 1. Issue情報を取得し、役割ラベルを抽出
         issue_data = self.github_client.get_issue_by_number(pull_request_number)
         issue_labels = {label["name"] for label in issue_data.get("labels", [])}
-        role_labels = list(issue_labels.intersection({agent["role"] for agent in self.agent_definitions}))
+        role_labels = list(issue_labels.intersection(self.agent_roles))
 
         # 2. 修正タスクのラベルを構築
         fix_labels = ["fix"] + role_labels
