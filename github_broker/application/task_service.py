@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 import threading
 import time
 from datetime import UTC, datetime, timedelta
@@ -94,43 +93,23 @@ class TaskService:
 
         logger.info("Polling stopped.")
 
-    def get_highest_priority_label(self) -> str | None:
+    def get_highest_priority_label(self, all_labels: list[str]) -> str | None:
         """
-        リポジトリ内のオープンなIssueから最も高い優先度ラベルを特定します。
-        この実装はRedisキャッシュを利用して、APIコールを避けます。
+        与えられたラベルのリストから最も高い優先度ラベルを特定します。
+
+        Args:
+            all_labels (list[str]): すべてのIssueから集めたラベルのリスト。
 
         Returns:
             str | None: 最も高い優先度ラベル (例: 'P0')。優先度ラベルがない場合はNone。
         """
-        logger.info("Determining the highest priority label from Redis cache...")
-        try:
-            issue_keys = self.redis_client.get_keys_by_pattern("issue:*")
-            if not issue_keys:
-                logger.info("No open issues found in Redis cache.")
-                return None
-
-            cached_issues_json = self.redis_client.get_values(issue_keys)
-            all_issues = [
-                json.loads(issue_json)
-                for issue_json in cached_issues_json
-                if issue_json
-            ]
-
-            all_labels = [
-                label["name"]
-                for issue in all_issues
-                for label in issue.get("labels", [])
-            ]
-
-            highest_priority = self._determine_highest_priority(all_labels)
-            if highest_priority:
-                logger.info(f"Highest priority label found in cache: {highest_priority}")
-            else:
-                logger.info("No priority labels found among cached open issues.")
-            return highest_priority
-        except (RedisError, json.JSONDecodeError) as e:
-            logger.error(f"An error occurred while fetching issues from Redis: {e}", exc_info=True)
-            return None
+        logger.info("Determining the highest priority label from the provided list of all labels...")
+        highest_priority = self._determine_highest_priority(all_labels)
+        if highest_priority:
+            logger.info(f"Highest priority label found: {highest_priority}")
+        else:
+            logger.info("No priority labels found among the provided labels.")
+        return highest_priority
 
     def _find_review_task(self) -> None:
         """
@@ -284,13 +263,18 @@ class TaskService:
             str | None: 最も高い優先度ラベル (例: 'P0')。優先度ラベルがない場合はNone。
         """
         priority_tuples = [
-            (int(match.group(1)), label)
+            (self._get_priority_from_label(label), label)
             for label in labels
-            if (match := re.match(r"^P(\d+)$", label))
+            if self._get_priority_from_label(label) is not None
         ]
 
         if priority_tuples:
-            return min(priority_tuples)[1]
+            # self._get_priority_from_labelがNoneでないことを確認済みなので、
+            # mypyのためのキャストを追加
+            valid_priority_tuples: list[tuple[int, str]] = [
+                (p, label) for p, label in priority_tuples if p is not None
+            ]
+            return min(valid_priority_tuples)[1]
         return None
 
     def _find_candidates_for_any_role(
@@ -528,19 +512,12 @@ class TaskService:
         if is_first_check:
             self.complete_previous_task(agent_id)
 
-        highest_priority_label = self.get_highest_priority_label()
-        if not highest_priority_label:
-            logger.info("オープンなIssueに優先度ラベルが見つかりませんでした。割り当てるタスクはありません。")
-            return None
-
         issue_keys = self.redis_client.get_keys_by_pattern("issue:*")
-
         if not issue_keys:
             logger.warning("No issues found in Redis cache.")
             return None
 
         cached_issues_json = self.redis_client.get_values(issue_keys)
-
         try:
             all_issues = [
                 json.loads(issue_json)
@@ -552,6 +529,17 @@ class TaskService:
                 "Failed to decode issues from Redis cache. The cache might be corrupted.",
                 exc_info=True,
             )
+            return None
+
+        all_labels = [
+            label["name"]
+            for issue in all_issues
+            for label in issue.get("labels", [])
+        ]
+        highest_priority_label = self.get_highest_priority_label(all_labels)
+
+        if not highest_priority_label:
+            logger.info("オープンなIssueに優先度ラベルが見つかりませんでした。割り当てるタスクはありません。")
             return None
 
         candidate_issues = self._find_candidates_for_any_role(

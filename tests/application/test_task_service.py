@@ -1442,63 +1442,15 @@ async def test_request_task_returns_none_immediately_if_no_task_available(
     mock_redis_client.get_keys_by_pattern.assert_called_once_with("issue:*")
 
 @pytest.mark.unit
-def test_get_highest_priority_label_from_cache(task_service, mock_redis_client):
-    """get_highest_priority_labelがRedisキャッシュから最も高い優先度ラベルを返すことをテストします。"""
+def test_get_highest_priority_label_from_labels_list(task_service):
+    """get_highest_priority_labelが与えられたラベルのリストから最も高い優先度を返すことをテストします。"""
     # Arrange
-    issue_p1 = create_mock_issue(
-        number=1, title="P1 Task", body="", labels=["P1", "feature"]
-    )
-    issue_p0 = create_mock_issue(
-        number=2, title="P0 Task", body="", labels=["P0", "bug"]
-    )
-    issue_no_priority = create_mock_issue(
-        number=3, title="No Priority Task", body="", labels=["documentation"]
-    )
-    cached_issues = [issue_p1, issue_p0, issue_no_priority]
-    issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
-    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
-    mock_redis_client.get_values.return_value = [
-        json.dumps(issue) for issue in cached_issues
-    ]
+    all_labels = ["P1", "feature", "P0", "bug", "P1"]
 
     # Act
-    highest_priority = task_service.get_highest_priority_label()
+    highest_priority = task_service.get_highest_priority_label(all_labels)
 
     # Assert
     assert highest_priority == "P0"
-    mock_redis_client.get_keys_by_pattern.assert_called_once_with("issue:*")
-    mock_redis_client.get_values.assert_called_once_with(issue_keys)
 
 
-@pytest.mark.unit
-def test_get_highest_priority_label_no_issues_in_cache(task_service, mock_redis_client):
-    """キャッシュにオープンなIssueがない場合にNoneを返すことをテストします。"""
-    # Arrange
-    mock_redis_client.get_keys_by_pattern.return_value = []
-
-    # Act
-    highest_priority = task_service.get_highest_priority_label()
-
-    # Assert
-    assert highest_priority is None
-
-
-@pytest.mark.unit
-def test_get_highest_priority_label_no_priority_labels_in_cache(task_service, mock_redis_client):
-    """キャッシュされたIssueに優先度ラベルがない場合にNoneを返すことをテストします。"""
-    # Arrange
-    issue_no_priority = create_mock_issue(
-        number=1, title="No Priority Task", body="", labels=["documentation"]
-    )
-    cached_issues = [issue_no_priority]
-    issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
-    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
-    mock_redis_client.get_values.return_value = [
-        json.dumps(issue) for issue in cached_issues
-    ]
-
-    # Act
-    highest_priority = task_service.get_highest_priority_label()
-
-    # Assert
-    assert highest_priority is None
