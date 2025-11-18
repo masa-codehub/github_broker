@@ -41,3 +41,5 @@ ADR-015で導入された厳格な優先度バケットによるタスク割り�
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/document-adr-015-changes`
 - **作業ブランチ (Feature Branch):** `task/update-design-doc-with-priority-rules`
+
+## 子Issue (Sub-Issues)

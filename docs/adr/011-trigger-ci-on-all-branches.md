@@ -1,8 +1,8 @@
 # 概要 / Summary
 [ADR-011] すべてのブランチへのPull RequestでCIをトリガーする
 
-- **Status**: 承認済み
-- **Date**: 2025-10-19
+- Status: 承認済み
+- Date: 2025-10-19
 
 ## 状況 / Context
 
@@ -49,11 +49,11 @@ on:
 
 -   **CIリソースの消費増加:** CIの実行回数が増えるため、GitHub Actionsの実行時間やコストが増加する可能性があります。しかし、これは品質向上のための妥当なトレードオフと判断します。
 
-## Verification Criteria (検証基準)
+## 検証基準 / Verification Criteria
 
 この意思決定が正しく実装されたことは、以下の方法で確認できます。
 
 -   `main`以外のブランチ（例: `feature/some-new-feature`）から、別のブランチ（`main`でなくてもよい）へのPull Requestを作成した際に、GitHub上でCIワークフローが自動的に開始されること。
 
-## Implementation Status (実装状況)
+## 実装状況 / Implementation Status
 完了

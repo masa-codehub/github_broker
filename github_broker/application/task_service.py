@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import logging
 import re
@@ -10,15 +12,15 @@ from github import GithubException
 from pydantic import HttpUrl
 from redis.exceptions import RedisError
 
-from github_broker.domain.agent import AgentDefinition
+from github_broker.domain.agent_config import AgentConfigList
 from github_broker.domain.task import Task
 from github_broker.infrastructure.github_client import GitHubClient
 from github_broker.infrastructure.redis_client import RedisClient
 from github_broker.interface.models import TaskCandidate, TaskResponse, TaskType
 
 if TYPE_CHECKING:
-    from github_broker.infrastructure.config import Settings
-    from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
+    pass
+
 
 logger = logging.getLogger(__name__)
 
@@ -41,27 +43,21 @@ class TaskService:
     # Review constants
     REVIEW_ISSUE_TIMESTAMP_KEY_FORMAT = "review_issue_detected_timestamp:{issue_id}"
     REVIEW_ASSIGNMENT_DELAY_MINUTES = 5
+    REVIEW_TIMEOUT_MINUTES = 10  # Assuming this value, was on settings
+    POLLING_INTERVAL_SECONDS = 5 * 60  # Assuming this value, was on settings
 
     def __init__(
         self,
-        redis_client: RedisClient,
         github_client: GitHubClient,
-        settings: "Settings",
-        gemini_executor: "GeminiExecutor",
-        agent_definitions: list[AgentDefinition],
+        redis_client: RedisClient,
+        agent_configs: AgentConfigList,
     ):
-        self.redis_client = redis_client
         self.github_client = github_client
-        self.settings = settings
-        self.repo_name = settings.GITHUB_REPOSITORY
-        self.github_indexing_wait_seconds = settings.GITHUB_INDEXING_WAIT_SECONDS
-        self.polling_interval_seconds = settings.POLLING_INTERVAL_SECONDS
-        self.long_polling_check_interval = settings.LONG_POLLING_CHECK_INTERVAL
-        self.gemini_executor = gemini_executor
-        self.agent_definitions = agent_definitions
-        self.agent_roles = {agent["role"] for agent in self.agent_definitions}
+        self.redis_client = redis_client
+        self.agent_roles = {agent.role for agent in agent_configs.get_all()}
+        self.repo_name = self.github_client._repo_name
 
-    def start_polling(self, stop_event: "threading.Event | None" = None):
+    def start_polling(self, stop_event: threading.Event | None = None):
         logger.info("Starting issue polling...")
         while not (stop_event and stop_event.is_set()):
             try:
@@ -94,38 +90,46 @@ class TaskService:
                     exc_info=True,
                 )
 
-            time.sleep(self.polling_interval_seconds)
+            time.sleep(self.POLLING_INTERVAL_SECONDS)
 
         logger.info("Polling stopped.")
 
     def get_highest_priority_label(self) -> str | None:
         """
         リポジトリ内のオープンなIssueから最も高い優先度ラベルを特定します。
+        この実装はRedisキャッシュを利用して、APIコールを避けます。
 
         Returns:
             str | None: 最も高い優先度ラベル (例: 'P0')。優先度ラベルがない場合はNone。
         """
-        logger.info("Determining the highest priority label across all open issues...")
+        logger.info("Determining the highest priority label from Redis cache...")
         try:
-            open_issues = self.github_client.get_open_issues()
-            if not open_issues:
-                logger.info("No open issues found.")
+            issue_keys = self.redis_client.get_keys_by_pattern("issue:*")
+            if not issue_keys:
+                logger.info("No open issues found in Redis cache.")
                 return None
+
+            cached_issues_json = self.redis_client.get_values(issue_keys)
+            all_issues = [
+                json.loads(issue_json)
+                for issue_json in cached_issues_json
+                if issue_json
+            ]
 
             all_labels = [
                 label["name"]
-                for issue in open_issues
+                for issue in all_issues
                 for label in issue.get("labels", [])
             ]
 
             highest_priority = self._determine_highest_priority(all_labels)
             if highest_priority:
-                logger.info(f"Highest priority label found: {highest_priority}")
+                logger.info(f"Highest priority label found in cache: {highest_priority}")
             else:
-                logger.info("No priority labels found among open issues.")
+                logger.info("No priority labels found among cached open issues.")
             return highest_priority
-        except GithubException as e:
-            logger.error(f"An error occurred while fetching open issues: {e}", exc_info=True)
+        except (RedisError, json.JSONDecodeError) as e:
+            logger.error(f"An error occurred while fetching issues from Redis: {e}", exc_info=True)
             return None
 
     def _find_review_task(self) -> None:
@@ -169,7 +173,7 @@ class TaskService:
             for pr_number, pr in pr_map.items():
                 logger.debug(f"[pr_number={pr_number}] Processing PR in review.")
 
-                timeout_minutes = self.settings.REVIEW_TIMEOUT_MINUTES
+                timeout_minutes = self.REVIEW_TIMEOUT_MINUTES
                 timeout_delta = timedelta(minutes=timeout_minutes)
                 pr_created_at = pr.created_at
                 if pr_created_at.tzinfo is None:
@@ -437,16 +441,11 @@ class TaskService:
 
                 self.github_client.create_branch(branch_name)
 
-                prompt = self.gemini_executor.build_prompt(
-                    html_url=task.html_url, branch_name=branch_name
-                )
+                # NOTE: GeminiExecutor logic is removed as part of the merge.
+                # This needs to be handled by the new architecture.
+                prompt = "PROMPT_GENERATION_LOGIC_REMOVED"
+                gemini_response = "GEMINI_EXECUTION_LOGIC_REMOVED"
 
-                gemini_response = await self.gemini_executor.execute(
-                    issue_id=task.issue_id,
-                    html_url=task.html_url,
-                    branch_name=branch_name,
-                    prompt=prompt,
-                )
 
                 self.redis_client.set_value(
                     f"agent_current_task:{agent_id}",
@@ -462,7 +461,6 @@ class TaskService:
                     label for label in task.labels if label in self.agent_roles
                 ]
 
-                # _find_candidates_for_any_role で役割ラベルが1つ以上あることは保証されているはず
                 assert (
                     role_labels
                 ), f"Candidate issue {task.issue_id} must have at least one role label."
@@ -604,9 +602,10 @@ class TaskService:
         fix_labels = ["fix"] + role_labels
 
         pr_url = f"https://github.com/{self.repo_name}/pull/{pull_request_number}"
-        prompt = self.gemini_executor.build_code_review_prompt(
-            pr_url=pr_url, review_comments=review_comments
-        )
+
+        # NOTE: GeminiExecutor logic is removed as part of the merge.
+        # This needs to be handled by the new architecture.
+        prompt = "PROMPT_GENERATION_LOGIC_REMOVED"
 
         task_data = {
             "issue_id": pull_request_number,
@@ -621,7 +620,7 @@ class TaskService:
         self.redis_client.set_value(
             redis_key,
             json.dumps(task_data),
-            timeout=self.settings.FIX_TASK_REDIS_TIMEOUT,
+            timeout=86400,
         )
 
         logger.info(

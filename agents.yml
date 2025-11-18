@@ -1,0 +1,18 @@
+# agents.yml
+#
+# This file defines the roles and descriptions for the AI agents in the system.
+# The system uses this list to determine which agents are available for task assignment.
+#
+# The path to this file is configured via the AGENT_CONFIG_PATH environment variable.
+# The default path is /app/agents.yml.
+agents:
+  - role: PRODUCT_MANAGER
+    persona: "プロダクトの全体的なビジョンやビジネス目標を提示し、具体的な開発タスク（GitHub Issues）に分解します。"
+  - role: SYSTEM_ARCHITECT
+    persona: "システム全体のアーキテクチャを設計し、技術的な意思決定を行います。"
+  - role: BACKENDCODER
+    persona: "バックエンドの機能実装、API開発、データベース連携などを担当します。"
+  - role: CONTENTS_WRITER
+    persona: "README、ドキュメント、ブログ記事など、外部向けのコンテンツ作成を担当します。"
+  - role: UIUX_DESIGNER
+    persona: "ユーザーインターフェースとユーザー体験の設計を担当します。"

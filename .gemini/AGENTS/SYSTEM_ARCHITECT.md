@@ -164,20 +164,21 @@ ADRとDesign Docは、以下の基準で使い分けてください。
 ### ADR (Architecture Decision Record) テンプレート
 
 ```markdown
-# [ADR-XXX] タイトル: (決定内容を簡潔に記述)
+# 概要 / Summary
+[ADR-XXX] タイトル: (決定内容を簡潔に記述)
 
 - **Status**: (提案中 | 承認済み | 却下済み | 廃止予定)
 - **Date**: YYYY-MM-DD
 
-## Context (背景)
+## 状況 / Context
 
 この決定が必要となった背景、解決しようとしている課題、技術的・ビジネス的な制約条件などを記述します。
 
-## Decision (決定)
+## 決定 / Decision
 
 最終的に下した決定を明確に記述します。
 
-## Consequences (結果)
+## 結果 / Consequences
 
 この決定によってもたらされるプラスとマイナスの影響を記述します。
 
@@ -189,78 +190,75 @@ ADRとDesign Docは、以下の基準で使い分けてください。
 
 - (例: 外部サービスへの依存が発生する)
 
-## Verification Criteria (検証基準)
+## 検証基準 / Verification Criteria
 
 この意思決定が正しく実装されたことを、ユーザー（またはプロダクトオーナー）がどのように確認できるかを具体的に記述します。
 
 - (例: Auth0の管理画面から、テストユーザーが正常にログインしたログが確認できること。)
 - (例: 新しいAPIエンドポイント `GET /api/v1/status` が、期待されるフォーマットで `200 OK` を返すこと。)
 
-## Implementation Status (実装状況)
+## 実装状況 / Implementation Status
 (未着手 | 進行中 | 完了)
 ```
 
 ### Design Doc テンプレート
 
 ```markdown
-# デザインドキュメント: (機能名やプロジェクト名)
+# 概要 / Overview
+デザインドキュメント: (機能名やプロジェクト名)
 
 - **Author(s)**: (作成者名)
 - **Status**: (下書き | レビュー中 | 承認済み | 実装中)
 - **Last Updated**: YYYY-MM-DD
 
-## 1. Summary / Overview (概要)
-
-このドキュメントが何を解決し、どのような設計を提案するのか、全体像を1〜2段落で簡潔にまとめます。
-
-## 2. Background (背景と課題)
+## 背景と課題 / Background
 
 なぜこの設計が必要なのか、現状のシステムが抱える課題、ビジネス上の要求、ユーザーのペインなどを具体的に記述します。
 
-## 3. Goals / Objectives (目的)
+## ゴール / Goals
 
 この設計によって達成すべきことを明確に定義します。
 
-### 機能要件 (Functional Requirements)
+### 機能要件 / Functional Requirements
 
 - (例: ユーザーは商品をカートに追加できる)
 
-### 非機能要件 (Non-Functional Requirements)
+### 非機能要件 / Non-Functional Requirements
 
 - (例: 商品検索のレスポンスタイムが平均200ms以下であること)
 
-## 4. Proposed Design (提案する設計)
+## 設計 / Design
 
 具体的な設計内容を記述します。
 
-### 4.1. High-Level Design (ハイレベル設計)
+### ハイレベル設計 / High-Level Design
 
 アーキテクチャ図やシーケンス図などを用いて、システム全体の構成要素とそれらの関連性を示します。
 
-### 4.2. Detailed Design (詳細設計)
+### 詳細設計 / Detailed Design
 
 - **API設計**: エンドポイント、リクエスト/レスポンスのフォーマットなどを記述します。
 - **データモデル**: データベースのテーブルスキーマやER図などを記述します。
 
-## 5. Alternatives Considered (検討した代替案)
+## 検討した代替案 / Alternatives Considered
 
 提案した設計以外に検討した他の選択肢と、それらをなぜ採用しなかったのかを記述します。
 
-## 6. Security & Privacy (セキュリティとプライバシー)
+## セキュリティとプライバシー / Security & Privacy
 
 この設計がセキュリティやプライバシーに与える影響と、その対策について記述します。
 
-## 7. Open Questions / Unresolved Issues (未解決の問題)
+## 未解決の問題 / Open Questions & Unresolved Issues
 
 設計段階でまだ結論が出ていないことや、今後検討が必要な事項をリストアップします。
 
-## 8. Verification Criteria (検証基準)
+## 検証基準 / Verification Criteria
 
 この設計が正しく実装されたことを、ユーザー（またはプロダクトオーナー）がどのように確認できるかを具体的に記述します。
 
 - (例: 商品詳細ページで「カートに追加」ボタンをクリックすると、画面右上のカートアイコンの数字が1増えること。)
 - (例: 在庫数0の商品のページでは、「カートに追加」ボタンが非表示になっていること。)
 
-## 9. Implementation Status (実装状況)
+## 実装状況 / Implementation Status
 (未着手 | 進行中 | 完了)
 ```

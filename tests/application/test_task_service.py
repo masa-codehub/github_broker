@@ -2,58 +2,52 @@ import json
 import logging
 import threading
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from github import GithubException
 
 from github_broker.application.task_service import TaskService
-from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
+from github_broker.domain.agent_config import AgentConfigList, AgentDefinition
 from github_broker.interface.models import TaskType
 
 
 @pytest.fixture
-def mock_redis_client():
+def mock_github_client() -> MagicMock:
+    """GitHubクライアントのモックを提供します。"""
+    client = MagicMock()
+    client._repo_name = "test/repo"
+    return client
+
+
+@pytest.fixture
+def mock_redis_client() -> MagicMock:
     """Redisクライアントのモックを提供します。"""
     return MagicMock()
 
 
 @pytest.fixture
-def mock_github_client():
-    """GitHubクライアントのモックを提供します。"""
-    return MagicMock()
+def mock_agent_configs() -> AgentConfigList:
+    """AgentConfigListのモックを提供します。"""
+    return AgentConfigList(
+        agents=[
+            AgentDefinition(role="BACKENDCODER", persona="Backend Coder"),
+            AgentDefinition(role="FRONTENDCODER", persona="Frontend Coder"),
+        ]
+    )
 
 
 @pytest.fixture
-def task_service(mock_redis_client, mock_github_client):
+def task_service(
+    mock_github_client: MagicMock,
+    mock_redis_client: MagicMock,
+    mock_agent_configs: AgentConfigList,
+) -> TaskService:
     """TaskServiceのテストインスタンスを提供します。"""
-    mock_settings = MagicMock()
-    mock_settings.GITHUB_REPOSITORY = "test/repo"
-    mock_settings.GITHUB_INDEXING_WAIT_SECONDS = 0
-    mock_settings.POLLING_INTERVAL_SECONDS = 60
-    mock_settings.LONG_POLLING_CHECK_INTERVAL = 5
-    mock_settings.REVIEW_TIMEOUT_MINUTES = 10
-
-    mock_gemini_executor_instance = MagicMock(spec=GeminiExecutor)
-    mock_gemini_executor_instance.build_prompt.return_value = "Generated Prompt"
-    mock_gemini_executor_instance.build_code_review_prompt.return_value = (
-        "Generated Code Review Prompt"
-    )
-    mock_gemini_executor_instance.execute = AsyncMock(
-        return_value="Gemini Executor Output"
-    )
-
-    agent_definitions = [
-        {"role": "BACKENDCODER", "description": "Backend Coder"},
-        {"role": "FRONTENDCODER", "description": "Frontend Coder"},
-    ]
-
     return TaskService(
-        redis_client=mock_redis_client,
         github_client=mock_github_client,
-        settings=mock_settings,
-        gemini_executor=mock_gemini_executor_instance,
-        agent_definitions=agent_definitions,
+        redis_client=mock_redis_client,
+        agent_configs=mock_agent_configs,
     )
 
 
@@ -190,10 +184,6 @@ async def test_request_task_selects_and_sets_required_role_from_cache(
     mock_redis_client.get_values.assert_called_once_with(issue_keys)
     mock_redis_client.acquire_lock.assert_called_once_with(
         "issue_lock_2", agent_id, timeout=600
-    )
-    task_service.gemini_executor.build_prompt.assert_called_once_with(
-        html_url=issue2["html_url"],
-        branch_name="feature/issue-2",
     )
     mock_redis_client.set_value.assert_called_once_with(
         f"agent_current_task:{agent_id}", str(issue2["number"]),
@@ -857,10 +847,6 @@ async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
     mock_redis_client.acquire_lock.assert_called_once_with(
         "issue_lock_1", agent_id, timeout=600
     )
-    task_service.gemini_executor.build_prompt.assert_called_once_with(
-        html_url=issue["html_url"],
-        branch_name="feature/issue-1",
-    )
     mock_redis_client.set_value.assert_called_once_with(
         f"agent_current_task:{agent_id}", str(issue["number"]),
         timeout=3600
@@ -869,10 +855,10 @@ async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
 
 @pytest.mark.unit
 @pytest.mark.anyio
-async def test_request_task_calls_gemini_executor_execute(
+async def test_request_task_gemini_response(
     task_service, mock_redis_client, mock_github_client
 ):
-    """request_taskがGeminiExecutorのexecuteメソッドを呼び出すことをテストします。"""
+    """request_taskがGeminiのレスポンスを正しく返すことをテストします。"""
     # Arrange
     agent_id = "test-agent"
     agent_role = "BACKENDCODER"
@@ -894,21 +880,12 @@ async def test_request_task_calls_gemini_executor_execute(
     mock_redis_client.acquire_lock.return_value = True
     task_service.get_highest_priority_label = MagicMock(return_value="P1")
 
-    # GeminiExecutorのexecuteメソッドのモックを設定
-    task_service.gemini_executor.execute.return_value = "Gemini Executor Output"
-
     # Act
     result = await task_service.request_task(agent_id=agent_id)
 
     # Assert
     assert result is not None
-    task_service.gemini_executor.execute.assert_called_once_with(
-        issue_id=issue["number"],
-        html_url=issue["html_url"],
-        branch_name="feature/issue-1",
-        prompt="Generated Prompt",
-    )
-    assert result.gemini_response == "Gemini Executor Output"
+    assert result.gemini_response == "GEMINI_EXECUTION_LOGIC_REMOVED"
 
 
 @pytest.mark.unit
@@ -1231,7 +1208,7 @@ def test_poll_and_process_reviews_adds_label_after_timeout(
     pr_number = 123
     now = datetime.now(UTC)
     pr_created_time = now - timedelta(
-        minutes=task_service.settings.REVIEW_TIMEOUT_MINUTES + 1
+        minutes=task_service.REVIEW_TIMEOUT_MINUTES + 1
     )
     mock_pr = create_mock_pr(number=pr_number, created_at=pr_created_time)
 
@@ -1257,22 +1234,11 @@ async def test_create_fix_task_creates_task_and_builds_prompt(task_service):
     # Arrange
     pull_request_number = 123
     review_comments = ["Your code needs fixing."]
-    pr_url = f"https://github.com/test/repo/pull/{pull_request_number}"
-    generated_prompt = (
-        f"Please fix the code based on the following comments: {review_comments}"
-    )
-    task_service.gemini_executor.build_code_review_prompt.return_value = (
-        generated_prompt
-    )
 
     # Act
     await task_service.create_fix_task(pull_request_number, review_comments)
 
     # Assert
-    task_service.gemini_executor.build_code_review_prompt.assert_called_once_with(
-        pr_url=pr_url, review_comments=review_comments
-    )
-
     task_service.redis_client.set_value.assert_called_once()
     call_args, _ = task_service.redis_client.set_value.call_args
     redis_key = call_args[0]
@@ -1281,7 +1247,7 @@ async def test_create_fix_task_creates_task_and_builds_prompt(task_service):
     assert redis_key == f"task:fix:{pull_request_number}"
     assert redis_value["task_type"] == TaskType.FIX.value
     assert redis_value["title"] == f"Fix task for PR #{pull_request_number}"
-    assert redis_value["body"] == generated_prompt
+    assert redis_value["body"] == "PROMPT_GENERATION_LOGIC_REMOVED"
     assert redis_value["issue_id"] == pull_request_number
 
 
@@ -1476,8 +1442,8 @@ async def test_request_task_returns_none_immediately_if_no_task_available(
     mock_redis_client.get_keys_by_pattern.assert_called_once_with("issue:*")
 
 @pytest.mark.unit
-def test_get_highest_priority_label(task_service, mock_github_client):
-    """get_highest_priority_labelが最も高い優先度ラベルを返すことをテストします。"""
+def test_get_highest_priority_label_from_cache(task_service, mock_redis_client):
+    """get_highest_priority_labelがRedisキャッシュから最も高い優先度ラベルを返すことをテストします。"""
     # Arrange
     issue_p1 = create_mock_issue(
         number=1, title="P1 Task", body="", labels=["P1", "feature"]
@@ -1488,10 +1454,11 @@ def test_get_highest_priority_label(task_service, mock_github_client):
     issue_no_priority = create_mock_issue(
         number=3, title="No Priority Task", body="", labels=["documentation"]
     )
-    mock_github_client.get_open_issues.return_value = [
-        issue_p1,
-        issue_p0,
-        issue_no_priority,
+    cached_issues = [issue_p1, issue_p0, issue_no_priority]
+    issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
+    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
+    mock_redis_client.get_values.return_value = [
+        json.dumps(issue) for issue in cached_issues
     ]
 
     # Act
@@ -1499,13 +1466,15 @@ def test_get_highest_priority_label(task_service, mock_github_client):
 
     # Assert
     assert highest_priority == "P0"
+    mock_redis_client.get_keys_by_pattern.assert_called_once_with("issue:*")
+    mock_redis_client.get_values.assert_called_once_with(issue_keys)
 
 
 @pytest.mark.unit
-def test_get_highest_priority_label_no_issues(task_service, mock_github_client):
-    """オープンなIssueがない場合にNoneを返すことをテストします。"""
+def test_get_highest_priority_label_no_issues_in_cache(task_service, mock_redis_client):
+    """キャッシュにオープンなIssueがない場合にNoneを返すことをテストします。"""
     # Arrange
-    mock_github_client.get_open_issues.return_value = []
+    mock_redis_client.get_keys_by_pattern.return_value = []
 
     # Act
     highest_priority = task_service.get_highest_priority_label()
@@ -1515,13 +1484,18 @@ def test_get_highest_priority_label_no_issues(task_service, mock_github_client):
 
 
 @pytest.mark.unit
-def test_get_highest_priority_label_no_priority_labels(task_service, mock_github_client):
-    """優先度ラベルがない場合にNoneを返すことをテストします。"""
+def test_get_highest_priority_label_no_priority_labels_in_cache(task_service, mock_redis_client):
+    """キャッシュされたIssueに優先度ラベルがない場合にNoneを返すことをテストします。"""
     # Arrange
     issue_no_priority = create_mock_issue(
         number=1, title="No Priority Task", body="", labels=["documentation"]
     )
-    mock_github_client.get_open_issues.return_value = [issue_no_priority]
+    cached_issues = [issue_no_priority]
+    issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
+    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
+    mock_redis_client.get_values.return_value = [
+        json.dumps(issue) for issue in cached_issues
+    ]
 
     # Act
     highest_priority = task_service.get_highest_priority_label()

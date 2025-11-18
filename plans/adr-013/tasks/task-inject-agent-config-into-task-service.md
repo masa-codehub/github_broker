@@ -43,3 +43,4 @@
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/refactor-task-service-for-external-config`
 - **作業ブランチ (Feature Branch):** `task/inject-agent-config-into-task-service`
+## 子Issue (Sub-Issues)
