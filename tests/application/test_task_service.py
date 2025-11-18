@@ -740,7 +740,7 @@ async def test_request_task_prioritizes_p0_and_skips_p1(
     )
 
     # RedisからはP1, P0の順で返されるようにモックを設定
-    # これにより、TaskService内のソートロジックが正しくP0を優先することを確認する
+    # これにより、TaskServiceが最高優先度('P0')のIssueのみを候補とし、P1を無視することを検証する
     cached_issues = [issue_p1, issue_p0]
     issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
     mock_redis_client.get_keys_by_pattern.return_value = issue_keys
