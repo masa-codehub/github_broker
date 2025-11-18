@@ -62,7 +62,7 @@ github_broker/
         -   `LockAcquisitionError`: タスクのロック取得に失敗した場合に発生する例外。
 
 -   **`github_broker/application/task_service.py`**
-    -   **概要**: GitHub Issueの管理、タスクのアサイン、ブランチの作成、そしてサーバーサイドでのプロンプト生成など、アプリケーションの主要なビジネスロジックを担うサービスです。インフラストラクチャ層のクライアント（Redis, GitHub, GeminiExecutor）をDIで受け取ります。`GeminiExecutor`を使用してプロンプトを生成し、そのプロンプトを基に最適なIssueを選択します。
+    -   **概要**: アプリケーションの主要なビジネスロジックを担うサービスです。インフラストラクチャ層のクライアント（`GitHubClient`, `RedisClient`, `GeminiExecutor`）と設定（`Settings`）をDIで受け取ります。主な責務は以下の通りです。
 
 ### 3. Interface Layer (インターフェース層)
 
@@ -112,8 +112,10 @@ github_broker/
         -   `GitHubClient`:
             -   `__init__()`: GitHubトークンを設定し、クライアントを初期化します。
             -   `get_open_issues(repo_name: str)`: 進行中でないオープンなIssueを取得します。
-            -   `find_issues_by_labels(repo_name: str, labels: list[str])`: 指定されたラベルを持つIssueを検索します。
-            -   `add_label(repo_name: str, issue_id: int, label: str)`: Issueにラベルを追加します。
+            -   `get_pr_for_issue(issue_number: int)`: Issue番号に紐づくPull Requestを取得します。
+            -   `get_pull_request_review_comments(pull_number: int)`: Pull Request番号に紐づくレビューコメントを取得します。
+            -   `find_issues_by_labels(labels: list[str])`: 指定されたラベルを持つIssueを検索します。
+            -   `add_label(issue_id: int, label: str)`: Issueにラベルを追加します。
             -   `update_issue()`: Issueのラベルを更新します。
             -   `remove_label()`: Issueからラベルを削除します。
             -   `create_branch()`: ベースブランチから新しいブランチを作成します。
