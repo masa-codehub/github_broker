@@ -52,6 +52,3 @@ def create_container(settings: Settings | None = None) -> punq.Container:
         ),
     )
     return container
-
-
-
