@@ -25,15 +25,6 @@ logger = logging.getLogger(__name__)
 
 
 class TaskService:
-    # Priority constants
-    PRIORITY_HIGH_LABEL = "priority:high"
-    PRIORITY_MEDIUM_LABEL = "priority:medium"
-    PRIORITY_LOW_LABEL = "priority:low"
-    PRIORITY_HIGH_VALUE = 3
-    PRIORITY_MEDIUM_VALUE = 2
-    PRIORITY_LOW_VALUE = 1
-    PRIORITY_DEFAULT_VALUE = 0
-
     # Label constants
     LABEL_NEEDS_REVIEW = "needs-review"
     LABEL_REVIEW_DONE = "review-done"

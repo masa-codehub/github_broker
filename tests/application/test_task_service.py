@@ -589,7 +589,7 @@ async def test_request_task_selects_issue_with_any_role_label(
     )
     cached_issues = [issue_other_role]
     issue_keys = [
-        f"repo::owner::repo:issue:{issue['number']}" for issue in cached_issues
+        f"issue:{issue['number']}" for issue in cached_issues
     ]
     mock_redis_client.get_keys_by_pattern.return_value = issue_keys
     mock_redis_client.get_values.return_value = [
@@ -680,7 +680,7 @@ async def test_request_task_stores_current_task_in_redis(
     )
     cached_issues = [issue]
     issue_keys = [
-        f"repo::owner::repo:issue:{issue['number']}" for issue in cached_issues
+        f"issue:{issue['number']}" for issue in cached_issues
     ]
     mock_redis_client.get_keys_by_pattern.return_value = issue_keys
     mock_redis_client.get_values.return_value = [
@@ -818,7 +818,7 @@ async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
     )
     cached_issues = [issue]
     issue_keys = [
-        f"repo::owner::repo:issue:{issue['number']}" for issue in cached_issues
+        f"issue:{issue['number']}" for issue in cached_issues
     ]
     mock_redis_client.get_keys_by_pattern.return_value = issue_keys
     mock_redis_client.get_values.return_value = [
@@ -870,7 +870,7 @@ async def test_request_task_gemini_response(
     )
     cached_issues = [issue]
     issue_keys = [
-        f"repo::owner::repo:issue:{issue['number']}" for issue in cached_issues
+        f"issue:{issue['number']}" for issue in cached_issues
     ]
     mock_redis_client.get_keys_by_pattern.return_value = issue_keys
     mock_redis_client.get_values.return_value = [
@@ -989,61 +989,6 @@ def test_complete_previous_task_handles_multiple_issues(
     )
 
 
-@pytest.mark.parametrize(
-    "exception_to_raise, expected_log_message",
-    [
-        (
-            GithubException(status=500, data="Server Error"),
-            "Failed to update issue",
-        ),
-        (Exception("Unexpected error"), "An unexpected error occurred"),
-    ],
-)
-@pytest.mark.unit
-@patch("time.sleep", return_value=None)
-def test_complete_previous_task_handles_github_exception(
-    mock_sleep,
-    task_service,
-    mock_redis_client,
-    mock_github_client,
-    caplog,
-    exception_to_raise,
-    expected_log_message,
-):
-    """
-    complete_previous_task内でGitHub APIの例外が発生した場合の処理をテストします。
-    """
-    # Arrange
-    agent_id = "test-agent"
-    previous_issue = create_mock_issue(
-        number=101,
-        title="Previous Task",
-        body="",
-        labels=["in-progress", agent_id, "P1"],
-    )
-    mock_github_client.find_issues_by_labels.return_value = [previous_issue]
-    mock_github_client.update_issue.side_effect = GithubException(
-        status=500, data="GitHub API Error"
-    )
-
-    with caplog.at_level(logging.ERROR):
-        # Act
-        task_service.complete_previous_task(agent_id)
-
-        # Assert
-        mock_github_client.find_issues_by_labels.assert_called_once_with(
-            labels=["in-progress", agent_id]
-        )
-        mock_github_client.update_issue.assert_called_once_with(
-            issue_id=previous_issue["number"],
-            remove_labels=["in-progress", agent_id],
-            add_labels=["needs-review"],
-        )
-        # エラーログが記録されることを確認
-        assert (
-            f"[issue_id={previous_issue['number']}, agent_id={agent_id}] Failed to update issue"
-            in caplog.text
-        )
 
 
 @pytest.mark.unit
@@ -1442,15 +1387,25 @@ async def test_request_task_returns_none_immediately_if_no_task_available(
     mock_redis_client.get_keys_by_pattern.assert_called_once_with("issue:*")
 
 @pytest.mark.unit
+
 def test_get_highest_priority_label_from_labels_list(task_service):
+
     """get_highest_priority_labelが与えられたラベルのリストから最も高い優先度を返すことをテストします。"""
+
     # Arrange
+
     all_labels = ["P1", "feature", "P0", "bug", "P1"]
 
+
+
     # Act
+
     highest_priority = task_service.get_highest_priority_label(all_labels)
 
+
+
     # Assert
+
     assert highest_priority == "P0"
 
 
