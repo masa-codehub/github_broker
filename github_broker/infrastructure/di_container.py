@@ -43,11 +43,15 @@ def _create_container() -> punq.Container:
     gemini_executor = GeminiExecutor(prompt_file=settings.GEMINI_EXECUTOR_PROMPT_FILE)
 
     # 3. 構築した依存関係をすべて使ってTaskServiceをインスタンス化
+    agent_definitions_dict = [
+        agent.model_dump() for agent in settings.AGENT_DEFINITIONS
+    ]
     task_service = TaskService(
         redis_client=redis_client,
         github_client=github_client,
         settings=settings,
         gemini_executor=gemini_executor,
+        agent_definitions=agent_definitions_dict,  # type: ignore
     )
 
     # 4. すべての主要なインスタンスをコンテナに登録
