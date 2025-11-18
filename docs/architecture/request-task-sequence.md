@@ -112,7 +112,7 @@ sequenceDiagram
 
 1.  **タスク要求:** ワーカーエージェントは、自身の`agent_id`を添えてAPIサーバーの`/request-task`エンドポイントにPOSTリクエストを送信します。
 
-2.  **前タスクの完了処理:** `TaskService`は、まずエージェントに以前割り当てられていた`in-progress`状態のタスクがないか検索します。もし存在すれば、そのIssueのラベルを`needs-review`に更新し、`in-progress`と`[agent_id]`ラベルを削除します。
+2.  **前タスクの完了処理:** `TaskService`は、まずエージェNTに以前割り当てられていた`in-progress`状態のタスクがないか検索します。もし存在すれば、そのIssueのラベルを`needs-review`に更新し、`in-progress`と`[agent_id]`ラベルを削除します。
 
 3.  **タスク候補の選定 (ADR-015準拠):**
     *   **キャッシュ一括取得:** `RedisClient`を介して、バックグラウンドで定期的にキャッシュされている全Issue (`issue:*`) を一括で取得します。
@@ -123,7 +123,8 @@ sequenceDiagram
         *   各Issueに付与された役割ラベル（例: `BACKENDCODER`）を解釈し、タスクを絞り込みます。
         *   **開発タスク:** `needs-review`ラベルが付いていないタスクを候補とします。
         *   **レビュータスク:** `needs-review`ラベルが付いているタスクは、Redisに保存された検出タイムスタンプを確認し、設定された遅延時間（`REVIEW_ASSIGNMENT_DELAY_MINUTES`）が経過した後でのみ候補に含めます。
-    *   **ソート:** フィルタリングされた候補Issueを、優先度順にソートします。
+        *   さらに、各Issueに付与された役割ラベル（例: `BACKENDCODER`）を解釈し、タスクを絞り込みます。
+    *   **ソート:** フィルタリングされた候補Issueを、Issue番号順などの決定的な順序でソートします。
 
 4.  **タスク割り当て処理:**
     *   ソートされた順に各候補Issueをチェックします。
