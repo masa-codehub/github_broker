@@ -386,46 +386,6 @@ class TaskService:
 
         return sorted(issues, key=get_priority_key)
 
-    def _determine_highest_priority_label(self, issues: list[dict[str, Any]]) -> str | None:
-        """
-        Issueリストの中から最も高い優先度ラベル（P0, P1, P2...）を決定します。
-        最も高い優先度は、数字が最も小さいラベルです（例: P0）。
-        """
-        # すべてのラベル名を収集
-        all_labels: list[str] = []
-        for issue in issues:
-            for label in issue.get("labels", []):
-                label_name = label.get("name", "")
-                if label_name:
-                    all_labels.append(label_name)
-
-        # 優先度ラベルのみ抽出（P+数字形式）
-        priority_labels = {
-            name for name in all_labels
-            if name.startswith("P") and name[1:].isdigit()
-        }
-
-        if not priority_labels:
-            return None
-
-        # 最も小さい数字のラベル（例: P0）を返す
-        def get_priority(label: str) -> int:
-            return int(label[1:])
-
-        return min(priority_labels, key=get_priority)
-
-    def _filter_by_highest_priority(
-        self, issues: list[dict[str, Any]], highest_priority_label: str
-    ) -> list[dict[str, Any]]:
-        """
-        Issueリストから、指定された最高優先度ラベルを持つIssueのみをフィルタリングします。
-        """
-        return [
-            issue
-            for issue in issues
-            if highest_priority_label in {label.get("name") for label in issue.get("labels", [])}
-        ]
-
     async def _find_first_assignable_task(
         self, candidate_issues: list, agent_id: str
     ) -> TaskResponse | None:

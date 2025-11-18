@@ -712,6 +712,109 @@ async def test_request_task_stores_current_task_in_redis(
 
 @pytest.mark.unit
 @pytest.mark.anyio
+async def test_request_task_prioritizes_p0_and_skips_p1(
+    task_service, mock_redis_client, mock_github_client
+):
+    """
+    P0のIssueが存在する場合、P1のIssueが割り当てられないことをテストします。
+    これは厳格な優先度バケット方式の検証です。
+    """
+    # Arrange
+    agent_id = "test-agent"
+    agent_role = "BACKENDCODER"
+
+    # P1 Issue (Should be skipped)
+    issue_p1 = create_mock_issue(
+        number=10,
+        title="P1 Task",
+        body="""## 成果物\n- p1.py""",
+        labels=[agent_role, "P1"],
+    )
+
+    # P0 Issue (Should be assigned)
+    issue_p0 = create_mock_issue(
+        number=20,
+        title="P0 Task",
+        body="""## 成果物\n- p0.py""",
+        labels=[agent_role, "P0"],
+    )
+
+    # RedisからはP1, P0の順で返されるようにモックを設定
+    # これにより、TaskServiceが最高優先度('P0')のIssueのみを候補とし、P1を無視することを検証する
+    cached_issues = [issue_p1, issue_p0]
+    issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
+    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
+    mock_redis_client.get_values.return_value = [
+        json.dumps(issue) for issue in cached_issues
+    ]
+
+    # P0のIssueに対してロック取得が成功するように設定
+    mock_redis_client.acquire_lock.return_value = True
+    mock_github_client.find_issues_by_labels.return_value = []
+    task_service.get_highest_priority_label = MagicMock(return_value="P0")
+
+    # Act
+    result = await task_service.request_task(agent_id=agent_id)
+
+    # Assert
+    # 1. P0のIssueが割り当てられたことを確認
+    assert result is not None
+    assert result.issue_id == issue_p0["number"]
+
+    # 2. P0のIssueに対してのみロック取得が試行されたことを確認
+    # P1のIssue (10)に対してはacquire_lockが呼び出されていないことを確認
+    mock_redis_client.acquire_lock.assert_called_once_with(
+        f"issue_lock_{issue_p0['number']}", agent_id, timeout=600
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
+async def test_request_task_assigns_p1_after_p0_completed(
+    task_service, mock_redis_client, mock_github_client
+):
+    """
+    P0のIssueがすべて完了した後、P1のIssueが割り当てられることをテストします。
+    """
+    # Arrange
+    agent_id = "test-agent"
+    agent_role = "BACKENDCODER"
+
+    # P1 Issue (Should be assigned)
+    issue_p1 = create_mock_issue(
+        number=10,
+        title="P1 Task",
+        body="""## 成果物\n- p1.py""",
+        labels=[agent_role, "P1"],
+    )
+
+    # RedisにはP1 Issueのみが存在する状態を模倣
+    cached_issues = [issue_p1]
+    issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
+    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
+    mock_redis_client.get_values.return_value = [
+        json.dumps(issue) for issue in cached_issues
+    ]
+
+    # P1のIssueに対してロック取得が成功するように設定
+    mock_redis_client.acquire_lock.return_value = True
+    mock_github_client.find_issues_by_labels.return_value = []
+    # get_highest_priority_labelは、P0がないためP1を返すようにモック
+    task_service.get_highest_priority_label = MagicMock(return_value="P1")
+
+    # Act
+    result = await task_service.request_task(agent_id=agent_id)
+
+    # Assert
+    assert result is not None
+    assert result.issue_id == issue_p1["number"]
+    mock_redis_client.acquire_lock.assert_called_once_with(
+        f"issue_lock_{issue_p1['number']}", agent_id, timeout=600
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
 async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
     task_service, mock_redis_client, mock_github_client
 ):
@@ -1024,39 +1127,6 @@ def test_determine_highest_priority(task_service, labels, expected_priority):
     assert highest_priority == expected_priority
 
 
-@pytest.mark.unit
-def test_filter_by_highest_priority(task_service):
-    """Issueリストが最高優先度ラベルに基づいて正しくフィルタリングされることをテストします。"""
-    # Arrange
-    highest_priority_label = "P1"
-    issue_p1_a = create_mock_issue(
-        number=1, title="P1 Task A", body="", labels=["P1", "feature"]
-    )
-    issue_p1_b = create_mock_issue(
-        number=2, title="P1 Task B", body="", labels=["P1", "bug"]
-    )
-    issue_p0 = create_mock_issue(
-        number=3, title="P0 Task", body="", labels=["P0", "bug"]
-    )
-    issue_p2 = create_mock_issue(
-        number=4, title="P2 Task", body="", labels=["P2", "documentation"]
-    )
-    issue_no_priority = create_mock_issue(
-        number=5, title="No Priority Task", body="", labels=["documentation"]
-    )
-
-    issues = [issue_p1_a, issue_p1_b, issue_p0, issue_p2, issue_no_priority]
-
-    # Act
-    filtered_issues = task_service._filter_by_highest_priority(
-        issues, highest_priority_label
-    )
-
-    # Assert
-    expected_numbers = {1, 2}
-    actual_numbers = {issue["number"] for issue in filtered_issues}
-    assert actual_numbers == expected_numbers
-    assert len(filtered_issues) == 2
 
 
 @pytest.mark.unit
