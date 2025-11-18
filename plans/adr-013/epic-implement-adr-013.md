@@ -6,7 +6,7 @@ title: "ADR-013: Agent Role Configuration"
 
 - **Epic Title:** Implement ADR-013: Agent Role Configuration
 - **JIRA Epic:** [PROJECT-12345]
-- **Status:** In Progress
+- **Status:** Completed
 - **Priority:** High
 - **Start Date:** 2023-10-26
 - **End Date:** 2023-11-10
