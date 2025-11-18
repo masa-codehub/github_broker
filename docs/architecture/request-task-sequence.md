@@ -26,10 +26,18 @@ sequenceDiagram
         GitHubClient-->>-TaskService: OK
     end
 
-    TaskService->>+RedisClient: get_value("open_issues")
+    TaskService->>+RedisClient: get_keys_by_pattern("issue:*")
+    RedisClient-->>-TaskService: issue_keys
+    TaskService->>+RedisClient: get_values(issue_keys)
     RedisClient-->>-TaskService: Cached Issues List
+
+    Note over TaskService: 厳格な優先度バケット方式 (ADR-015)
+    TaskService->>TaskService: 全Issueから最高優先度を決定 (例: P0)
+    TaskService->>TaskService: 最高優先度ラベルを持つIssueのみ候補化
+
+    Note over TaskService: 役割ラベル、in-progress状態でフィルタリング
     TaskService->>TaskService: 役割に合うタスクを候補化
-    Note over TaskService: レビューIssueの場合、Redisのタイムスタンプを確認し、\n遅延時間(5分)経過後のみ候補に含める。
+    Note over TaskService: レビューIssueの場合、Redisのタイムスタンプを確認し、<br/>遅延時間(5分)経過後のみ候補に含める。
 
     alt 割り当て可能なタスク候補あり
         TaskService->>TaskService: 候補Issueを優先度ラベル順にソート
@@ -44,8 +52,18 @@ sequenceDiagram
                 TaskService->>+GitHubClient: add_label(issue_id, ["in-progress", "{agent_id}"])
                 GitHubClient-->>-TaskService: OK
 
-                TaskService->>+GeminiExecutor: build_prompt(issue_url, branch_name)
-                GeminiExecutor-->>-TaskService: prompt_string
+                alt is Review Task? (ADR-016)
+                    Note over TaskService: 'needs-review' ラベルで判断
+                    TaskService->>+GitHubClient: get_pr_for_issue(issue_id)
+                    GitHubClient-->>-TaskService: Pull Request Info (pr_url, pr_number)
+                    TaskService->>+GitHubClient: get_pull_request_review_comments(pr_number)
+                    GitHubClient-->>-TaskService: Review Comments
+                    TaskService->>+GeminiExecutor: build_code_review_prompt(pr_url, review_comments)
+                    GeminiExecutor-->>-TaskService: prompt_string
+                else is Development Task
+                    TaskService->>+GeminiExecutor: build_prompt(issue_url, branch_name)
+                    GeminiExecutor-->>-TaskService: prompt_string
+                end
 
                 TaskService->>+RedisClient: set_value(agent_current_task:{agent_id}, {issue_id})
                 RedisClient-->>-TaskService: OK
@@ -88,38 +106,41 @@ sequenceDiagram
 -   **TaskService:** アプリケーションのコアロジックを担うサービス。タスクの選択、割り当て、GitHub操作を調整します。
 -   **RedisClient:** Redisとの通信を担当し、Issueのキャッシュ読み取りや分散ロック、遅延タスク管理を行います。
 -   **GitHubClient:** GitHub APIとの通信を担当し、Issueの取得、ラベルの更新、ブランチの作成などを行います。
+-   **GeminiExecutor:** サーバーサイドでのプロンプト生成ロジックを担います。
 
 ### 3.2. 処理フロー
 
-1.  **タスク要求とロングポーリング:** ワーカーエージェントは、自身の`agent_id`を添えてAPIサーバーの`/request-task`エンドポイントにPOSTリクエストを送信します。サーバーはリクエストを受け取ると`TaskService`の`request_task`メソッドを呼び出します。このメソッドはロングポーリングで動作し、割り当て可能なタスクが見つからない場合は、指定されたタイムアウト時間までタスクの出現を待ち続けます。
+1.  **タスク要求:** ワーカーエージェントは、自身の`agent_id`を添えてAPIサーバーの`/request-task`エンドポイントにPOSTリクエストを送信します。
 
-2.  **初回タスクチェック:** `request_task`は、まず内部的に`_check_for_available_task(is_first_check=True)`を呼び出します。これが最初のチェックであることを示します。
+2.  **前タスクの完了処理:** `TaskService`は、まずエージェントに以前割り当てられていた`in-progress`状態のタスクがないか検索します。もし存在すれば、そのIssueのラベルを`needs-review`に更新し、`in-progress`と`[agent_id]`ラベルを削除します。
 
-3.  **前タスクの完了処理:** `is_first_check`が`True`の場合のみ、エージェントに以前割り当てられていた`in-progress`状態のタスクがないか検索します。もし存在すれば、そのIssueのラベルを`needs-review`に更新し、`in-progress`と`[agent_id]`ラベルを削除します。
-
-4.  **タスク候補の選定:**
-    *   **キャッシュ取得:** `RedisClient`を介して、バックグラウンドで定期的にキャッシュされているオープンなIssueのリスト (`open_issues`) を取得します。
-    *   **候補フィルタリング:** Redisから取得したIssueリストから、`in-progress`ラベルが付いていないタスクを候補としてフィルタリングします。
+3.  **タスク候補の選定 (ADR-015準拠):**
+    *   **キャッシュ一括取得:** `RedisClient`を介して、バックグラウンドで定期的にキャッシュされている全Issue (`issue:*`) を一括で取得します。
+    *   **最高優先度の決定:** 取得した全Issueのラベル情報を基に、現在オープン状態のタスクの中で最も高い優先度レベル（例: `P0`）を特定します。
+    *   **厳格な優先度フィルタリング:** 特定した最高優先度レベルのラベルを持つIssueのみを、タスク割り当ての候補とします。これ以外の優先度のIssueは、この段階で全て除外されます。
+    *   **追加フィルタリング:**
+        *   `in-progress`ラベルが付いていないタスクを候補とします。
+        *   各Issueに付与された役割ラベル（例: `BACKENDCODER`）を解釈し、タスクを絞り込みます。
         *   **開発タスク:** `needs-review`ラベルが付いていないタスクを候補とします。
         *   **レビュータスク:** `needs-review`ラベルが付いているタスクは、Redisに保存された検出タイムスタンプを確認し、設定された遅延時間（`REVIEW_ASSIGNMENT_DELAY_MINUTES`）が経過した後でのみ候補に含めます。
-        *   さらに、各Issueに付与された役割ラベル（例: `BACKENDCODER`）を解釈し、タスクを絞り込みます。
-    *   **ソート:** 候補Issueを**優先度ラベル順（P0 > P1 > P2 の順）**でソートします。
+    *   **ソート:** フィルタリングされた候補Issueを、優先度順にソートします。
 
-5.  **タスク割り当て処理:**
+4.  **タスク割り当て処理:**
     *   ソートされた順に各候補Issueをチェックします。
-    *   **レビュータスクの遅延処理:** `needs-review`ラベルが付いているIssueの場合、`RedisClient`を介して遅延管理キー(`review_delay_{issue_id}`)の存在を確認します。
-        *   キーが存在しない場合、現在の時刻を記録してキーを作成し、遅延計測を開始します。このIssueはスキップされ、次の候補Issueのチェックに移ります。
-        *   キーが存在するものの、設定された遅延時間（デフォルト: 5分）が経過していない場合は、このIssueをスキップして次の候補に進みます。
-        *   キーが存在し、設定された遅延時間（デフォルト: 5分）が経過している場合のみ、タスク割り当てに進みます。
     *   **ロック取得:** 割り当て試行中の競合を防ぐため、`RedisClient`を介してIssueごとの分散ロック (`issue_lock_{issue_id}`) の取得を試みます。
     *   **前提条件チェック:** ロック取得後、Issue本文に「成果物」セクションが定義されているかなどの前提条件をチェックします。
     *   ロック取得と前提条件チェックに成功した最初のIssueが、割り当てタスクとして決定されます。
-6.  **タスク割り当てとレスポンス:**
+
+5.  **タスク割り当てとレスポンス (ADR-016準拠):**
     *   **GitHub操作:** `GitHubClient`を介して、タスク用のブランチを作成し、Issueに`in-progress`と`[agent_id]`ラベルを付与します。
-    *   **プロンプト生成:** `GeminiExecutor`を呼び出し、IssueのURLやブランチ名などの情報から、エージェントが実行すべきプロンプトを生成します。
+    *   **プロンプト生成 (分岐処理):**
+        *   **レビュータスクの場合 (`needs-review`ラベルあり):**
+            1.  `GitHubClient`を呼び出し、Issue番号に紐づく**Pull RequestのURLと番号**を取得します。
+            2.  取得したPull Request番号を使い、`GitHubClient`を再度呼び出して**レビューコメントのリスト**を取得します。
+            3.  `GeminiExecutor`の`build_code_review_prompt`メソッドを呼び出し、PRのURLとレビューコメントを基にレビュー修正用のプロンプトを生成します。
+        *   **開発タスクの場合:**
+            1.  `GeminiExecutor`の`build_prompt`メソッドを呼び出し、IssueのURLやブランチ名などの情報から開発用のプロンプトを生成します。
     *   **状態保存:** `RedisClient`に、エージェントが現在どのIssueに取り組んでいるか (`agent_current_task:{agent_id}`) を記録します。
-    *   **レスポンス:** 割り当てられたタスク情報（Issue ID, URL, プロンプトなど）を含む`TaskResponse`を生成し、ワーカーエージェントに`200 OK`として返します。
+    *   **レスポンス:** 割り当てられたタスク情報（Issue ID, URL, プロンプト, タスクタイプなど）を含む`TaskResponse`を生成し、ワーカーエージェントに`200 OK`として返します。
 
-7.  **タスクなし (ロングポーリング継続):** 初回チェックでタスクが見つからなかった場合、`request_task`は`asyncio.sleep`を挟みながら`_check_for_available_task(is_first_check=False)`の呼び出しを繰り返します。ループ中にタスクが見つかれば、その時点でステップ6に進みます。
-
-8.  **タイムアウト:** ロングポーリングがタイムアウトした場合、APIサーバーは`204 No Content`をワーカーエージェントに返します。
+6.  **タスクなしの場合:** 割り当て可能なタスクが見つからなかった場合、APIサーバーは`204 No Content`をワーカーエージェントに返します。（注: ロングポーリングのロジックは簡略化のため、この図では省略されています。）

@@ -62,7 +62,13 @@ github_broker/
         -   `LockAcquisitionError`: タスクのロック取得に失敗した場合に発生する例外。
 
 -   **`github_broker/application/task_service.py`**
-    -   **概要**: GitHub Issueの管理、タスクのアサイン、ブランチの作成、そしてサーバーサイドでのプロンプト生成など、アプリケーションの主要なビジネスロジックを担うサービスです。インフラストラクチャ層のクライアント（Redis, GitHub, GeminiExecutor）をDIで受け取ります。`GeminiExecutor`を使用してプロンプトを生成し、そのプロンプトを基に最適なIssueを選択します。
+    -   **概要**: アプリケーションの主要なビジネスロジックを担うサービスです。インフラストラクチャ層のクライアント（`GitHubClient`, `RedisClient`）と`AgentConfigList`をDIで受け取ります。主な責務は以下の通りです。
+        1.  **タスクのポーリングとキャッシュ:** 定期的にGitHubからIssueを取得し、Redisにキャッシュします。
+        2.  **厳格な優先度に基づくタスク選択 (ADR-015):** Redisにキャッシュされた全Issueから最も高い優先度を特定し、その優先度のタスクのみを割り当て候補とします。
+        3.  **タスク種別に応じたプロンプト生成 (ADR-016):**
+            -   **開発タスク:** `GeminiExecutor`を呼び出し、開発用のプロンプトを生成します。
+            -   **レビュー修正タスク:** `GitHubClient`でPR情報とレビューコメントを取得し、`GeminiExecutor`でレビュー修正専用のプロンプトを生成します。
+        4.  **タスクの割り当てと状態管理:** 選択したタスクをロックし、エージェントに割り当て、その状態をRedisとGitHub上で更新します。
 
 ### 3. Interface Layer (インターフェース層)
 
@@ -111,9 +117,12 @@ github_broker/
     -   **主要なクラス/関数**:
         -   `GitHubClient`:
             -   `__init__()`: GitHubトークンを設定し、クライアントを初期化します。
-            -   `get_open_issues(repo_name: str)`: 進行中でないオープンなIssueを取得します。
-            -   `find_issues_by_labels(repo_name: str, labels: list[str])`: 指定されたラベルを持つIssueを検索します。
-            -   `add_label(repo_name: str, issue_id: int, label: str)`: Issueにラベルを追加します。
+            -   `get_open_issues()`: 進行中でないオープンなIssueを取得します。
+            -   `get_review_issues()`: `needs-review`ラベルのついたIssueを取得します。
+            -   `get_pr_for_issue()`: Issue番号に紐づくPull Requestを取得します。
+            -   `get_pull_request_review_comments()`: Pull Request番号に紐づくレビューコメントを取得します。
+            -   `find_issues_by_labels()`: 指定されたラベルを持つIssueを検索します。
+            -   `add_label()`: Issueにラベルを追加します。
             -   `update_issue()`: Issueのラベルを更新します。
             -   `remove_label()`: Issueからラベルを削除します。
             -   `create_branch()`: ベースブランチから新しいブランチを作成します。
@@ -141,4 +150,5 @@ github_broker/
     -   **主要なクラス/関数**:
         -   `GeminiExecutor`:
             -   `__init__()`: プロンプトテンプレートのパスなどを設定し初期化します。
-            -   `build_prompt()`: タスク情報に基づいてプロンプトを構築します。
+            -   `build_prompt()`: 開発タスクの情報に基づいてプロンプトを構築します。
+            -   `build_code_review_prompt()`: レビュー修正タスクの情報（PRのURL、レビューコメント）に基づいてプロンプトを構築します。
