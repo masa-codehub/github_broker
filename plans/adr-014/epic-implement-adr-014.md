@@ -10,7 +10,7 @@
 - #1720
 
 ## Issue: #1716
-## Status: Open
+## Status: Completed
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/014-improve-adr-validation-rules.md`
