@@ -1,7 +1,7 @@
 # 概要 / Summary
 [ADR-014] ドキュメント検証規約の改善
 
-- Status: 提案中
+- Status: 承認済み
 - Date: 2025-10-23
 
 ## 状況 / Context
@@ -70,4 +70,4 @@ Design Docは、以下の文字列がファイル内に存在することを必�
 - 新しい検証規約の必須セクションをすべて満たしたADRおよびDesign Docファイルは、コミットが成功すること。
 
 ## 実装状況 / Implementation Status
-未着手
+完了
