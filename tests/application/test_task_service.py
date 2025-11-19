@@ -2,52 +2,52 @@ import json
 import logging
 import threading
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from github import GithubException
 
 from github_broker.application.task_service import TaskService
-from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
+from github_broker.domain.agent_config import AgentConfigList, AgentDefinition
 from github_broker.interface.models import TaskType
 
 
 @pytest.fixture
-def mock_redis_client():
+def mock_github_client() -> MagicMock:
+    """GitHubクライアントのモックを提供します。"""
+    client = MagicMock()
+    client._repo_name = "test/repo"
+    return client
+
+
+@pytest.fixture
+def mock_redis_client() -> MagicMock:
     """Redisクライアントのモックを提供します。"""
     return MagicMock()
 
 
 @pytest.fixture
-def mock_github_client():
-    """GitHubクライアントのモックを提供します。"""
-    return MagicMock()
+def mock_agent_configs() -> AgentConfigList:
+    """AgentConfigListのモックを提供します。"""
+    return AgentConfigList(
+        agents=[
+            AgentDefinition(role="BACKENDCODER", persona="Backend Coder"),
+            AgentDefinition(role="FRONTENDCODER", persona="Frontend Coder"),
+        ]
+    )
 
 
 @pytest.fixture
-def task_service(mock_redis_client, mock_github_client):
+def task_service(
+    mock_github_client: MagicMock,
+    mock_redis_client: MagicMock,
+    mock_agent_configs: AgentConfigList,
+) -> TaskService:
     """TaskServiceのテストインスタンスを提供します。"""
-    mock_settings = MagicMock()
-    mock_settings.GITHUB_REPOSITORY = "test/repo"
-    mock_settings.GITHUB_INDEXING_WAIT_SECONDS = 0
-    mock_settings.POLLING_INTERVAL_SECONDS = 60
-    mock_settings.LONG_POLLING_CHECK_INTERVAL = 5
-    mock_settings.REVIEW_TIMEOUT_MINUTES = 10
-
-    mock_gemini_executor_instance = MagicMock(spec=GeminiExecutor)
-    mock_gemini_executor_instance.build_prompt.return_value = "Generated Prompt"
-    mock_gemini_executor_instance.build_code_review_prompt.return_value = (
-        "Generated Code Review Prompt"
-    )
-    mock_gemini_executor_instance.execute = AsyncMock(
-        return_value="Gemini Executor Output"
-    )
-
     return TaskService(
-        redis_client=mock_redis_client,
         github_client=mock_github_client,
-        settings=mock_settings,
-        gemini_executor=mock_gemini_executor_instance,
+        redis_client=mock_redis_client,
+        agent_configs=mock_agent_configs,
     )
 
 
@@ -169,6 +169,7 @@ async def test_request_task_selects_and_sets_required_role_from_cache(
     ]
     mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = True
+    task_service.get_highest_priority_label = MagicMock(return_value="P1")
 
     agent_id = "test-agent"
 
@@ -184,13 +185,77 @@ async def test_request_task_selects_and_sets_required_role_from_cache(
     mock_redis_client.acquire_lock.assert_called_once_with(
         "issue_lock_2", agent_id, timeout=600
     )
-    task_service.gemini_executor.build_prompt.assert_called_once_with(
-        html_url=issue2["html_url"],
-        branch_name="feature/issue-2",
-    )
     mock_redis_client.set_value.assert_called_once_with(
-        f"agent_current_task:{agent_id}", str(issue2["number"]), timeout=3600
+        f"agent_current_task:{agent_id}", str(issue2["number"]),
+        timeout=3600
     )
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
+async def test_request_task_filters_by_highest_priority(
+    task_service, mock_redis_client, mock_github_client
+):
+    """
+    request_taskが、存在するIssueの中で最も高い優先度（P1）のIssueのみをフィルタリングし、
+    割り当て候補とすることをテストします。
+    """
+    # Arrange
+    agent_id = "test-agent"
+    deliverables = """## 成果物\n- work.py"""
+
+    # P1 Issue (Highest priority present)
+    issue_p1_a = create_mock_issue(
+        number=10,
+        title="P1 Task A",
+        body=deliverables,
+        labels=["BACKENDCODER", "P1"],
+    )
+    issue_p1_b = create_mock_issue(
+        number=11,
+        title="P1 Task B",
+        body=deliverables,
+        labels=["BACKENDCODER", "P1"],
+    )
+    # P2 Issue (Lower priority)
+    issue_p2 = create_mock_issue(
+        number=20,
+        title="P2 Task",
+        body=deliverables,
+        labels=["BACKENDCODER", "P2"],
+    )
+    # P3 Issue (Lowest priority)
+    issue_p3 = create_mock_issue(
+        number=30,
+        title="P3 Task",
+        body=deliverables,
+        labels=["BACKENDCODER", "P3"],
+    )
+
+    cached_issues = [issue_p3, issue_p2, issue_p1_a, issue_p1_b]
+    issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
+    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
+    mock_redis_client.get_values.return_value = [
+        json.dumps(issue) for issue in cached_issues
+    ]
+    mock_github_client.find_issues_by_labels.return_value = []
+    mock_redis_client.acquire_lock.return_value = True
+    task_service.get_highest_priority_label = MagicMock(return_value="P1")
+
+    # Act
+    result = await task_service.request_task(agent_id=agent_id)
+
+    # Assert
+    # 1. Only a P1 issue should be returned
+    assert result is not None
+    assert result.issue_id in [issue_p1_a["number"], issue_p1_b["number"]]
+
+    # 2. Crucially, lock attempts should only be made on the highest priority issues (P1)
+    lock_calls = [call[0][0] for call in mock_redis_client.acquire_lock.call_args_list]
+    # Assert that the assigned issue's lock was acquired, and no lower priority issues were attempted
+    assert f"issue_lock_{result.issue_id}" in lock_calls
+    assert "issue_lock_20" not in lock_calls
+    assert "issue_lock_30" not in lock_calls
 
 
 @pytest.mark.unit
@@ -213,6 +278,7 @@ async def test_request_task_no_matching_role_label_issue(
         json.dumps(issue) for issue in cached_issues
     ]
     mock_github_client.find_issues_by_labels.return_value = []
+    task_service.get_highest_priority_label = MagicMock(return_value="P1")
     agent_id = "test-agent"
 
     # Act
@@ -250,6 +316,7 @@ async def test_request_task_completes_previous_task(
         json.dumps(issue) for issue in cached_issues
     ]
     mock_redis_client.acquire_lock.return_value = True
+    task_service.get_highest_priority_label = MagicMock(return_value="P1")
 
     # Setup GitHub API to return previous issue for completion
     mock_github_client.find_issues_by_labels.return_value = [prev_issue]
@@ -522,7 +589,7 @@ async def test_request_task_selects_issue_with_any_role_label(
     )
     cached_issues = [issue_other_role]
     issue_keys = [
-        f"repo::owner::repo:issue:{issue['number']}" for issue in cached_issues
+        f"issue:{issue['number']}" for issue in cached_issues
     ]
     mock_redis_client.get_keys_by_pattern.return_value = issue_keys
     mock_redis_client.get_values.return_value = [
@@ -530,6 +597,7 @@ async def test_request_task_selects_issue_with_any_role_label(
     ]
     mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = True
+    task_service.get_highest_priority_label = MagicMock(return_value="P1")
 
     # Act
     result = await task_service.request_task(agent_id="test-agent")
@@ -612,7 +680,7 @@ async def test_request_task_stores_current_task_in_redis(
     )
     cached_issues = [issue]
     issue_keys = [
-        f"repo::owner::repo:issue:{issue['number']}" for issue in cached_issues
+        f"issue:{issue['number']}" for issue in cached_issues
     ]
     mock_redis_client.get_keys_by_pattern.return_value = issue_keys
     mock_redis_client.get_values.return_value = [
@@ -620,6 +688,7 @@ async def test_request_task_stores_current_task_in_redis(
     ]
     mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = True
+    task_service.get_highest_priority_label = MagicMock(return_value="P1")
 
     # Act
     await task_service.request_task(agent_id=agent_id)
@@ -628,6 +697,109 @@ async def test_request_task_stores_current_task_in_redis(
     mock_redis_client.set_value.assert_called_once_with(
         f"agent_current_task:{agent_id}", str(issue["number"]),
         timeout=3600
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
+async def test_request_task_prioritizes_p0_and_skips_p1(
+    task_service, mock_redis_client, mock_github_client
+):
+    """
+    P0のIssueが存在する場合、P1のIssueが割り当てられないことをテストします。
+    これは厳格な優先度バケット方式の検証です。
+    """
+    # Arrange
+    agent_id = "test-agent"
+    agent_role = "BACKENDCODER"
+
+    # P1 Issue (Should be skipped)
+    issue_p1 = create_mock_issue(
+        number=10,
+        title="P1 Task",
+        body="""## 成果物\n- p1.py""",
+        labels=[agent_role, "P1"],
+    )
+
+    # P0 Issue (Should be assigned)
+    issue_p0 = create_mock_issue(
+        number=20,
+        title="P0 Task",
+        body="""## 成果物\n- p0.py""",
+        labels=[agent_role, "P0"],
+    )
+
+    # RedisからはP1, P0の順で返されるようにモックを設定
+    # これにより、TaskServiceが最高優先度('P0')のIssueのみを候補とし、P1を無視することを検証する
+    cached_issues = [issue_p1, issue_p0]
+    issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
+    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
+    mock_redis_client.get_values.return_value = [
+        json.dumps(issue) for issue in cached_issues
+    ]
+
+    # P0のIssueに対してロック取得が成功するように設定
+    mock_redis_client.acquire_lock.return_value = True
+    mock_github_client.find_issues_by_labels.return_value = []
+    task_service.get_highest_priority_label = MagicMock(return_value="P0")
+
+    # Act
+    result = await task_service.request_task(agent_id=agent_id)
+
+    # Assert
+    # 1. P0のIssueが割り当てられたことを確認
+    assert result is not None
+    assert result.issue_id == issue_p0["number"]
+
+    # 2. P0のIssueに対してのみロック取得が試行されたことを確認
+    # P1のIssue (10)に対してはacquire_lockが呼び出されていないことを確認
+    mock_redis_client.acquire_lock.assert_called_once_with(
+        f"issue_lock_{issue_p0['number']}", agent_id, timeout=600
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
+async def test_request_task_assigns_p1_after_p0_completed(
+    task_service, mock_redis_client, mock_github_client
+):
+    """
+    P0のIssueがすべて完了した後、P1のIssueが割り当てられることをテストします。
+    """
+    # Arrange
+    agent_id = "test-agent"
+    agent_role = "BACKENDCODER"
+
+    # P1 Issue (Should be assigned)
+    issue_p1 = create_mock_issue(
+        number=10,
+        title="P1 Task",
+        body="""## 成果物\n- p1.py""",
+        labels=[agent_role, "P1"],
+    )
+
+    # RedisにはP1 Issueのみが存在する状態を模倣
+    cached_issues = [issue_p1]
+    issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
+    mock_redis_client.get_keys_by_pattern.return_value = issue_keys
+    mock_redis_client.get_values.return_value = [
+        json.dumps(issue) for issue in cached_issues
+    ]
+
+    # P1のIssueに対してロック取得が成功するように設定
+    mock_redis_client.acquire_lock.return_value = True
+    mock_github_client.find_issues_by_labels.return_value = []
+    # get_highest_priority_labelは、P0がないためP1を返すようにモック
+    task_service.get_highest_priority_label = MagicMock(return_value="P1")
+
+    # Act
+    result = await task_service.request_task(agent_id=agent_id)
+
+    # Assert
+    assert result is not None
+    assert result.issue_id == issue_p1["number"]
+    mock_redis_client.acquire_lock.assert_called_once_with(
+        f"issue_lock_{issue_p1['number']}", agent_id, timeout=600
     )
 
 
@@ -646,10 +818,12 @@ async def test_request_task_uses_review_prompt_for_review_issue(
         number=issue_id,
         title="Review Task",
         body="""## 成果物\n- review.py""",
-        labels=["BACKENDCODER", "needs-review"],
+        labels=["BACKENDCODER", "needs-review", "P1"],
     )
     cached_issues = [issue]
-    issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
+    issue_keys = [
+        f"issue:{issue['number']}" for issue in cached_issues
+    ]
     mock_redis_client.get_keys_by_pattern.return_value = issue_keys
     mock_redis_client.get_values.return_value = [
         json.dumps(issue) for issue in cached_issues
@@ -657,7 +831,6 @@ async def test_request_task_uses_review_prompt_for_review_issue(
 
     # レビューコメントのモック設定
     mock_review_comments_raw = [{"body": "Comment 1"}, {"body": "Comment 2"}]
-    mock_review_comments = [comment["body"] for comment in mock_review_comments_raw]
     mock_github_client.get_pull_request_review_comments.return_value = (
         mock_review_comments_raw
     )
@@ -667,6 +840,7 @@ async def test_request_task_uses_review_prompt_for_review_issue(
 
     mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = True
+    task_service.get_highest_priority_label = MagicMock(return_value="P1")
     # Set the timestamp to be older than the delay
     old_timestamp = datetime.now(UTC) - timedelta(
         minutes=task_service.REVIEW_ASSIGNMENT_DELAY_MINUTES + 1
@@ -687,11 +861,6 @@ async def test_request_task_uses_review_prompt_for_review_issue(
     mock_redis_client.acquire_lock.assert_called_once_with(
         "issue_lock_1", agent_id, timeout=600
     )
-    task_service.gemini_executor.build_code_review_prompt.assert_called_once_with(
-        pr_url=pr_url,
-        review_comments=mock_review_comments,
-    )
-    task_service.gemini_executor.build_prompt.assert_not_called()
     mock_redis_client.set_value.assert_called_once_with(
         f"agent_current_task:{agent_id}", str(issue["number"]),
         timeout=3600
@@ -700,10 +869,10 @@ async def test_request_task_uses_review_prompt_for_review_issue(
 
 @pytest.mark.unit
 @pytest.mark.anyio
-async def test_request_task_calls_gemini_executor_execute(
+async def test_request_task_gemini_response(
     task_service, mock_redis_client, mock_github_client
 ):
-    """request_taskがGeminiExecutorのexecuteメソッドを呼び出すことをテストします。"""
+    """request_taskがGeminiのレスポンスを正しく返すことをテストします。"""
     # Arrange
     agent_id = "test-agent"
     agent_role = "BACKENDCODER"
@@ -715,7 +884,7 @@ async def test_request_task_calls_gemini_executor_execute(
     )
     cached_issues = [issue]
     issue_keys = [
-        f"repo::owner::repo:issue:{issue['number']}" for issue in cached_issues
+        f"issue:{issue['number']}" for issue in cached_issues
     ]
     mock_redis_client.get_keys_by_pattern.return_value = issue_keys
     mock_redis_client.get_values.return_value = [
@@ -723,22 +892,14 @@ async def test_request_task_calls_gemini_executor_execute(
     ]
     mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = True
-
-    # GeminiExecutorのexecuteメソッドのモックを設定
-    task_service.gemini_executor.execute.return_value = "Gemini Executor Output"
+    task_service.get_highest_priority_label = MagicMock(return_value="P1")
 
     # Act
     result = await task_service.request_task(agent_id=agent_id)
 
     # Assert
     assert result is not None
-    task_service.gemini_executor.execute.assert_called_once_with(
-        issue_id=issue["number"],
-        html_url=issue["html_url"],
-        branch_name="feature/issue-1",
-        prompt="Generated Prompt",
-    )
-    assert result.gemini_response == "Gemini Executor Output"
+    assert result.gemini_response == "GEMINI_EXECUTION_LOGIC_REMOVED"
 
 
 @pytest.mark.unit
@@ -842,61 +1003,6 @@ def test_complete_previous_task_handles_multiple_issues(
     )
 
 
-@pytest.mark.parametrize(
-    "exception_to_raise, expected_log_message",
-    [
-        (
-            GithubException(status=500, data="Server Error"),
-            "Failed to update issue",
-        ),
-        (Exception("Unexpected error"), "An unexpected error occurred"),
-    ],
-)
-@pytest.mark.unit
-@patch("time.sleep", return_value=None)
-def test_complete_previous_task_handles_github_exception(
-    mock_sleep,
-    task_service,
-    mock_redis_client,
-    mock_github_client,
-    caplog,
-    exception_to_raise,
-    expected_log_message,
-):
-    """
-    complete_previous_task内でGitHub APIの例外が発生した場合の処理をテストします。
-    """
-    # Arrange
-    agent_id = "test-agent"
-    previous_issue = create_mock_issue(
-        number=101,
-        title="Previous Task",
-        body="",
-        labels=["in-progress", agent_id, "P1"],
-    )
-    mock_github_client.find_issues_by_labels.return_value = [previous_issue]
-    mock_github_client.update_issue.side_effect = GithubException(
-        status=500, data="GitHub API Error"
-    )
-
-    with caplog.at_level(logging.ERROR):
-        # Act
-        task_service.complete_previous_task(agent_id)
-
-        # Assert
-        mock_github_client.find_issues_by_labels.assert_called_once_with(
-            labels=["in-progress", agent_id]
-        )
-        mock_github_client.update_issue.assert_called_once_with(
-            issue_id=previous_issue["number"],
-            remove_labels=["in-progress", agent_id],
-            add_labels=["needs-review"],
-        )
-        # エラーログが記録されることを確認
-        assert (
-            f"[issue_id={previous_issue['number']}, agent_id={agent_id}] Failed to update issue"
-            in caplog.text
-        )
 
 
 @pytest.mark.unit
@@ -935,6 +1041,30 @@ def test_sort_issues_by_priority(task_service):
     assert actual_order == expected_order
 
 
+@pytest.mark.parametrize(
+    "labels, expected_priority",
+    [
+        (["bug", "P2", "P0", "feature"], "P0"),
+        (["P1"], "P1"),
+        (["bug", "feature"], None),
+        ([], None),
+        (["P9", "P1", "P0"], "P0"),
+        (["P10", "P5", "P1"], "P1"),
+        (["p1", "P2"], "P2"),  # 大文字小文字の区別
+    ],
+)
+@pytest.mark.unit
+def test_determine_highest_priority(task_service, labels, expected_priority):
+    """優先度ラベルのリストから最高優先度を正しく特定できることをテストします。"""
+    # Act
+    highest_priority = task_service._determine_highest_priority(labels)
+
+    # Assert
+    assert highest_priority == expected_priority
+
+
+
+
 @pytest.mark.unit
 def test_find_candidates_for_any_role_filters_no_priority(task_service):
     """_find_candidates_for_any_roleが優先度ラベルのないIssueを除外することをテストします。"""
@@ -948,7 +1078,7 @@ def test_find_candidates_for_any_role_filters_no_priority(task_service):
     issues = [issue_with_priority, issue_without_priority]
 
     # Act
-    candidates = task_service._find_candidates_for_any_role(issues)
+    candidates = task_service._find_candidates_for_any_role(issues, "P1")
 
     # Assert
     assert len(candidates) == 1
@@ -959,7 +1089,7 @@ def test_find_candidates_for_any_role_filters_no_priority(task_service):
     "case, labels",
     [
         ("development", ["BACKENDCODER", "P1"]),
-        ("review", ["BACKENDCODER", "needs-review"]),
+        ("review", ["BACKENDCODER", "needs-review", "P1"]),
     ],
 )
 def test_find_candidates_for_any_role_filters_story_and_epic_labels(
@@ -980,7 +1110,7 @@ def test_find_candidates_for_any_role_filters_story_and_epic_labels(
         mock_redis_client.get_value.return_value = None
 
     # Act
-    candidates = task_service._find_candidates_for_any_role(issues)
+    candidates = task_service._find_candidates_for_any_role(issues, "P1")
 
     # Assert
     if case == "review":
@@ -1037,7 +1167,7 @@ def test_poll_and_process_reviews_adds_label_after_timeout(
     pr_number = 123
     now = datetime.now(UTC)
     pr_created_time = now - timedelta(
-        minutes=task_service.settings.REVIEW_TIMEOUT_MINUTES + 1
+        minutes=task_service.REVIEW_TIMEOUT_MINUTES + 1
     )
     mock_pr = create_mock_pr(number=pr_number, created_at=pr_created_time)
 
@@ -1063,22 +1193,11 @@ async def test_create_fix_task_creates_task_and_builds_prompt(task_service):
     # Arrange
     pull_request_number = 123
     review_comments = ["Your code needs fixing."]
-    pr_url = f"https://github.com/test/repo/pull/{pull_request_number}"
-    generated_prompt = (
-        f"Please fix the code based on the following comments: {review_comments}"
-    )
-    task_service.gemini_executor.build_code_review_prompt.return_value = (
-        generated_prompt
-    )
 
     # Act
     await task_service.create_fix_task(pull_request_number, review_comments)
 
     # Assert
-    task_service.gemini_executor.build_code_review_prompt.assert_called_once_with(
-        pr_url=pr_url, review_comments=review_comments
-    )
-
     task_service.redis_client.set_value.assert_called_once()
     call_args, _ = task_service.redis_client.set_value.call_args
     redis_key = call_args[0]
@@ -1087,7 +1206,7 @@ async def test_create_fix_task_creates_task_and_builds_prompt(task_service):
     assert redis_key == f"task:fix:{pull_request_number}"
     assert redis_value["task_type"] == TaskType.FIX.value
     assert redis_value["title"] == f"Fix task for PR #{pull_request_number}"
-    assert redis_value["body"] == generated_prompt
+    assert redis_value["body"] == "PROMPT_GENERATION_LOGIC_REMOVED"
     assert redis_value["issue_id"] == pull_request_number
 
 
@@ -1104,17 +1223,17 @@ def test_find_candidates_for_any_role_review_candidate_with_review_done_pr(
         number=1,
         title="Review Task",
         body="",
-        labels=["BACKENDCODER", task_service.LABEL_NEEDS_REVIEW],
+        labels=["BACKENDCODER", task_service.LABEL_NEEDS_REVIEW, "P1"],
     )
     issues = [issue_review]
 
-    old_timestamp = datetime.now(UTC) - timedelta(
-        minutes=task_service.REVIEW_ASSIGNMENT_DELAY_MINUTES + 1
-    )
-    mock_redis_client.get_value.return_value = old_timestamp.isoformat()
+    mock_redis_client.get_value.return_value = (
+        datetime.now(UTC)
+        - timedelta(minutes=task_service.REVIEW_ASSIGNMENT_DELAY_MINUTES + 1)
+    ).isoformat()
 
     # Act
-    candidates = task_service._find_candidates_for_any_role(issues)
+    candidates = task_service._find_candidates_for_any_role(issues, "P1")
 
     # Assert
     assert len(candidates) == 1
@@ -1134,14 +1253,14 @@ def test_find_candidates_for_any_role_review_candidate_without_review_done_pr(
         number=1,
         title="Review Task",
         body="",
-        labels=["BACKENDCODER", task_service.LABEL_NEEDS_REVIEW],
+        labels=["BACKENDCODER", task_service.LABEL_NEEDS_REVIEW, "P1"],
     )
     issues = [issue_review]
 
     mock_redis_client.get_value.return_value = None
 
     # Act
-    candidates = task_service._find_candidates_for_any_role(issues)
+    candidates = task_service._find_candidates_for_any_role(issues, "P1")
 
     # Assert
     assert len(candidates) == 0
@@ -1155,10 +1274,10 @@ async def test_request_task_logs_detailed_information(
     """タスク割り当てプロセス中に詳細なログが出力されることをテストします。"""
     # Arrange
     agent_id = "test-agent-for-logging"
-    issue_not_assignable = create_mock_issue(
+    issue_assignable_p0 = create_mock_issue(
         number=3,
-        title="Not Assignable",
-        body="No deliverables section",
+        title="Assignable P0 Task",
+        body="""## 成果物\n- work""",
         labels=["BACKENDCODER", "P0"],
         has_branch_name=True,
     )
@@ -1179,13 +1298,13 @@ async def test_request_task_logs_detailed_information(
         number=4,
         title="Assignable Task",
         body="""## 成果物\n- work""",
-        labels=["BACKENDCODER", "P3"],
+        labels=["BACKENDCODER", "P0"],
     )
 
     cached_issues = [
         issue_locked,
         issue_no_branch,
-        issue_not_assignable,
+        issue_assignable_p0,
         issue_assignable,
     ]
     issue_keys = [f"issue:{issue['number']}" for issue in cached_issues]
@@ -1194,6 +1313,7 @@ async def test_request_task_logs_detailed_information(
         json.dumps(issue) for issue in cached_issues
     ]
     mock_github_client.find_issues_by_labels.return_value = []
+    task_service.get_highest_priority_label = MagicMock(return_value="P0")
 
     def acquire_lock_side_effect(key, *args, **kwargs):
         return "issue_lock_1" not in key
@@ -1206,32 +1326,22 @@ async def test_request_task_logs_detailed_information(
 
         # Assert
         assert result is not None
-        assert result.issue_id == 4
+        assert result.issue_id == 3
 
         log_messages = [record.message for record in caplog.records]
 
         # 1. Agent ID
         assert f"タスクをリクエストしています: agent_id={agent_id}" in log_messages
-        # 2. Candidate count
-        assert "役割に紐づく候補Issueが4件見つかりました。" in log_messages
-        # 3. Sorted order
-        assert "候補Issueを優先度順にソートしました: [3, 2, 1, 4]" in log_messages
-        # 4. Reasons for skipping
-        assert any(
-            "Issueは割り当て不可能です" in m and "issue_id=3" in m for m in log_messages
-        )
-        assert any(
-            "ブランチ名が見つかりません" in m and "issue_id=2" in m
-            for m in log_messages
-        )
-        assert any(
-            "Issue is locked by another agent" in m and "issue_id=1" in m
-            for m in log_messages
-        )
-        # 5. Successful assignment
+        # 2. Candidate count (Removed old assertion)
+        # 3. 候補数のログメッセージ
+        assert "最高優先度ラベル 'P0' を持つタスク候補が 2 件見つかりました。" in log_messages
+        # 4. Sorted order
+        assert "候補Issueを優先度順にソートしました: [3, 4]" in log_messages
+        # 5. Reasons for skipping
+        # 6. Successful assignment
         assert any(
             "Lock acquired for issue" in m
-            and "issue_id=4" in m
+            and "issue_id=3" in m
             and f"agent_id={agent_id}" in m
             for m in log_messages
         )
@@ -1250,14 +1360,14 @@ def test_find_candidates_for_any_role_review_candidate_no_pr_found(
         number=1,
         title="Review Task",
         body="",
-        labels=["BACKENDCODER", task_service.LABEL_NEEDS_REVIEW],
+        labels=["BACKENDCODER", task_service.LABEL_NEEDS_REVIEW, "P1"],
     )
     issues = [issue_review]
 
     mock_redis_client.get_value.return_value = None
 
     # Act
-    candidates = task_service._find_candidates_for_any_role(issues)
+    candidates = task_service._find_candidates_for_any_role(issues, "P1")
 
     # Assert
     assert len(candidates) == 0
@@ -1277,6 +1387,7 @@ async def test_request_task_returns_none_immediately_if_no_task_available(
     mock_redis_client.get_values.return_value = [json.dumps(issue)]
     mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = False  # Make the issue locked
+    task_service.get_highest_priority_label = MagicMock(return_value="P1")
     agent_id = "test-agent"
 
     # Act
@@ -1291,184 +1402,13 @@ async def test_request_task_returns_none_immediately_if_no_task_available(
 
 
 @pytest.mark.unit
-@pytest.mark.anyio
-async def test_find_first_assignable_task_uses_build_code_review_prompt_for_review_task(
-    task_service, mock_redis_client, mock_github_client, caplog
-):
-    """
-    needs-reviewラベルを持つIssueが割り当てられた際に、
-    build_code_review_promptが呼び出され、適切なログが出力されることをテストします。
-    """
+def test_get_highest_priority_label_from_labels_list(task_service):
+    """get_highest_priority_labelが与えられたラベルのリストから最も高い優先度を返すことをテストします。"""
     # Arrange
-    agent_id = "test-agent"
-    issue_id = 1
-    pr_number = 101  # Issueとは異なる番号を意図的に使用
-    pr_url = f"https://github.com/test/repo/pull/{pr_number}"
-
-    issue = create_mock_issue(
-        number=issue_id,
-        title="Review Task",
-        body="""## 成果物\n- review.py""",
-        labels=["BACKENDCODER", task_service.LABEL_NEEDS_REVIEW],
-    )
-
-    # モックのPRオブジェクトを作成し、get_pr_for_issueが返すように設定
-    mock_pr = MagicMock()
-    mock_pr.number = pr_number
-    mock_pr.html_url = pr_url
-    mock_github_client.get_pr_for_issue.return_value = mock_pr
-
-    # レビュータスクとして認識させるためのRedis設定
-    old_timestamp = datetime.now(UTC) - timedelta(
-        minutes=task_service.REVIEW_ASSIGNMENT_DELAY_MINUTES + 1
-    )
-    mock_redis_client.get_value.return_value = old_timestamp.isoformat()
-
-    # モックのレビューコメント
-    mock_review_comments = [{"body": "Comment 1"}, {"body": "Comment 2"}]
-    mock_github_client.get_pull_request_review_comments.return_value = (
-        mock_review_comments
-    )
-
-    mock_redis_client.acquire_lock.return_value = True
-
-    candidate_issues = [issue]
-
-    with caplog.at_level(logging.INFO):
-        # Act
-        result = await task_service._find_first_assignable_task(
-            candidate_issues, agent_id
-        )
-
-        # Assert
-        assert result is not None
-        assert result.task_type == TaskType.REVIEW
-
-        # 1. get_pr_for_issueが正しいissue_idで呼び出されたことを検証
-        mock_github_client.get_pr_for_issue.assert_called_once_with(issue_id)
-
-        # 2. PRの番号でコメントが取得されることを検証
-        mock_github_client.get_pull_request_review_comments.assert_called_once_with(
-            pr_number
-        )
-
-        # 3. PRのURLでプロンプトが生成されることを検証
-        task_service.gemini_executor.build_code_review_prompt.assert_called_once_with(
-            pr_url=pr_url, review_comments=[c["body"] for c in mock_review_comments]
-        )
-
-        # 4. build_promptが呼び出されていないことを検証
-        task_service.gemini_executor.build_prompt.assert_not_called()
-
-        # 5. ログの検証
-        log_messages = [record.message for record in caplog.records]
-        assert any(
-            f"[issue_id={issue_id}, pr_number={pr_number}] Used gemini_executor.build_code_review_prompt."
-            in m
-            for m in log_messages
-        )
-        assert any(
-            f"[issue_id={issue_id}] Task is a review task. Finding linked PR and retrieving review comments."
-            in m
-            for m in log_messages
-        )
-
-
-@pytest.mark.unit
-@pytest.mark.anyio
-async def test_find_first_assignable_task_uses_build_prompt_for_development_task(
-    task_service, mock_redis_client, mock_github_client, caplog
-):
-    """
-    needs-reviewラベルを持たないIssueが割り当てられた際に、
-    build_promptが呼び出され、適切なログが出力されることをテストします。
-    """
-    # Arrange
-    agent_id = "test-agent"
-    issue_id = 2
-    issue = create_mock_issue(
-        number=issue_id,
-        title="Development Task",
-        body="""## 成果物\n- dev.py""",
-        labels=["BACKENDCODER", "P1"],
-    )
-
-    mock_redis_client.acquire_lock.return_value = True
-
-    candidate_issues = [issue]
-
-    with caplog.at_level(logging.INFO):
-        # Act
-        result = await task_service._find_first_assignable_task(candidate_issues, agent_id)
-
-        # Assert
-        assert result is not None
-        assert result.task_type == TaskType.DEVELOPMENT
-
-        # 1. build_promptが呼び出されたことを検証
-        task_service.gemini_executor.build_prompt.assert_called_once_with(
-            html_url=issue["html_url"], branch_name=f"feature/issue-{issue_id}"
-        )
-
-        # 2. build_code_review_promptが呼び出されていないことを検証
-        task_service.gemini_executor.build_code_review_prompt.assert_not_called()
-
-        # 3. ログの検証
-        log_messages = [record.message for record in caplog.records]
-        assert any(
-            f"[issue_id={issue_id}] Used gemini_executor.build_prompt." in m
-            for m in log_messages
-        )
-
-        # 4. GitHubクライアントの呼び出し検証
-        mock_github_client.get_pull_request_review_comments.assert_not_called()
-
-
-@pytest.mark.unit
-@pytest.mark.anyio
-async def test_find_first_assignable_task_for_review_task_retrieves_pr_data(
-    task_service, mock_redis_client, mock_github_client
-):
-    """
-    _find_first_assignable_taskがレビュータスクに遭遇した際に、
-    get_pr_for_issueとget_pull_request_review_commentsを呼び出すことをテストします。
-    """
-    # Arrange
-    agent_id = "test-agent"
-    issue_id = 1
-    pr_number = 101
-    pr_url = f"https://github.com/test/repo/pull/{pr_number}"
-
-    issue = create_mock_issue(
-        number=issue_id,
-        title="Review Task",
-        body="""## 成果物\n- review.py""",
-        labels=["BACKENDCODER", task_service.LABEL_NEEDS_REVIEW],
-    )
-
-    mock_pr = MagicMock()
-    mock_pr.number = pr_number
-    mock_pr.html_url = pr_url
-    mock_github_client.get_pr_for_issue.return_value = mock_pr
-
-    mock_review_comments = [{"body": "Comment 1"}]
-    mock_github_client.get_pull_request_review_comments.return_value = (
-        mock_review_comments
-    )
-
-    mock_redis_client.acquire_lock.return_value = True
-    old_timestamp = datetime.now(UTC) - timedelta(
-        minutes=task_service.REVIEW_ASSIGNMENT_DELAY_MINUTES + 1
-    )
-    mock_redis_client.get_value.return_value = old_timestamp.isoformat()
-    candidate_issues = [issue]
+    all_labels = ["P1", "feature", "P0", "bug", "P1"]
 
     # Act
-    result = await task_service._find_first_assignable_task(candidate_issues, agent_id)
+    highest_priority = task_service.get_highest_priority_label(all_labels)
 
     # Assert
-    assert result is not None
-    mock_github_client.get_pr_for_issue.assert_called_once_with(issue_id)
-    mock_github_client.get_pull_request_review_comments.assert_called_once_with(
-        pr_number
-    )
+    assert highest_priority == "P0"

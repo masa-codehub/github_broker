@@ -46,3 +46,5 @@
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/implement-validation-rules`
 - **作業ブランチ (Feature Branch):** `task/implement-naming-convention-check`
+
+## 子Issue (Sub-Issues)

@@ -1,146 +1,195 @@
+import logging
+from unittest.mock import mock_open, patch
+
 import pytest
 
 from github_broker.infrastructure.document_validation.document_validator import (
-    REQUIRED_HEADERS,
+    DocumentType,
     _extract_headers_from_content,
-    find_target_files,
     get_required_headers,
-    validate_filename_prefix,
-    validate_folder_structure,
+    main,
+    validate_adr_summary_format,
+    validate_design_doc_overview,
     validate_sections,
 )
 
 
 @pytest.fixture
-def setup_test_files(tmp_path):
-    # テスト用のディレクトリ構造とファイルを作成
-    # docs/adr
-    (tmp_path / "docs" / "adr").mkdir(parents=True)
-    (tmp_path / "docs" / "adr" / "001-test-adr.md").write_text("content")
-    (tmp_path / "docs" / "adr" / "002-another-adr.md").write_text("content")
-    # docs/design-docs
-    (tmp_path / "docs" / "design-docs").mkdir(parents=True)
-    (tmp_path / "docs" / "design-docs" / "design-doc-a.md").write_text("content")
-    # plans
-    (tmp_path / "plans").mkdir(parents=True)
-    (tmp_path / "plans" / "epic-feature.md").write_text("content")
-    (tmp_path / "plans" / "stories").mkdir()
-    (tmp_path / "plans" / "stories" / "story-user-auth.md").write_text("content")
-    (tmp_path / "plans" / "tasks").mkdir()
-    (tmp_path / "plans" / "tasks" / "task-db-schema.md").write_text("content")
-    (tmp_path / "plans" / "sub-dir").mkdir()
-    (tmp_path / "plans" / "sub-dir" / "epic-sub-feature.md").write_text("content")
+def valid_adr_content():
+    return """
+# 概要 / Summary
+[ADR-001]
 
-    # 対象外のファイル
-    (tmp_path / "docs" / "adr" / "not-a-markdown.txt").write_text("content")
-    (tmp_path / "other-file.md").write_text("content")
+- Status: Proposed
+- Date: 2023-10-26
 
-    return tmp_path
+## 状況 / Context
+Some context here.
 
+## 決定 / Decision
+Some decision here.
 
-def test_find_target_files(setup_test_files):
-    base_path = setup_test_files
-    found_files = find_target_files(str(base_path))
+## 結果 / Consequences
+### メリット (Positive consequences)
+- Pro 1
+### デメリット (Negative consequences)
+- Con 1
 
-    expected_files = [
-        str(base_path / "docs" / "adr" / "001-test-adr.md"),
-        str(base_path / "docs" / "adr" / "002-another-adr.md"),
-        str(base_path / "docs" / "design-docs" / "design-doc-a.md"),
-        str(base_path / "plans" / "epic-feature.md"),
-        str(base_path / "plans" / "stories" / "story-user-auth.md"),
-        str(base_path / "plans" / "sub-dir" / "epic-sub-feature.md"),
-        str(base_path / "plans" / "tasks" / "task-db-schema.md"),
-    ]
+## 検証基準 / Verification Criteria
+Verification criteria.
 
-    assert sorted(found_files) == sorted(expected_files)
+## 実装状況 / Implementation Status
+Implementation status.
+"""
 
 
-def test_find_target_files_no_files(tmp_path):
-    # ファイルが一つもない場合
-    base_path = tmp_path
-    found_files = find_target_files(str(base_path))
-    assert found_files == []
+@pytest.fixture
+def invalid_adr_content():
+    return """
+# 概要 / Summary
+[ADR-001]
+
+- Status: Proposed
+- Date: 2023-10-26
+
+## 状況 / Context
+Some context here.
+
+## 決定 / Decision
+Some decision here.
+
+## 結果 / Consequences
+### メリット (Positive consequences)
+- Pro 1
+"""
 
 
-# validate_filename_prefix のテスト
-@pytest.mark.parametrize(
-    "file_path_suffix, expected",
-    [
-        ("plans/epic-test.md", True),
-        ("plans/story-test.md", True),
-        ("plans/task-test.md", True),
-        ("plans/invalid-test.md", False),
-        ("docs/adr/001-test.md", True),  # plans配下ではないのでTrue
-    ],
-)
-def test_validate_filename_prefix(tmp_path, file_path_suffix, expected):
-    file_path = tmp_path / file_path_suffix
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_text("content")
-    assert validate_filename_prefix(str(file_path), str(tmp_path)) == expected
+@pytest.fixture
+def invalid_adr_content_missing_meta():
+    return """
+# 概要 / Summary
+[ADR-001]
+
+## 状況 / Context
+Some context here.
+
+## 決定 / Decision
+Some decision here.
+
+## 結果 / Consequences
+### メリット (Positive consequences)
+- Pro 1
+
+### デメリット (Negative consequences)
+- Con 1
+
+## 検証基準 / Verification Criteria
+Verification criteria.
+
+## 実装状況 / Implementation Status
+Implementation status.
+"""
 
 
-# validate_folder_structure のテスト
-@pytest.mark.parametrize(
-    "file_path_suffix, expected",
-    [
-        ("plans/stories/story-valid.md", True),
-        ("plans/tasks/task-valid.md", True),
-        ("plans/story-invalid.md", False),  # stories/ にない
-        ("plans/tasks/story-invalid.md", False),  # stories/ にない
-        ("plans/story-invalid/story-invalid.md", False),  # stories/ にない
-        ("plans/task-invalid.md", False),  # tasks/ にない
-        ("plans/stories/task-invalid.md", False),  # tasks/ にない
-        ("plans/task-invalid/task-invalid.md", False),  # tasks/ にない
-        ("plans/epic-valid.md", True),  # epic- はフォルダ制約なし
-        ("docs/adr/001-test.md", True),  # plans配下ではないのでTrue
-    ],
-)
-def test_validate_folder_structure(tmp_path, file_path_suffix, expected):
-    file_path = tmp_path / file_path_suffix
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_text("content")
-    assert validate_folder_structure(str(file_path), str(tmp_path)) == expected
+@pytest.fixture
+def valid_design_doc_content():
+    return """
+# 概要 / Overview
+デザインドキュメント: This is a test design document.
+
+## 背景と課題 / Background
+Background and issues.
+
+## ゴール / Goals
+### 機能要件 / Functional Requirements
+- Requirement 1
+### 非機能要件 / Non-Functional Requirements
+- Requirement 2
+
+## 設計 / Design
+### ハイレベル設計 / High-Level Design
+High-level design.
+### 詳細設計 / Detailed Design
+Detailed design.
+
+## 検討した代替案 / Alternatives Considered
+Alternatives.
+
+## セキュリティとプライバシー / Security & Privacy
+Security and privacy considerations.
+
+## 未解決の問題 / Open Questions & Unresolved Issues
+Open questions.
+
+## 検証基準 / Verification Criteria
+Verification criteria.
+
+## 実装状況 / Implementation Status
+Implementation status.
+"""
+
+
+def test_validate_sections_valid_adr(valid_adr_content):
+    required_headers = get_required_headers(DocumentType.ADR)
+    missing = validate_sections(valid_adr_content, required_headers)
+    assert not missing, f"Missing headers: {missing}"
+
+
+def test_validate_sections_valid_design_doc(valid_design_doc_content):
+    required_headers = get_required_headers(DocumentType.DESIGN_DOC)
+    missing = validate_sections(valid_design_doc_content, required_headers)
+    assert not missing, f"Missing headers: {missing}"
+
+
+
+def test_validate_sections_invalid(invalid_adr_content):
+    required_headers = get_required_headers(DocumentType.ADR)
+    missing = validate_sections(invalid_adr_content, required_headers)
+    assert "### デメリット (Negative consequences)" in missing
+    assert "## 検証基準 / Verification Criteria" in missing
+    assert "## 実装状況 / Implementation Status" in missing
+
+
+def test_validate_sections_invalid_missing_meta(invalid_adr_content_missing_meta):
+    required_headers = get_required_headers(DocumentType.ADR)
+    missing = validate_sections(invalid_adr_content_missing_meta, required_headers)
+    assert "- Status:" in missing
+    assert "- Date:" in missing
+
 
 
 def test_extract_headers_from_content():
     content = """
-# Title
-
-## Section 1
-
+# Header 1
 Some text.
+## Header 2
+### Header 3
+- Not a header
+"""
+    headers = _extract_headers_from_content(content)
+    assert headers == ["# Header 1", "## Header 2", "### Header 3"]
 
-## Section 2
 
-- list
-- item
-
-### Subsection
-
-## Another Section
+def test_extract_headers_from_content_all_levels():
+    content = """
+# Title 1
+## Title 2
+### Title 3
+#### Title 4
 """
     expected_headers = [
-        "Section 1",
-        "Section 2",
-        "Another Section",
+        "# Title 1",
+        "## Title 2",
+        "### Title 3",
     ]
     assert _extract_headers_from_content(content) == expected_headers
 
 
 def test_extract_headers_from_content_no_headers():
     content = """
-# Title
-
 No double-sharp headers here.
-
-### Subsection
 """
     assert _extract_headers_from_content(content) == []
-
-
-def test_extract_headers_from_content_empty_content():
-    assert _extract_headers_from_content("") == []
 
 
 def test_validate_sections_success():
@@ -149,7 +198,7 @@ def test_validate_sections_success():
 ## Section 2
 ## Section 3
 """
-    required_headers = ["Section 1", "Section 2"]
+    required_headers = ["## Section 1", "## Section 2"]
     missing = validate_sections(content, required_headers)
     assert missing == []
 
@@ -159,16 +208,16 @@ def test_validate_sections_missing():
 ## Section 1
 ## Section 3
 """
-    required_headers = ["Section 1", "Section 2", "Section 3"]
+    required_headers = ["## Section 1", "## Section 2", "## Section 3"]
     missing = validate_sections(content, required_headers)
-    assert missing == ["Section 2"]
+    assert missing == ["## Section 2"]
 
 
 def test_validate_sections_no_headers():
     content = "No headers here."
-    required_headers = ["Section 1"]
+    required_headers = ["## Section 1"]
     missing = validate_sections(content, required_headers)
-    assert missing == ["Section 1"]
+    assert missing == ["## Section 1"]
 
 
 def test_validate_sections_empty_required():
@@ -178,9 +227,51 @@ def test_validate_sections_empty_required():
     assert missing == []
 
 
+def test_validate_sections_design_doc_missing_new_sections():
+    content = """
+# 概要 / Overview
+デザインドキュメント: test
+## ゴール / Goals
+## 設計 / Design
+"""
+    required_headers = get_required_headers(DocumentType.DESIGN_DOC)
+    missing = validate_sections(content, required_headers)
+    assert "## 背景と課題 / Background" in missing
+    assert "### 機能要件 / Functional Requirements" in missing
+    assert "### 非機能要件 / Non-Functional Requirements" in missing
+
+
 @pytest.mark.parametrize(
     "doc_type, expected_headers",
-    list(REQUIRED_HEADERS.items()),
+    [
+        (DocumentType.ADR, [
+            "# 概要 / Summary",
+            "- Status:",
+            "- Date:",
+            "## 状況 / Context",
+            "## 決定 / Decision",
+            "## 結果 / Consequences",
+            "### メリット (Positive consequences)",
+            "### デメリット (Negative consequences)",
+            "## 検証基準 / Verification Criteria",
+            "## 実装状況 / Implementation Status",
+        ]),
+        (DocumentType.DESIGN_DOC, [
+            "# 概要 / Overview",
+            "## 背景と課題 / Background",
+            "## ゴール / Goals",
+            "### 機能要件 / Functional Requirements",
+            "### 非機能要件 / Non-Functional Requirements",
+            "## 設計 / Design",
+            "### ハイレベル設計 / High-Level Design",
+            "### 詳細設計 / Detailed Design",
+            "## 検討した代替案 / Alternatives Considered",
+            "## セキュリティとプライバシー / Security & Privacy",
+            "## 未解決の問題 / Open Questions & Unresolved Issues",
+            "## 検証基準 / Verification Criteria",
+            "## 実装状況 / Implementation Status",
+        ]),
+    ],
 )
 def test_get_required_headers(doc_type, expected_headers):
     assert get_required_headers(doc_type) == expected_headers
@@ -194,3 +285,167 @@ def test_get_required_headers_unknown_type():
         UNKNOWN = auto()
 
     assert get_required_headers(UnknownType.UNKNOWN) == []
+
+
+def test_validate_design_doc_overview_success():
+    content = """
+# 概要 / Overview
+デザインドキュメント: test
+"""
+    assert validate_design_doc_overview(content) is True
+
+
+def test_validate_design_doc_overview_success_with_whitespace():
+    content = """
+# 概要 / Overview
+  デザインドキュメント: test
+"""
+    assert validate_design_doc_overview(content) is True
+
+
+def test_validate_design_doc_overview_success_no_extra_text():
+    content = """
+# 概要 / Overview
+デザインドキュメント:
+"""
+    assert validate_design_doc_overview(content) is True
+
+
+def test_validate_design_doc_overview_failure():
+    content = """
+# 概要 / Overview
+これはデザインドキュメントです
+"""
+    assert validate_design_doc_overview(content) is False
+
+
+def test_validate_design_doc_overview_failure_not_at_start():
+    content = """
+# 概要 / Overview
+これは デザインドキュメント: です
+"""
+    assert validate_design_doc_overview(content) is False
+
+
+def test_validate_design_doc_overview_failure_with_newline():
+    content = """
+# 概要 / Overview
+
+デザインドキュメント: test
+"""
+    assert validate_design_doc_overview(content) is False
+
+
+def test_validate_design_doc_overview_no_overview():
+    content = """
+## ゴール / Goals
+"""
+    assert validate_design_doc_overview(content) is False
+
+
+
+
+@pytest.mark.parametrize(
+    "content, expected",
+    [
+        pytest.param(
+            "# 概要 / Summary\n[ADR-123] This is a title",
+            True,
+            id="success_basic",
+        ),
+        pytest.param(
+            "# 概要 / Summary\n\n[ADR-1] Another title",
+            True,
+            id="success_with_newline",
+        ),
+        pytest.param(
+            "# 概要 / Summary\n   \n[ADR-1] Another title",
+            True,
+            id="success_with_whitespace_and_newline",
+        ),
+        pytest.param(
+            "# 概要 / Summary\nThis is not a valid summary format.",
+            False,
+            id="failure_invalid_format",
+        ),
+        pytest.param(
+            "Some other content\n# Not the summary",
+            False,
+            id="failure_no_summary_header",
+        ),
+        pytest.param(
+            "# 概要 / Summary",
+            False,
+            id="failure_header_only",
+        ),
+        pytest.param(
+            "# 概要 / Summary\n\n",
+            False,
+            id="failure_header_with_newlines_only",
+        ),
+        pytest.param(
+            "# 概要 / Summary\n[ADR-abc]",
+            False,
+            id="failure_non_digit_in_adr_number",
+        ),
+    ],
+)
+def test_validate_adr_summary_format(content, expected):
+    assert validate_adr_summary_format(content) == expected
+
+
+def test_main_success(caplog):
+    caplog.set_level(logging.INFO)
+    with patch(
+        "github_broker.infrastructure.document_validation.document_validator.find_target_files",
+        return_value=["/app/docs/adr/valid.md"],
+    ), patch(
+        "builtins.open",
+        mock_open(read_data="""
+# 概要 / Summary
+[ADR-001]
+
+- Status: Proposed
+- Date: 2023-10-26
+
+## 状況 / Context
+Some context here.
+
+## 決定 / Decision
+Some decision here.
+
+## 結果 / Consequences
+### メリット (Positive consequences)
+- Pro 1
+### デメリット (Negative consequences)
+- Con 1
+
+## 検証基準 / Verification Criteria
+Verification criteria.
+
+## 実装状況 / Implementation Status
+Implementation status.
+"""),
+    ):
+        assert main() == 0
+        assert "✅ All documents are valid." in caplog.text
+
+
+def test_main_failure(caplog):
+    caplog.set_level(logging.INFO)
+    with patch(
+        "github_broker.infrastructure.document_validation.document_validator.find_target_files",
+        return_value=["/app/docs/adr/invalid.md"],
+    ), patch(
+        "builtins.open",
+        mock_open(read_data="""
+# 概要 / Summary
+[ADR-001]
+
+## 状況 / Context
+Some context here.
+"""),
+    ):
+        assert main() == 1
+        assert "❌ /app/docs/adr/invalid.md: Missing sections:" in caplog.text
+        assert "Found 1 errors." in caplog.text

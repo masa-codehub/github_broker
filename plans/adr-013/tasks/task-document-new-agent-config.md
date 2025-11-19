@@ -43,3 +43,4 @@
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/update-docs-for-agent-config`
 - **作業ブランチ (Feature Branch):** `task/document-new-agent-config`
+## 子Issue (Sub-Issues)

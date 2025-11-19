@@ -123,7 +123,10 @@ docker-compose -f .build/context/docker-compose.yml logs -f
 ### フェーズ1: タスク割り当て (ブローカー)
 
 1.  **エージェントからの要求:** いずれかのエージェントが、自身の`agent_id`と`agent_role`を付けて、ブローカーにタスクを要求します。
-2.  **ブローカーによる選択:** ブローカーは、オープンなIssueの中から、エージェントの`agent_role`と一致するラベルが付いたものを探し出します。
+2.  **ブローカーによる選択 (厳格な優先度バケット方式):**
+    -   ブローカーは、オープンなIssueの中から、エージェントの`agent_role`と一致するラベルが付いたものを探し出します。
+    -   **重要:** この際、Issueの優先度ラベル（P0, P1, P2...）に基づき、**厳格な優先度バケット方式**に従ってタスクが選択されます。
+    -   この方式では、ブローカーはオープンなIssueの中で**最も高い優先度レベル**を持つIssueのみをタスク候補とします。最高優先度レベルのIssueが一つでもオープンである限り、それより低い優先度レベルのIssueは、エージェントに割り当てられることはありません（[ADR-015](../adr/015-strict-priority-bucket-assignment.md)参照）。
 3.  **タスクの割り当て:** 適切なIssueが見つかると、ブローカーはそのIssueに`in-progress`とエージェントIDのラベルを付与し、作業ブランチ名と共にエージェントに返却します。
 
 ### フェーズ2: 開発 (開発エージェント例: `BACKENDCODER`)
@@ -146,6 +149,55 @@ docker-compose -f .build/context/docker-compose.yml logs -f
 
 1.  **マージ実行:** `CODE_REVIEWER`によって承認されたPull Requestを、リポジトリの管理者が`main`ブランチにマージします。
 2.  **完了:** PRがマージされると、連携したIssueが自動的にクローズされ、一連のワークフローが完了します。
+
+---
+
+## ドキュメントの検証規約 (Document Validation Conventions)
+
+コミット前にドキュメントの一貫性と品質を保証するため、`pre-commit`フックによる自動検証が実行されます。特に、ADR (`docs/adr/*.md`) と Design Doc (`docs/design-docs/*.md`) には厳格なテンプレートが定められています。
+
+詳細は [ADR-014](https://github.com/masa-codehub/github_broker/blob/main/docs/adr/014-improve-adr-validation-rules.md) を参照してください。
+
+### 1. ADR (`docs/adr/*.md`) の規約
+
+#### 必須セクション
+ADRには、以下のセクションがすべて含まれている必要があります。
+
+- `# 概要 / Summary`
+- `- Status:`
+- `- Date:`
+- `## 状況 / Context`
+- `## 決定 / Decision`
+- `## 結果 / Consequences`
+- `### メリット (Positive consequences)`
+- `### デメリット (Negative consequences)`
+- `## 検証基準 / Verification Criteria`
+- `## 実装状況 / Implementation Status`
+
+#### タイトルの検証
+- `# 概要 / Summary` の直後の行は、`[ADR-XXX]` という形式で始まる必要があります（例: `[ADR-001] タイトル`）。
+
+### 2. Design Doc (`docs/design-docs/*.md`) の規約
+
+#### 必須セクション
+Design Docには、以下のセクションがすべて含まれている必要があります。
+
+- `# 概要 / Overview`
+- `## 背景と課題 / Background`
+- `## ゴール / Goals`
+- `### 機能要件 / Functional Requirements`
+- `### 非機能要件 / Non-Functional Requirements`
+- `## 設計 / Design`
+- `### ハイレベル設計 / High-Level Design`
+- `### 詳細設計 / Detailed Design`
+- `## 検討した代替案 / Alternatives Considered`
+- `## セキュリティとプライバシー / Security & Privacy`
+- `## 未解決の問題 / Open Questions & Unresolved Issues`
+- `## 検証基準 / Verification Criteria`
+- `## 実装状況 / Implementation Status`
+
+#### タイトルの検証
+- `# 概要 / Overview` の直後の行は、`デザインドキュメント:` で始まる必要があります。
 
 ---
 

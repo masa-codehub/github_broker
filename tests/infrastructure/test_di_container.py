@@ -1,42 +1,51 @@
-import os
 from unittest.mock import patch
 
-import pytest
+import punq
 
-import github_broker.infrastructure.di_container as di_container_module
 from github_broker.application.task_service import TaskService
+from github_broker.domain.agent_config import AgentConfigList
+from github_broker.infrastructure.agent.loader import AgentConfigLoader
+from github_broker.infrastructure.config import Settings
+from github_broker.infrastructure.di_container import create_container
+from github_broker.infrastructure.github_client import GitHubClient
+from github_broker.infrastructure.redis_client import RedisClient
 
 
-@pytest.fixture(autouse=True)
-def reset_container():
-    """Ensures each test gets a fresh DI container."""
-    di_container_module._container = None
-
-
-@pytest.mark.integration
-def test_di_container_resolves_task_service_instance():
+@patch("github_broker.infrastructure.agent.loader.AgentConfigLoader.load_from_file")
+def test_create_container(mock_load_from_file, monkeypatch):
     """
-    DIコンテナが設定と依存関係を解決し、TaskServiceのインスタンスを
-    正常に作成できることを検証する統合テスト。
+    Tests the create_container function by mocking environment variables
+    and verifying that all dependencies are correctly instantiated.
     """
+    # Arrange
+    # Use monkeypatch to set environment variables for the Settings object
+    monkeypatch.setenv("GITHUB_APP_ID", "test_id")
+    monkeypatch.setenv("GITHUB_APP_PRIVATE_KEY", "test_key")
+    monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "test_token")
+    monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", "test_secret")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379")
+    monkeypatch.setenv("GOOGLE_API_KEY", "test_api_key")
+    monkeypatch.setenv("GITHUB_AGENT_REPOSITORY", "test_owner/test_repo")
 
-    test_env = {
-        "GITHUB_REPOSITORY": "test/repo",
-        "GITHUB_TOKEN": "fake-token",
-        "GEMINI_API_KEY": "fake-gemini-key",
-        "GITHUB_INDEXING_WAIT_SECONDS": "10",
-        "REDIS_HOST": "localhost",
-        "REDIS_PORT": "6379",
-        "REDIS_DB": "0",
-    }
-    with patch.dict(os.environ, test_env):
-        # Act
-        # 環境変数が設定されたコンテキスト内でコンテナを生成・解決
-        container = di_container_module.get_container()
-        service = container.resolve(TaskService)
+    mock_agent_config_list = AgentConfigList(agents=[])
+    mock_load_from_file.return_value = mock_agent_config_list
 
-        # Assert
-        assert isinstance(service, TaskService)
-        # 内部のクライアントも正しく設定されているかを確認
-        assert service.repo_name == "test/repo"
-        assert service.github_indexing_wait_seconds == 10
+    # Act
+    # We call create_container without arguments, so it uses get_settings()
+    # which will now pick up the mocked environment variables.
+    container = create_container()
+
+    # Assert
+    assert isinstance(container, punq.Container)
+    resolved_settings = container.resolve(Settings)
+    assert resolved_settings.github_app_id == "test_id"
+    assert resolved_settings.github_agent_repository == "test_owner/test_repo"
+
+    assert isinstance(container.resolve(GitHubClient), GitHubClient)
+    assert isinstance(container.resolve(RedisClient), RedisClient)
+    assert isinstance(container.resolve(AgentConfigLoader), AgentConfigLoader)
+    assert container.resolve(AgentConfigList) == mock_agent_config_list
+    assert isinstance(container.resolve(TaskService), TaskService)
+
+    # Verify that load_from_file was called
+    mock_load_from_file.assert_called_once_with("agents.yml")

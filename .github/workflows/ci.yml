@@ -55,6 +55,12 @@ jobs:
           TESTING: true
           REDIS_HOST: localhost
           PATH: /usr/bin:$PATH # Add /usr/bin to PATH for curl
+          # Add dummy values for required settings to pass validation
+          GITHUB_APP_ID: "dummy_app_id"
+          GITHUB_APP_PRIVATE_KEY: "dummy_private_key"
+          GITHUB_PERSONAL_ACCESS_TOKEN: "dummy_pat"
+          GITHUB_WEBHOOK_SECRET: "dummy_secret"
+          GOOGLE_API_KEY: "dummy_google_key"
         run: |
           echo "Starting server startup test..."
           

@@ -42,3 +42,5 @@ ADR-014で導入された新しいドキュメント検証ルールについて�
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/document-adr-014-changes`
 - **作業ブランチ (Feature Branch):** `task/update-dev-guide-with-validation-rules`
+
+## 子Issue (Sub-Issues)

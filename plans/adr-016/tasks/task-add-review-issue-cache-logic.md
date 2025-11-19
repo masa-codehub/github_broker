@@ -29,3 +29,5 @@
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/fix-review-issue-workflow`
 - **作業ブランチ (Feature Branch):** `task/add-review-issue-cache-logic`
+
+## 子Issue (Sub-Issues)
