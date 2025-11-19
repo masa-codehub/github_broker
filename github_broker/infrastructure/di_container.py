@@ -25,12 +25,13 @@ def create_container(settings: Settings | None = None) -> punq.Container:
         ) from None
 
     # Create clients with correct arguments
+    redis_instance = redis.from_url(s.redis_url, decode_responses=True)
+    redis_client = RedisClient(redis=redis_instance, owner=owner, repo_name=repo_name)
     github_client = GitHubClient(
         github_repository=s.github_agent_repository,
         github_token=s.github_personal_access_token,
+        redis_client=redis_client,
     )
-    redis_instance = redis.from_url(s.redis_url, decode_responses=True)
-    redis_client = RedisClient(redis=redis_instance, owner=owner, repo_name=repo_name)
 
     # Load agent configurations
     agent_config_loader = AgentConfigLoader()

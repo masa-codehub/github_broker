@@ -1,7 +1,10 @@
+import json
 import logging
 
 from github import Github, GithubException
 from github.PullRequest import PullRequest
+
+from github_broker.infrastructure.redis_client import RedisClient
 
 logger = logging.getLogger(__name__)
 
@@ -11,9 +14,15 @@ class GitHubClient:
     GitHub APIと対話するためのクライアント。
     """
 
-    def __init__(self, github_repository: str, github_token: str):
+    def __init__(
+        self,
+        github_repository: str,
+        github_token: str,
+        redis_client: RedisClient | None = None,
+    ):
         self._repo_name = github_repository
         self._client = Github(github_token)
+        self._redis_client = redis_client
 
     def get_open_issues(self):
         """
@@ -46,6 +55,13 @@ class GitHubClient:
         - `linked:pr`: 関連するPull Requestが存在するIssueのみを対象とします。
         - `is:open`: オープンなIssueのみを対象とします。
         """
+        cache_key = f"github:review_issues:{self._repo_name}"
+        if self._redis_client:
+            cached_data = self._redis_client.get(cache_key)
+            if cached_data:
+                logger.info("キャッシュからレビューIssueを取得しました。")
+                return json.loads(cached_data)
+
         try:
             query = (
                 f"repo:{self._repo_name} is:issue label:needs-review linked:pr is:open"
@@ -53,7 +69,13 @@ class GitHubClient:
             logger.info(f"クエリ: {query} でレビューIssueを検索中")
             issues = self._client.search_issues(query=query)
             logger.info(f"レビューIssueが {issues.totalCount} 件見つかりました。")
-            return [issue.raw_data for issue in issues]
+            issue_data = [issue.raw_data for issue in issues]
+
+            if self._redis_client:
+                self._redis_client.setex(cache_key, 300, json.dumps(issue_data))  # 5分間キャッシュ
+                logger.info("レビューIssueをキャッシュに保存しました。")
+
+            return issue_data
         except GithubException as e:
             logger.error(
                 f"リポジトリ {self._repo_name} のレビューIssue検索中にエラーが発生しました: {e}"
@@ -294,6 +316,13 @@ class GitHubClient:
         Raises:
             GithubException: API呼び出し中にエラーが発生した場合。
         """
+        cache_key = f"github:pr_review_comments:{self._repo_name}:{pull_number}"
+        if self._redis_client:
+            cached_data = self._redis_client.get(cache_key)
+            if cached_data:
+                logger.info(f"キャッシュからPR #{pull_number} のレビューコメントを取得しました。")
+                return json.loads(cached_data)
+
         try:
             repo = self._client.get_repo(self._repo_name)
             pull = repo.get_pull(number=pull_number)
@@ -301,7 +330,13 @@ class GitHubClient:
             logger.info(
                 f"Pull Request #{pull_number} から {len(list(comments))} 件のレビューコメントを取得しました。"
             )
-            return [comment.raw_data for comment in comments]
+            comment_data = [comment.raw_data for comment in comments]
+
+            if self._redis_client:
+                self._redis_client.setex(cache_key, 300, json.dumps(comment_data))  # 5分間キャッシュ
+                logger.info(f"PR #{pull_number} のレビューコメントをキャッシュに保存しました。")
+
+            return comment_data
         except GithubException as e:
             logger.error(
                 f"リポジトリ {self._repo_name} のPull Request #{pull_number} のレビューコメント取得中にエラーが発生しました: {e}"
