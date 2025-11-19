@@ -1467,9 +1467,10 @@ async def test_find_first_assignable_task_for_review_task_retrieves_pr_data(
     candidate_issues = [issue]
 
     # Act
-    await task_service._find_first_assignable_task(candidate_issues, agent_id)
+    result = await task_service._find_first_assignable_task(candidate_issues, agent_id)
 
     # Assert
+    assert result is not None
     mock_github_client.get_pr_for_issue.assert_called_once_with(issue_id)
     mock_github_client.get_pull_request_review_comments.assert_called_once_with(
         pr_number
