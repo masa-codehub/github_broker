@@ -89,18 +89,6 @@ class RedisClient:
         prefixed_keys = [self._get_prefixed_key(key) for key in keys]
         return self.client.mget(prefixed_keys)
 
-    def get(self, key: str) -> str | None:
-        """
-        指定されたキーの値を取得します。
-        """
-        return self.get_value(key)
-
-    def setex(self, key: str, time: int, value: str) -> None:
-        """
-        指定されたキーに値を設定し、有効期限を秒単位で設定します。
-        """
-        self.set_value(key, value, timeout=time)
-
     def delete_keys(self, keys: list[str]) -> None:
         """
         複数のキーを削除します。

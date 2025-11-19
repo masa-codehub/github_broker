@@ -599,7 +599,10 @@ def test_get_review_issues_uses_cache(mock_redis_client, mock_github):
     # Arrange
     # RedisClientのモック設定
     mock_redis_client_instance = mock_redis_client.return_value
-    mock_redis_client_instance.get.side_effect = [None, '[{"number": 2, "title": "Cached Issue"}]']  # 1回目はミス、2回目はヒット
+    mock_redis_client_instance.get_value.side_effect = [
+        None,
+        '[{"number": 2, "title": "Cached Issue"}]',
+    ]  # 1回目はミス、2回目はヒット
 
     # GitHubClientのモック設定
     mock_issue = MagicMock()
@@ -612,16 +615,18 @@ def test_get_review_issues_uses_cache(mock_redis_client, mock_github):
     mock_github.return_value = mock_github_instance
 
     repo_name = "test/repo"
-    client = GitHubClient(repo_name, "fake_token", redis_client=mock_redis_client_instance)
+    client = GitHubClient(
+        repo_name, "fake_token", redis_client=mock_redis_client_instance
+    )
 
     # Act - 1回目の呼び出し (キャッシュミスをシミュレート)
     issues_first_call = client.get_review_issues()
 
     # Assert - 1回目の呼び出し
     # Redisから取得を試み、GitHub APIを呼び出し、Redisに保存
-    mock_redis_client_instance.get.assert_called_once()
+    mock_redis_client_instance.get_value.assert_called_once()
     mock_github_instance.search_issues.assert_called_once()
-    mock_redis_client_instance.setex.assert_called_once()
+    mock_redis_client_instance.set_value.assert_called_once()
     assert issues_first_call == [mock_issue.raw_data]
 
     # Act - 2回目の呼び出し (キャッシュヒットをシミュレート)
@@ -629,9 +634,10 @@ def test_get_review_issues_uses_cache(mock_redis_client, mock_github):
 
     # Assert - 2回目の呼び出し
     # Redisから取得を試み、キャッシュヒットのためGitHub APIは呼び出されない
-    assert mock_redis_client_instance.get.call_count == 2
+    assert mock_redis_client_instance.get_value.call_count == 2
     mock_github_instance.search_issues.assert_called_once()  # GitHub APIは2回目は呼び出されない
     assert issues_second_call == [{"number": 2, "title": "Cached Issue"}]
+
 
 @pytest.mark.unit
 @patch("github_broker.infrastructure.github_client.Github")
@@ -645,7 +651,7 @@ def test_get_pull_request_review_comments_uses_cache(mock_redis_client, mock_git
     # Arrange
     # RedisClientのモック設定
     mock_redis_client_instance = mock_redis_client.return_value
-    mock_redis_client_instance.get.side_effect = [
+    mock_redis_client_instance.get_value.side_effect = [
         None,
         '[{"id": 2, "body": "Cached PR comment"}]',
     ]  # 1回目はミス、2回目はヒット
@@ -663,17 +669,19 @@ def test_get_pull_request_review_comments_uses_cache(mock_redis_client, mock_git
 
     repo_name = "test/repo"
     pull_number = 123
-    client = GitHubClient(repo_name, "fake_token", redis_client=mock_redis_client_instance)
+    client = GitHubClient(
+        repo_name, "fake_token", redis_client=mock_redis_client_instance
+    )
 
     # Act - 1回目の呼び出し (キャッシュミスをシミュレート)
     comments_first_call = client.get_pull_request_review_comments(pull_number)
 
     # Assert - 1回目の呼び出し
     # Redisから取得を試み、GitHub APIを呼び出し、Redisに保存
-    mock_redis_client_instance.get.assert_called_once()
+    mock_redis_client_instance.get_value.assert_called_once()
     mock_repo.get_pull.assert_called_once_with(number=pull_number)
     mock_pull.get_review_comments.assert_called_once()
-    mock_redis_client_instance.setex.assert_called_once()
+    mock_redis_client_instance.set_value.assert_called_once()
     assert comments_first_call == [mock_review_comment.raw_data]
 
     # Act - 2回目の呼び出し (キャッシュヒットをシミュレート)
@@ -681,7 +689,7 @@ def test_get_pull_request_review_comments_uses_cache(mock_redis_client, mock_git
 
     # Assert - 2回目の呼び出し
     # Redisから取得を試み、キャッシュヒットのためGitHub APIは呼び出されない
-    assert mock_redis_client_instance.get.call_count == 2
+    assert mock_redis_client_instance.get_value.call_count == 2
     mock_repo.get_pull.assert_called_once()  # GitHub APIは2回目は呼び出されない
     mock_pull.get_review_comments.assert_called_once()  # GitHub APIは2回目は呼び出されない
     assert comments_second_call == [{"id": 2, "body": "Cached PR comment"}]
