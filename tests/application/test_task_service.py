@@ -626,7 +626,8 @@ async def test_request_task_stores_current_task_in_redis(
 
     # Assert
     mock_redis_client.set_value.assert_called_once_with(
-        f"agent_current_task:{agent_id}", str(issue["number"]), timeout=3600
+        f"agent_current_task:{agent_id}", str(issue["number"]),
+        timeout=3600
     )
 
 
@@ -644,8 +645,7 @@ async def test_request_task_uses_review_prompt_for_review_issue(
     issue = create_mock_issue(
         number=issue_id,
         title="Review Task",
-        body="""## 成果物
-- review.py""",
+        body="""## 成果物\n- review.py""",
         labels=["BACKENDCODER", "needs-review"],
     )
     cached_issues = [issue]
@@ -696,7 +696,8 @@ async def test_request_task_uses_review_prompt_for_review_issue(
     )
     task_service.gemini_executor.build_prompt.assert_not_called()
     mock_redis_client.set_value.assert_called_once_with(
-        f"agent_current_task:{agent_id}", str(issue["number"]), timeout=3600
+        f"agent_current_task:{agent_id}", str(issue["number"]),
+        timeout=3600
     )
 
 
@@ -1424,3 +1425,52 @@ async def test_find_first_assignable_task_uses_build_prompt_for_development_task
 
         # 4. GitHubクライアントの呼び出し検証
         mock_github_client.get_pull_request_review_comments.assert_not_called()
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
+async def test_find_first_assignable_task_for_review_task_retrieves_pr_data(
+    task_service, mock_redis_client, mock_github_client
+):
+    """
+    _find_first_assignable_taskがレビュータスクに遭遇した際に、
+    get_pr_for_issueとget_pull_request_review_commentsを呼び出すことをテストします。
+    """
+    # Arrange
+    agent_id = "test-agent"
+    issue_id = 1
+    pr_number = 101
+    pr_url = f"https://github.com/test/repo/pull/{pr_number}"
+
+    issue = create_mock_issue(
+        number=issue_id,
+        title="Review Task",
+        body="""## 成果物\n- review.py""",
+        labels=["BACKENDCODER", task_service.LABEL_NEEDS_REVIEW],
+    )
+
+    mock_pr = MagicMock()
+    mock_pr.number = pr_number
+    mock_pr.html_url = pr_url
+    mock_github_client.get_pr_for_issue.return_value = mock_pr
+
+    mock_review_comments = [{"body": "Comment 1"}]
+    mock_github_client.get_pull_request_review_comments.return_value = (
+        mock_review_comments
+    )
+
+    mock_redis_client.acquire_lock.return_value = True
+    old_timestamp = datetime.now(UTC) - timedelta(
+        minutes=task_service.REVIEW_ASSIGNMENT_DELAY_MINUTES + 1
+    )
+    mock_redis_client.get_value.return_value = old_timestamp.isoformat()
+    candidate_issues = [issue]
+
+    # Act
+    await task_service._find_first_assignable_task(candidate_issues, agent_id)
+
+    # Assert
+    mock_github_client.get_pr_for_issue.assert_called_once_with(issue_id)
+    mock_github_client.get_pull_request_review_comments.assert_called_once_with(
+        pr_number
+    )
