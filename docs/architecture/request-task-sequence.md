@@ -112,7 +112,7 @@ sequenceDiagram
 
 1.  **タスク要求:** ワーカーエージェントは、自身の`agent_id`を添えてAPIサーバーの`/request-task`エンドポイントにPOSTリクエストを送信します。
 
-2.  **前タスクの完了処理:** `TaskService`は、まずエージェNTに以前割り当てられていた`in-progress`状態のタスクがないか検索します。もし存在すれば、そのIssueのラベルを`needs-review`に更新し、`in-progress`と`[agent_id]`ラベルを削除します。
+2.  **前タスクの完了処理:** `TaskService`は、まずエージェントに以前割り当てられていた`in-progress`状態のタスクがないか検索します。もし存在すれば、そのIssueのラベルを`needs-review`に更新し、`in-progress`と`[agent_id]`ラベルを削除します。
 
 3.  **タスク候補の選定 (ADR-015準拠):**
     *   **キャッシュ一括取得:** `RedisClient`を介して、バックグラウンドで定期的にキャッシュされている全Issue (`issue:*`) を一括で取得します。

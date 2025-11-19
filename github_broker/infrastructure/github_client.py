@@ -47,10 +47,6 @@ class GitHubClient:
             )
             raise
 
-    @cache_result(
-        key_format="github:review_issues:{self._repo_name}",
-        ttl=DEFAULT_CACHE_TTL_SECONDS,
-    )
     def get_review_issues(self):
         """
         レビュータスクとして割り当てるべきIssueを取得します。

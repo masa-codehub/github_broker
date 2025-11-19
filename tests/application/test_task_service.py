@@ -114,7 +114,7 @@ def test_start_polling_fetches_and_caches_issues(
 
     # Assert
     mock_github_client.get_open_issues.assert_called_once()
-    mock_redis_client.sync_issues.assert_called_once_with(mock_issues)
+    mock_redis_client.sync_issues.assert_any_call(mock_issues)
 
 
 @pytest.mark.unit
@@ -142,7 +142,7 @@ def test_start_polling_caches_empty_list_when_no_issues(
 
     # Assert
     mock_github_client.get_open_issues.assert_called_once()
-    mock_redis_client.sync_issues.assert_called_once_with([])
+    mock_redis_client.sync_issues.assert_any_call([])
 
 
 @pytest.mark.unit
@@ -662,10 +662,7 @@ async def test_request_task_uses_review_prompt_for_review_issue(
         mock_review_comments_raw
     )
 
-    # 必須モック（Issue #1819の前提）
-    # ★レビューコメントによる修正箇所
-    # get_pr_for_issueのモックは、(url, number)のタプルではなく、
-    # html_urlとnumberプロパティを持つMagicMockオブジェクトを返すように修正
+    # get_pr_for_issueのモックは、html_urlとnumberプロパティを持つMagicMockオブジェクトを返すように設定
     mock_github_client.get_pr_for_issue.return_value = MagicMock(html_url=pr_url, number=pr_number)
 
     mock_github_client.find_issues_by_labels.return_value = []

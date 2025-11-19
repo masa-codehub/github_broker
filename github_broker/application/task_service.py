@@ -110,6 +110,7 @@ class TaskService:
         logger.info("Searching for review issues...")
         try:
             review_issues = self.github_client.get_review_issues()
+            self.redis_client.sync_issues(review_issues)  # ADR-016: キャッシュ処理を追加
             for issue in review_issues:
                 issue_id = issue.get("number")
                 if issue_id:
@@ -340,6 +341,55 @@ class TaskService:
 
         return sorted(issues, key=get_priority_key)
 
+    async def _prepare_review_task_context(
+        self, task: Task, agent_id: str, lock_key: str
+    ) -> tuple[str | None, TaskType | None]:
+        """
+        レビュータスクのコンテキスト（プロンプトとタスクタイプ）を準備します。
+        失敗した場合は None を返します。
+        """
+        logger.info(
+            f"[issue_id={task.issue_id}] Task is a review task. Finding linked PR and retrieving review comments."
+        )
+        pull_request = self.github_client.get_pr_for_issue(task.issue_id)
+        if not pull_request:
+            logger.warning(
+                f"[issue_id={task.issue_id}] No linked PR found for review task. Skipping."
+            )
+            # ラベルをロールバック
+            try:
+                self.github_client.update_issue(
+                    issue_id=task.issue_id,
+                    remove_labels=[self.LABEL_IN_PROGRESS, agent_id],
+                )
+            except GithubException as e:
+                logger.error(
+                    f"[issue_id={task.issue_id}] Failed to rollback labels: {e}",
+                    exc_info=True,
+                )
+            # ロックを解放して次のIssueを試す
+            self.redis_client.release_lock(lock_key)
+            logger.info(
+                f"[issue_id={task.issue_id}, agent_id={agent_id}] Released lock."
+            )
+            return None, None
+
+        pr_number = pull_request.number
+        pr_url = pull_request.html_url
+
+        review_comments_raw = self.github_client.get_pull_request_review_comments(
+            pr_number
+        )
+        review_comments = [comment["body"] for comment in review_comments_raw]
+
+        prompt = self.gemini_executor.build_code_review_prompt(
+            pr_url=pr_url, review_comments=review_comments
+        )
+        logger.info(
+            f"[issue_id={task.issue_id}, pr_number={pr_number}] Used gemini_executor.build_code_review_prompt."
+        )
+        return prompt, TaskType.REVIEW
+
     async def _find_first_assignable_task(
         self, candidate_issues: list, agent_id: str
     ) -> TaskResponse | None:
@@ -391,55 +441,26 @@ class TaskService:
 
                 self.github_client.create_branch(branch_name)
 
-                task_type = (
-                    TaskType.REVIEW
-                    if self.LABEL_NEEDS_REVIEW in task.labels
-                    else TaskType.DEVELOPMENT
-                )
+                prompt = None
+                task_type = None
 
-                if task_type == TaskType.REVIEW:
-                    logger.info(
-                        f"[issue_id={task.issue_id}] Task is a review task. Finding linked PR and retrieving review comments."
+                if self.LABEL_NEEDS_REVIEW in task.labels:
+                    prompt, task_type = await self._prepare_review_task_context(
+                        task, agent_id, lock_key
                     )
-                    # Issueに紐づくPRを取得
-                    pull_request = self.github_client.get_pr_for_issue(task.issue_id)
-                    if not pull_request:
-                        logger.warning(
-                            f"[issue_id={task.issue_id}] No linked PR found for review task. Skipping."
-                        )
-                        # ロックを解放して次のIssueを試す
-                        self.redis_client.release_lock(lock_key)
-                        logger.info(
-                            f"[issue_id={task.issue_id}, agent_id={agent_id}] Released lock."
-                        )
+                    if not prompt:  # スキップすべき場合はNoneが返る
                         continue
-
-                    pr_number = pull_request.number
-                    pr_url = pull_request.html_url
-
-                    # レビューコメントを取得
-                    review_comments_raw = (
-                        self.github_client.get_pull_request_review_comments(pr_number)
-                    )
-                    review_comments = [
-                        comment["body"] for comment in review_comments_raw
-                    ]
-
-                    # プロンプト生成
-                    prompt = self.gemini_executor.build_code_review_prompt(
-                        pr_url=pr_url, review_comments=review_comments
-                    )
-                    logger.info(
-                        f"[issue_id={task.issue_id}, pr_number={pr_number}] Used gemini_executor.build_code_review_prompt."
-                    )
                 else:
-                    # 開発タスクの場合
                     prompt = self.gemini_executor.build_prompt(
                         html_url=task.html_url, branch_name=branch_name
                     )
+                    task_type = TaskType.DEVELOPMENT
                     logger.info(
                         f"[issue_id={task.issue_id}] Used gemini_executor.build_prompt."
                     )
+
+                assert prompt is not None
+                assert task_type is not None
 
                 gemini_response = await self.gemini_executor.execute(
                     issue_id=task.issue_id,
@@ -457,12 +478,9 @@ class TaskService:
                     f"[issue_id={task.issue_id}, agent_id={agent_id}] Stored current task in Redis."
                 )
 
-                # 役割ラベルを抽出
                 role_labels = [
                     label for label in task.labels if label in self.AGENT_ROLES
                 ]
-
-                # _find_candidates_for_any_role で役割ラベルが1つ以上あることは保証されているはず
                 assert (
                     role_labels
                 ), f"Candidate issue {task.issue_id} must have at least one role label."
@@ -472,7 +490,6 @@ class TaskService:
                         f"[issue_id={task.issue_id}] Multiple role labels found: {role_labels}. "
                         f"Using the first one: {role_labels[0]}"
                     )
-
                 required_role = role_labels[0]
 
                 return TaskResponse(

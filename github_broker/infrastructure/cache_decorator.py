@@ -1,3 +1,4 @@
+import asyncio
 import functools
 import json
 import logging
@@ -11,23 +12,28 @@ def cache_result(key_format: str, ttl: int):
     メソッドの結果をRedisにキャッシュするデコレータ。
 
     :param key_format: キャッシュキーのフォーマット文字列。
-                       インスタンスの属性を波括弧で参照できます (例: "github:repo:{self._repo_name}")。
+                       インスタンスの属性やメソッドの引数を波括弧で参照できます
+                       (例: "github:repo:{self._repo_name}:pr:{0}")。
     :param ttl: キャッシュの有効期間（秒）。
     """
     def decorator(func: Callable):
         @functools.wraps(func)
-        def wrapper(self, *args, **kwargs):
+        async def wrapper(self, *args, **kwargs):
             if not self._redis_client:
+                if asyncio.iscoroutinefunction(func):
+                    return await func(self, *args, **kwargs)
                 return func(self, *args, **kwargs)
 
             # キーをフォーマット
             try:
-                # selfとargs[0] (pull_numberなど) の両方をキーに含められるようにする
-                all_args = (self,) + args
-                key = key_format.format(*all_args, self=self)
+                # selfをキーワード引数として、*argsを位置引数として渡すことで、
+                # フォーマット文字列から両方を参照できるようにします。
+                key = key_format.format(*args, self=self)
             except (IndexError, KeyError) as e:
-                logger.error(f"キャッシュキーのフォーマットに失敗しました: {key_format}, error: {e}")
+                logger.warning(f"キャッシュキーのフォーマットに失敗しました: {key_format}, error: {e}")
                 # フォーマットに失敗した場合はキャッシュをバイパス
+                if asyncio.iscoroutinefunction(func):
+                    return await func(self, *args, **kwargs)
                 return func(self, *args, **kwargs)
 
             # キャッシュを確認
@@ -37,7 +43,10 @@ def cache_result(key_format: str, ttl: int):
                 return json.loads(cached_data)
 
             # キャッシュがない場合は関数を実行
-            result = func(self, *args, **kwargs)
+            if asyncio.iscoroutinefunction(func):
+                result = await func(self, *args, **kwargs)
+            else:
+                result = func(self, *args, **kwargs)
 
             # 結果をキャッシュに保存
             self._redis_client.set_value(key, json.dumps(result), timeout=ttl)
