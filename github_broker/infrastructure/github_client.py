@@ -3,7 +3,12 @@ import logging
 from github import Github, GithubException
 from github.PullRequest import PullRequest
 
+from github_broker.infrastructure.cache_decorator import cache_result
+from github_broker.infrastructure.redis_client import RedisClient
+
 logger = logging.getLogger(__name__)
+
+DEFAULT_CACHE_TTL_SECONDS = 300
 
 
 class GitHubClient:
@@ -11,9 +16,15 @@ class GitHubClient:
     GitHub APIと対話するためのクライアント。
     """
 
-    def __init__(self, github_repository: str, github_token: str):
+    def __init__(
+        self,
+        github_repository: str,
+        github_token: str,
+        redis_client: RedisClient | None = None,
+    ):
         self._repo_name = github_repository
         self._client = Github(github_token)
+        self._redis_client = redis_client
 
     def get_open_issues(self):
         """
@@ -36,6 +47,10 @@ class GitHubClient:
             )
             raise
 
+    @cache_result(
+        key_format="github:review_issues:{self._repo_name}",
+        ttl=DEFAULT_CACHE_TTL_SECONDS,
+    )
     def get_review_issues(self):
         """
         レビュータスクとして割り当てるべきIssueを取得します。
@@ -280,6 +295,10 @@ class GitHubClient:
             )
             raise
 
+    @cache_result(
+        key_format="github:pr_review_comments:{self._repo_name}:{0}",
+        ttl=DEFAULT_CACHE_TTL_SECONDS,
+    )
     def get_pull_request_review_comments(self, pull_number: int) -> list[dict]:
         """
         特定のPull Requestに関するすべてのレビューコメントを取得します。
