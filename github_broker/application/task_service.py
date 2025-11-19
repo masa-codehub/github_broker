@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import threading
@@ -376,14 +377,15 @@ class TaskService:
         logger.info(
             f"[issue_id={task.issue_id}] Task is a review task. Finding linked PR and retrieving review comments."
         )
-        pull_request = self.github_client.get_pr_for_issue(task.issue_id)
+        pull_request = await asyncio.to_thread(self.github_client.get_pr_for_issue, task.issue_id)
         if not pull_request:
             logger.warning(
                 f"[issue_id={task.issue_id}] No linked PR found for review task. Skipping."
             )
             # ラベルをロールバック
             try:
-                self.github_client.update_issue(
+                await asyncio.to_thread(
+                    self.github_client.update_issue,
                     issue_id=task.issue_id,
                     remove_labels=[self.LABEL_IN_PROGRESS, agent_id],
                 )
@@ -393,7 +395,7 @@ class TaskService:
                     exc_info=True,
                 )
             # ロックを解放して次のIssueを試す
-            self.redis_client.release_lock(lock_key)
+            await asyncio.to_thread(self.redis_client.release_lock, lock_key)
             logger.info(
                 f"[issue_id={task.issue_id}, agent_id={agent_id}] Released lock."
             )
@@ -440,7 +442,7 @@ class TaskService:
                 continue
 
             lock_key = f"issue_lock_{task.issue_id}"
-            if not self.redis_client.acquire_lock(lock_key, agent_id, timeout=600):
+            if not await asyncio.to_thread(self.redis_client.acquire_lock, lock_key, agent_id, timeout=600):
                 logger.warning(
                     f"[issue_id={task.issue_id}] Issue is locked by another agent. Skipping."
                 )
@@ -450,13 +452,13 @@ class TaskService:
                 logger.info(
                     f"[issue_id={task.issue_id}, agent_id={agent_id}] Lock acquired for issue. Assigning task."
                 )
-                self.github_client.add_label(task.issue_id, self.LABEL_IN_PROGRESS)
-                self.github_client.add_label(task.issue_id, agent_id)
+                await asyncio.to_thread(self.github_client.add_label, task.issue_id, self.LABEL_IN_PROGRESS)
+                await asyncio.to_thread(self.github_client.add_label, task.issue_id, agent_id)
                 logger.info(
                     f"[issue_id={task.issue_id}, agent_id={agent_id}] Assigned agent to issue."
                 )
 
-                self.github_client.create_branch(branch_name)
+                await asyncio.to_thread(self.github_client.create_branch, branch_name)
 
                 prompt = None
                 task_type = None
@@ -478,7 +480,8 @@ class TaskService:
                 assert prompt is not None
                 assert task_type is not None
 
-                self.redis_client.set_value(
+                await asyncio.to_thread(
+                    self.redis_client.set_value,
                     f"agent_current_task:{agent_id}",
                     str(task.issue_id),
                     timeout=3600,
@@ -519,7 +522,8 @@ class TaskService:
                     exc_info=True,
                 )
                 try:
-                    self.github_client.update_issue(
+                    await asyncio.to_thread(
+                        self.github_client.update_issue,
                         issue_id=task.issue_id,
                         remove_labels=[self.LABEL_IN_PROGRESS, agent_id],
                     )
@@ -532,7 +536,7 @@ class TaskService:
                         exc_info=True,
                     )
                 finally:
-                    self.redis_client.release_lock(lock_key)
+                    await asyncio.to_thread(self.redis_client.release_lock, lock_key)
                     logger.info(
                         f"[issue_id={task.issue_id}, agent_id={agent_id}] Released lock."
                     )

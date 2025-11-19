@@ -11,6 +11,8 @@ def cache_result(key_format: str, ttl: int):
     """
     メソッドの結果をRedisにキャッシュするデコレータ。
 
+    注意: このデコレータは、デコレートされた関数をコルーチンに変換します。呼び出し元は `await` を使用する必要があります。
+
     :param key_format: キャッシュキーのフォーマット文字列。
                        インスタンスの属性やメソッドの引数を波括弧で参照できます
                        (例: "github:repo:{self._repo_name}:pr:{0}")。
@@ -19,7 +21,7 @@ def cache_result(key_format: str, ttl: int):
     def decorator(func: Callable):
         @functools.wraps(func)
         async def wrapper(self, *args, **kwargs):
-            if not self._redis_client:
+            if not hasattr(self, '_redis_client') or not self._redis_client:
                 if asyncio.iscoroutinefunction(func):
                     return await func(self, *args, **kwargs)
                 return func(self, *args, **kwargs)
@@ -37,7 +39,7 @@ def cache_result(key_format: str, ttl: int):
                 return func(self, *args, **kwargs)
 
             # キャッシュを確認
-            cached_data = self._redis_client.get_value(key)
+            cached_data = await asyncio.to_thread(self._redis_client.get_value, key)
             if cached_data:
                 logger.info(f"キャッシュからデータを取得しました: {key}")
                 return json.loads(cached_data)
@@ -49,7 +51,7 @@ def cache_result(key_format: str, ttl: int):
                 result = func(self, *args, **kwargs)
 
             # 結果をキャッシュに保存
-            self._redis_client.set_value(key, json.dumps(result), timeout=ttl)
+            await asyncio.to_thread(self._redis_client.set_value, key, json.dumps(result), timeout=ttl)
             logger.info(f"データをキャッシュに保存しました: {key} (TTL: {ttl}s)")
 
             return result

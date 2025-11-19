@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from github import Github, GithubException
@@ -295,7 +296,7 @@ class GitHubClient:
         key_format="github:pr_review_comments:{self._repo_name}:{0}",
         ttl=DEFAULT_CACHE_TTL_SECONDS,
     )
-    def get_pull_request_review_comments(self, pull_number: int) -> list[dict]:
+    async def get_pull_request_review_comments(self, pull_number: int) -> list[dict]:
         """
         特定のPull Requestに関するすべてのレビューコメントを取得します。
 
@@ -310,13 +311,16 @@ class GitHubClient:
             GithubException: API呼び出し中にエラーが発生した場合。
         """
         try:
-            repo = self._client.get_repo(self._repo_name)
-            pull = repo.get_pull(number=pull_number)
-            comments = pull.get_review_comments()
-            logger.info(
-                f"Pull Request #{pull_number} から {len(list(comments))} 件のレビューコメントを取得しました。"
-            )
-            return [comment.raw_data for comment in comments]
+            def _get_comments():
+                repo = self._client.get_repo(self._repo_name)
+                pull = repo.get_pull(number=pull_number)
+                comments = pull.get_review_comments()
+                clist = list(comments)
+                logger.info(
+                    f"Pull Request #{pull_number} から {len(clist)} 件のレビューコメントを取得しました。"
+                )
+                return [comment.raw_data for comment in clist]
+            return await asyncio.to_thread(_get_comments)
         except GithubException as e:
             logger.error(
                 f"リポジトリ {self._repo_name} のPull Request #{pull_number} のレビューコメント取得中にエラーが発生しました: {e}"

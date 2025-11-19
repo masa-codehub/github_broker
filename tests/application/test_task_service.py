@@ -1402,13 +1402,33 @@ async def test_request_task_returns_none_immediately_if_no_task_available(
 
 
 @pytest.mark.unit
+
+
 def test_get_highest_priority_label_from_labels_list(task_service):
+
+
     """get_highest_priority_labelが与えられたラベルのリストから最も高い優先度を返すことをテストします。"""
+
+
     # Arrange
+
+
     all_labels = ["P1", "feature", "P0", "bug", "P1"]
 
+
+
+
+
     # Act
+
+
     highest_priority = task_service.get_highest_priority_label(all_labels)
 
+
+
+
+
     # Assert
+
+
     assert highest_priority == "P0"
