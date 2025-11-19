@@ -1,9 +1,15 @@
+import asyncio
 import logging
 
 from github import Github, GithubException
 from github.PullRequest import PullRequest
 
+from github_broker.infrastructure.cache_decorator import cache_result
+from github_broker.infrastructure.redis_client import RedisClient
+
 logger = logging.getLogger(__name__)
+
+DEFAULT_CACHE_TTL_SECONDS = 300
 
 
 class GitHubClient:
@@ -11,9 +17,15 @@ class GitHubClient:
     GitHub APIと対話するためのクライアント。
     """
 
-    def __init__(self, github_repository: str, github_token: str):
+    def __init__(
+        self,
+        github_repository: str,
+        github_token: str,
+        redis_client: RedisClient | None = None,
+    ):
         self._repo_name = github_repository
         self._client = Github(github_token)
+        self._redis_client = redis_client
 
     def get_open_issues(self):
         """
@@ -280,7 +292,11 @@ class GitHubClient:
             )
             raise
 
-    def get_pull_request_review_comments(self, pull_number: int) -> list[dict]:
+    @cache_result(
+        key_format="github:pr_review_comments:{self._repo_name}:{0}",
+        ttl=DEFAULT_CACHE_TTL_SECONDS,
+    )
+    async def get_pull_request_review_comments(self, pull_number: int) -> list[dict]:
         """
         特定のPull Requestに関するすべてのレビューコメントを取得します。
 
@@ -295,13 +311,16 @@ class GitHubClient:
             GithubException: API呼び出し中にエラーが発生した場合。
         """
         try:
-            repo = self._client.get_repo(self._repo_name)
-            pull = repo.get_pull(number=pull_number)
-            comments = pull.get_review_comments()
-            logger.info(
-                f"Pull Request #{pull_number} から {len(list(comments))} 件のレビューコメントを取得しました。"
-            )
-            return [comment.raw_data for comment in comments]
+            def _get_comments():
+                repo = self._client.get_repo(self._repo_name)
+                pull = repo.get_pull(number=pull_number)
+                comments = pull.get_review_comments()
+                clist = list(comments)
+                logger.info(
+                    f"Pull Request #{pull_number} から {len(clist)} 件のレビューコメントを取得しました。"
+                )
+                return [comment.raw_data for comment in clist]
+            return await asyncio.to_thread(_get_comments)
         except GithubException as e:
             logger.error(
                 f"リポジトリ {self._repo_name} のPull Request #{pull_number} のレビューコメント取得中にエラーが発生しました: {e}"

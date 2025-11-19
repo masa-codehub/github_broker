@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import threading
@@ -109,6 +110,7 @@ class TaskService:
         logger.info("Searching for review issues...")
         try:
             review_issues = self.github_client.get_review_issues()
+            self.redis_client.sync_issues(review_issues)  # ADR-016: キャッシュ処理を追加
             for issue in review_issues:
                 issue_id = issue.get("number")
                 if issue_id:
@@ -365,6 +367,48 @@ class TaskService:
 
         return sorted(issues, key=get_priority_key)
 
+    async def _prepare_review_task_context(
+        self, task: Task, agent_id: str, lock_key: str
+    ) -> tuple[str | None, TaskType | None]:
+        """
+        レビュータスクのコンテキスト（プロンプトとタスクタイプ）を準備します。
+        失敗した場合は None を返します。
+        """
+        logger.info(
+            f"[issue_id={task.issue_id}] Task is a review task. Finding linked PR and retrieving review comments."
+        )
+        pull_request = await asyncio.to_thread(self.github_client.get_pr_for_issue, task.issue_id)
+        if not pull_request:
+            logger.warning(
+                f"[issue_id={task.issue_id}] No linked PR found for review task. Skipping."
+            )
+            # ラベルをロールバック
+            try:
+                await asyncio.to_thread(
+                    self.github_client.update_issue,
+                    issue_id=task.issue_id,
+                    remove_labels=[self.LABEL_IN_PROGRESS, agent_id],
+                )
+            except GithubException as e:
+                logger.error(
+                    f"[issue_id={task.issue_id}] Failed to rollback labels: {e}",
+                    exc_info=True,
+                )
+            # ロックを解放して次のIssueを試す
+            await asyncio.to_thread(self.redis_client.release_lock, lock_key)
+            logger.info(
+                f"[issue_id={task.issue_id}, agent_id={agent_id}] Released lock."
+            )
+            return None, None
+
+        pr_number = pull_request.number
+
+        prompt = "PROMPT_GENERATION_LOGIC_REMOVED"
+        logger.info(
+            f"[issue_id={task.issue_id}, pr_number={pr_number}] Used placeholder for gemini_executor.build_code_review_prompt."
+        )
+        return prompt, TaskType.REVIEW
+
     async def _find_first_assignable_task(
         self, candidate_issues: list, agent_id: str
     ) -> TaskResponse | None:
@@ -398,7 +442,7 @@ class TaskService:
                 continue
 
             lock_key = f"issue_lock_{task.issue_id}"
-            if not self.redis_client.acquire_lock(lock_key, agent_id, timeout=600):
+            if not await asyncio.to_thread(self.redis_client.acquire_lock, lock_key, agent_id, timeout=600):
                 logger.warning(
                     f"[issue_id={task.issue_id}] Issue is locked by another agent. Skipping."
                 )
@@ -408,21 +452,36 @@ class TaskService:
                 logger.info(
                     f"[issue_id={task.issue_id}, agent_id={agent_id}] Lock acquired for issue. Assigning task."
                 )
-                self.github_client.add_label(task.issue_id, self.LABEL_IN_PROGRESS)
-                self.github_client.add_label(task.issue_id, agent_id)
+                await asyncio.to_thread(self.github_client.add_label, task.issue_id, self.LABEL_IN_PROGRESS)
+                await asyncio.to_thread(self.github_client.add_label, task.issue_id, agent_id)
                 logger.info(
                     f"[issue_id={task.issue_id}, agent_id={agent_id}] Assigned agent to issue."
                 )
 
-                self.github_client.create_branch(branch_name)
+                await asyncio.to_thread(self.github_client.create_branch, branch_name)
 
-                # NOTE: GeminiExecutor logic is removed as part of the merge.
-                # This needs to be handled by the new architecture.
-                prompt = "PROMPT_GENERATION_LOGIC_REMOVED"
+                prompt = None
+                task_type = None
                 gemini_response = "GEMINI_EXECUTION_LOGIC_REMOVED"
 
+                if self.LABEL_NEEDS_REVIEW in task.labels:
+                    prompt, task_type = await self._prepare_review_task_context(
+                        task, agent_id, lock_key
+                    )
+                    if not prompt:  # スキップすべき場合はNoneが返る
+                        continue
+                else:
+                    prompt = "PROMPT_GENERATION_LOGIC_REMOVED"
+                    task_type = TaskType.DEVELOPMENT
+                    logger.info(
+                        f"[issue_id={task.issue_id}] Used placeholder for build_prompt."
+                    )
 
-                self.redis_client.set_value(
+                assert prompt is not None
+                assert task_type is not None
+
+                await asyncio.to_thread(
+                    self.redis_client.set_value,
                     f"agent_current_task:{agent_id}",
                     str(task.issue_id),
                     timeout=3600,
@@ -431,11 +490,9 @@ class TaskService:
                     f"[issue_id={task.issue_id}, agent_id={agent_id}] Stored current task in Redis."
                 )
 
-                # 役割ラベルを抽出
                 role_labels = [
                     label for label in task.labels if label in self.agent_roles
                 ]
-
                 assert (
                     role_labels
                 ), f"Candidate issue {task.issue_id} must have at least one role label."
@@ -445,14 +502,8 @@ class TaskService:
                         f"[issue_id={task.issue_id}] Multiple role labels found: {role_labels}. "
                         f"Using the first one: {role_labels[0]}"
                     )
-
                 required_role = role_labels[0]
 
-                task_type = (
-                    TaskType.REVIEW
-                    if self.LABEL_NEEDS_REVIEW in task.labels
-                    else TaskType.DEVELOPMENT
-                )
                 return TaskResponse(
                     issue_id=task.issue_id,
                     issue_url=HttpUrl(task.html_url),
@@ -471,7 +522,8 @@ class TaskService:
                     exc_info=True,
                 )
                 try:
-                    self.github_client.update_issue(
+                    await asyncio.to_thread(
+                        self.github_client.update_issue,
                         issue_id=task.issue_id,
                         remove_labels=[self.LABEL_IN_PROGRESS, agent_id],
                     )
@@ -484,7 +536,7 @@ class TaskService:
                         exc_info=True,
                     )
                 finally:
-                    self.redis_client.release_lock(lock_key)
+                    await asyncio.to_thread(self.redis_client.release_lock, lock_key)
                     logger.info(
                         f"[issue_id={task.issue_id}, agent_id={agent_id}] Released lock."
                     )

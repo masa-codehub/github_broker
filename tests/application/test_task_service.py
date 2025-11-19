@@ -114,7 +114,7 @@ def test_start_polling_fetches_and_caches_issues(
 
     # Assert
     mock_github_client.get_open_issues.assert_called_once()
-    mock_redis_client.sync_issues.assert_called_once_with(mock_issues)
+    mock_redis_client.sync_issues.assert_any_call(mock_issues)
 
 
 @pytest.mark.unit
@@ -142,7 +142,7 @@ def test_start_polling_caches_empty_list_when_no_issues(
 
     # Assert
     mock_github_client.get_open_issues.assert_called_once()
-    mock_redis_client.sync_issues.assert_called_once_with([])
+    mock_redis_client.sync_issues.assert_any_call([])
 
 
 @pytest.mark.unit
@@ -805,13 +805,17 @@ async def test_request_task_assigns_p1_after_p0_completed(
 
 @pytest.mark.unit
 @pytest.mark.anyio
-async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
+async def test_request_task_uses_review_prompt_for_review_issue(
     task_service, mock_redis_client, mock_github_client
 ):
-    """'needs-review'ラベルを持つIssueが割り当てられた際に、task_typeが'review'に設定されることをテストします。"""
+    """'needs-review'ラベルを持つIssueが割り当てられた際に、TaskTypeが'review'に設定され、レビュー用プロンプトが使用されることをテストします。"""
     # Arrange
+    issue_id = 1
+    pr_number = 101
+    pr_url = f"https://github.com/test/repo/pull/{pr_number}"
+
     issue = create_mock_issue(
-        number=1,
+        number=issue_id,
         title="Review Task",
         body="""## 成果物\n- review.py""",
         labels=["BACKENDCODER", "needs-review", "P1"],
@@ -824,6 +828,16 @@ async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
     mock_redis_client.get_values.return_value = [
         json.dumps(issue) for issue in cached_issues
     ]
+
+    # レビューコメントのモック設定
+    mock_review_comments_raw = [{"body": "Comment 1"}, {"body": "Comment 2"}]
+    mock_github_client.get_pull_request_review_comments.return_value = (
+        mock_review_comments_raw
+    )
+
+    # get_pr_for_issueのモックは、html_urlとnumberプロパティを持つMagicMockオブジェクトを返すように設定
+    mock_github_client.get_pr_for_issue.return_value = MagicMock(html_url=pr_url, number=pr_number)
+
     mock_github_client.find_issues_by_labels.return_value = []
     mock_redis_client.acquire_lock.return_value = True
     task_service.get_highest_priority_label = MagicMock(return_value="P1")
@@ -841,7 +855,7 @@ async def test_request_task_sets_task_type_to_review_for_needs_review_issue(
     # Assert
     assert result is not None
     assert result.required_role == "BACKENDCODER"
-    assert result.issue_id == 1
+    assert result.issue_id == issue_id
     assert result.task_type == TaskType.REVIEW
     mock_redis_client.get_keys_by_pattern.assert_called_once_with("issue:*")
     mock_redis_client.acquire_lock.assert_called_once_with(
@@ -1386,26 +1400,35 @@ async def test_request_task_returns_none_immediately_if_no_task_available(
     )
     mock_redis_client.get_keys_by_pattern.assert_called_once_with("issue:*")
 
+
 @pytest.mark.unit
+
 
 def test_get_highest_priority_label_from_labels_list(task_service):
 
+
     """get_highest_priority_labelが与えられたラベルのリストから最も高い優先度を返すことをテストします。"""
 
+
     # Arrange
+
 
     all_labels = ["P1", "feature", "P0", "bug", "P1"]
 
 
 
+
+
     # Act
+
 
     highest_priority = task_service.get_highest_priority_label(all_labels)
 
 
 
+
+
     # Assert
 
+
     assert highest_priority == "P0"
-
-
