@@ -536,56 +536,330 @@ def test_update_issue_remove_label_raises_exception(mock_github):
 
 
 @pytest.mark.unit
+
+
+@pytest.mark.anyio
+
+
 @patch("github_broker.infrastructure.github_client.Github")
-def test_get_pull_request_review_comments_success(mock_github):
+
+
+async def test_get_pull_request_review_comments_success(mock_github):
+
+
     """get_pull_request_review_commentsが正常にレビューコメントを返すことをテストします。"""
+
+
     # Arrange
+
+
     mock_review_comment = MagicMock()
+
+
     mock_review_comment.raw_data = {"id": 1, "body": "Test comment"}
+
+
     mock_pull = MagicMock()
+
+
     mock_pull.get_review_comments.return_value = [mock_review_comment]
+
+
     mock_repo = MagicMock()
+
+
     mock_repo.get_pull.return_value = mock_pull
+
+
     mock_github_instance = MagicMock()
+
+
     mock_github_instance.get_repo.return_value = mock_repo
+
+
     mock_github.return_value = mock_github_instance
 
+
+
+
+
     repo_name = "test/repo"
+
+
     client = GitHubClient(repo_name, "fake_token")
+
+
     pull_number = 123
 
+
+
+
+
     # Act
-    comments = client.get_pull_request_review_comments(pull_number)
+
+
+    comments = await client.get_pull_request_review_comments(pull_number)
+
+
+
+
 
     # Assert
+
+
     assert comments == [mock_review_comment.raw_data]
+
+
     mock_repo.get_pull.assert_called_once_with(number=pull_number)
+
+
     mock_pull.get_review_comments.assert_called_once_with()
 
 
+
+
+
+
+
+
 @pytest.mark.unit
+
+
+@pytest.mark.anyio
+
+
 @patch("github_broker.infrastructure.github_client.Github")
-def test_get_pull_request_review_comments_raises_exception(mock_github):
+
+
+async def test_get_pull_request_review_comments_raises_exception(mock_github):
+
+
     """get_pull_request_review_commentsがAPI呼び出し失敗時に例外を送出することをテストします。"""
+
+
     # Arrange
+
+
     mock_pull = MagicMock()
+
+
     mock_pull.get_review_comments.side_effect = GithubException(
+
+
         status=500, data={}, headers=None
+
+
     )
+
+
     mock_repo = MagicMock()
+
+
     mock_repo.get_pull.return_value = mock_pull
+
+
     mock_github_instance = MagicMock()
+
+
     mock_github_instance.get_repo.return_value = mock_repo
+
+
     mock_github.return_value = mock_github_instance
 
+
+
+
+
     repo_name = "test/repo"
+
+
     client = GitHubClient(repo_name, "fake_token")
+
+
     pull_number = 123
 
-    # Act & Assert
-    with pytest.raises(GithubException):
-        client.get_pull_request_review_comments(pull_number)
 
+
+
+
+    # Act & Assert
+
+
+    with pytest.raises(GithubException):
+
+
+        await client.get_pull_request_review_comments(pull_number)
+
+
+
+
+
+
+
+
+@pytest.mark.unit
+
+
+@pytest.mark.anyio
+
+
+@patch("github_broker.infrastructure.github_client.Github")
+
+
+@patch("github_broker.infrastructure.redis_client.RedisClient")
+
+
+async def test_get_pull_request_review_comments_uses_cache(mock_redis_client, mock_github):
+
+
+    """
+
+
+    get_pull_request_review_commentsがキャッシュを利用することをテストします。
+
+
+    - 最初の呼び出しではキャッシュミスとなり、GitHub APIが呼び出され、結果がキャッシュに保存されます。
+
+
+    - 2回目の呼び出しではキャッシュヒットとなり、GitHub APIは呼び出されません。
+
+
+    """
+
+
+    # Arrange
+
+
+    # RedisClientのモック設定
+
+
+    mock_redis_client_instance = mock_redis_client.return_value
+
+
+    mock_redis_client_instance.get_value.side_effect = [
+
+
+        None,
+
+
+        '[{"id": 2, "body": "Cached PR comment"}]',
+
+
+    ]  # 1回目はミス、2回目はヒット
+
+
+
+
+
+    # GitHubClientのモック設定
+
+
+    mock_review_comment = MagicMock()
+
+
+    mock_review_comment.raw_data = {"id": 1, "body": "Test comment"}
+
+
+    mock_pull = MagicMock()
+
+
+    mock_pull.get_review_comments.return_value = [mock_review_comment]
+
+
+    mock_repo = MagicMock()
+
+
+    mock_repo.get_pull.return_value = mock_pull
+
+
+    mock_github_instance = MagicMock()
+
+
+    mock_github_instance.get_repo.return_value = mock_repo
+
+
+    mock_github.return_value = mock_github_instance
+
+
+
+
+
+    repo_name = "test/repo"
+
+
+    pull_number = 123
+
+
+    client = GitHubClient(
+
+
+        repo_name, "fake_token", redis_client=mock_redis_client_instance
+
+
+    )
+
+
+
+
+
+    # Act - 1回目の呼び出し (キャッシュミスをシミュレート)
+
+
+    comments_first_call = await client.get_pull_request_review_comments(pull_number)
+
+
+
+
+
+    # Assert - 1回目の呼び出し
+
+
+    # Redisから取得を試み、GitHub APIを呼び出し、Redisに保存
+
+
+    mock_redis_client_instance.get_value.assert_called_once()
+
+
+    mock_repo.get_pull.assert_called_once_with(number=pull_number)
+
+
+    mock_pull.get_review_comments.assert_called_once()
+
+
+    mock_redis_client_instance.set_value.assert_called_once()
+
+
+    assert comments_first_call == [mock_review_comment.raw_data]
+
+
+
+
+
+    # Act - 2回目の呼び出し (キャッシュヒットをシミュレート)
+
+
+    comments_second_call = await client.get_pull_request_review_comments(pull_number)
+
+
+
+
+
+    # Assert - 2回目の呼び出し
+
+
+    # Redisから取得を試み、キャッシュヒットのためGitHub APIは呼び出されない
+
+
+    assert mock_redis_client_instance.get_value.call_count == 2
+
+
+    mock_repo.get_pull.assert_called_once()  # GitHub APIは2回目は呼び出されない
+
+
+    mock_pull.get_review_comments.assert_called_once()  # GitHub APIは2回目は呼び出されない
+
+
+    assert comments_second_call == [{"id": 2, "body": "Cached PR comment"}]
 
 @pytest.mark.unit
 @patch("github_broker.infrastructure.github_client.Github")

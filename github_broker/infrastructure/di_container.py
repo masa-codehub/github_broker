@@ -38,6 +38,7 @@ def _create_container() -> punq.Container:
     github_client = GitHubClient(
         github_repository=settings.GITHUB_REPOSITORY,
         github_token=settings.GITHUB_TOKEN,
+        redis_client=redis_client,
     )
 
     gemini_executor = GeminiExecutor(prompt_file=settings.GEMINI_EXECUTOR_PROMPT_FILE)
