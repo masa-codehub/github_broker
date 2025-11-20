@@ -7,10 +7,7 @@ on:
       - synchronize
       - reopened
       - ready_for_review
-    paths-ignore:
-      - 'docs/**'
-      - 'plans/**'
-      - '**.md'
+
 
 permissions:
   issues: write
