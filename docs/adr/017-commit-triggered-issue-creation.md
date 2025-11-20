@@ -20,7 +20,7 @@ Issue自動起票の機能は、**GitHub Actions Workflow** として`.github/wo
 
 1.  **トリガー:** Pull Requestが`main`ブランチにマージされた時（`on: pull_request: types: [closed], branches: [main]` かつ `if: github.event.pull_request.merged == true`）。
 2.  **対象ファイル:** マージされたPull Requestに含まれる`/_in_box/`フォルダ内のファイル（Issueファイル）を処理対象とします。
-3.  **Issueファイルのフォーマット:** 既存の`pre-commit`フックを`/_in_box`フォルダの監視に適用することで、Issueファイルのフォーマット（例: YAML Front Matterによるメタデータ定義とMarkdown本文）を検証します。
+3.  **Issueファイルのフォーマット:** 既存の`pre-commit`フック（`doc-validation`）の設定を更新し、`/_in_box/`フォルダ内のファイルを確実にチェックするようにします。これにより、Pull Requestが`main`ブランチにマージされる前に、Issueファイルのフォーマット（例: YAML Front Matterによるメタデータ定義とMarkdown本文）の妥当性が保証されます。
 4.  **Issue作成ロジック:**
     *   各Issueファイルの内容を読み込み、Issueのタイトル、本文、ラベル、担当者などの情報を抽出します。
     *   `gh cli` または `actions/github-script` を使用してGitHub Issueを作成します。
