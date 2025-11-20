@@ -1,8 +1,8 @@
 # 概要 / Summary
 [ADR-017] _in_box方式によるIssue自動起票ワークフローの導入
 
-- **Status**: 承認済み
-- **Date**: 2025-11-20
+- Status: 承認済み
+- Date: 2025-11-20
 
 ## 状況 / Context
 
@@ -25,14 +25,15 @@ Issue自動起票の機能は、**GitHub Actions Workflow** として`.github/wo
 1.  **トリガー:** Pull Requestが`main`ブランチにマージされた時（`on: pull_request: types: [closed], branches: [main]` かつ `if: github.event.pull_request.merged == true`）。
 2.  **対象ファイル:** マージされたPull Requestに含まれる`/_in_box/`フォルダ内のファイル（Issueファイル）を処理対象とします。
 3.  **Issueファイルのフォーマット:** 既存の`pre-commit`フック（`doc-validation`）の設定を更新し、`/_in_box/`フォルダ内のファイルを確実にチェックするようにします。これにより、Pull Requestが`main`ブランチにマージされる前に、Issueファイルのフォーマット（例: YAML Front Matterによるメタデータ定義とMarkdown本文）の妥当性が保証されます。
-4.  **Issue作成ロジック:**
+4.  **CIとの連携:** `/_in_box/`フォルダ内のファイルがPull Requestの時点で確実に検証されるよう、CIワークフロー (`.github/workflows/ci.yml`) はドキュメントファイル (`.md`) の変更を無視しないように設定されます。これにより、`pre-commit`フックがすべてのドキュメント変更に対して実行されることが保証されます。
+5.  **Issue作成ロジック:**
     *   各Issueファイルの内容を読み込み、Issueのタイトル、本文、ラベル、担当者などの情報を抽出します。
     *   `gh cli` または `actions/github-script` を使用してGitHub Issueを作成します。
-5.  **ファイル移動とコミット:**
+6.  **ファイル移動とコミット:**
     *   Issueの作成が成功したファイルは`/_in_box/`から`/_done_box/`に移動します。
     *   Issueの作成に失敗したファイルは`/_in_box/`から`/_failed_box/`に移動します。
     *   ファイル移動の変更は、新しいコミットとして`main`ブランチにプッシュされます。このコミットは`on: pull_request`をトリガーとする当ワークフローを再トリガーしないため、無限ループの心配はありません。
-6.  **ワークフローの分離:**
+7.  **ワークフローの分離:**
     *   このIssue起票ワークフローは、既存のCIワークフロー（`pull_request`イベント時に`pre-commit`を実行）とは**独立した別のワークフローファイル**として定義されます。これにより、責務が分離され、CIが通った品質保証済みのファイルのみがIssue起票の対象となります。
 
 ## 結果 / Consequences
@@ -54,7 +55,7 @@ Issue自動起票の機能は、**GitHub Actions Workflow** として`.github/wo
 
 ## 検証基準 / Verification Criteria
 
--   `/_in_box/`フォルダにIssueファイルを加えるPull Requestが`main`にマージされた際、GitHubリポジリに新しいIssueが自動的に作成されること。
+-   `/_in_box/`フォルダにIssueファイルを加えるPull Requestが`main`にマージされた際、GitHubリポジトリに新しいIssueが自動的に作成されること。
 -   作成されたIssueのタイトル、本文、ラベル、担当者などが、Issueファイルの内容に基づいて適切に生成されていること。
 -   Issue作成後、処理されたIssueファイルが`/_in_box/`から`/_done_box/`に移動し、その変更が`main`ブランチに自動コミットされていること。
 -   Issue作成に失敗した場合、対象のIssueファイルが`/_in_box/`から`/_failed_box/`に移動し、その変更が`main`ブランチに自動コミットされていること。
