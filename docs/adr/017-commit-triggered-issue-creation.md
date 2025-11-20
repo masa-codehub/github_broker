@@ -12,9 +12,13 @@
 
 Issueファイルのフォーマット検証については、既存の`pre-commit`フックの機能を`plans/`フォルダから`/_in_box`フォルダの監視に転用することで再利用します。また、Issue化に失敗したファイルを追跡するため、`/_failed_box`フォルダを導入します。
 
+なお、今回の決定に伴い、既存のGitHubのWeb UIからのIssue作成をガイドする`.github/ISSUE_TEMPLATE`および、Issue作成後の自動検証を行う`.github/workflows/issue_validator.yml`は**廃止**し、これらを削除します。これは、`/_in_box`方式がIssue作成の唯一の手段となるため、これら既存の仕組みによる品質チェックは不要と判断されたためです。
+
 ## 決定 / Decision
 
 Issue自動起票の機能は、**GitHub Actions Workflow** として`.github/workflows/` ディレクトリに実装します。このワークフローは、特定のPull Requestが`main`ブランチにマージされた時にのみトリガーされます。
+
+この決定は、`/_in_box`方式がIssue作成の唯一の手段となることを意味します。これに伴い、既存の`.github/ISSUE_TEMPLATE`および`.github/workflows/issue_validator.yml`によるIssue作成のガイドおよび自動検証メカニズムは削除されます。
 
 **ワークフローの詳細:**
 
