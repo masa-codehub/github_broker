@@ -57,16 +57,30 @@
     1. `plan.md`に`Status: Not Created`と記載されている項目を、GitHub Issueとして起票する。
     2. Issue起票後、`plan.md`のステータスを`Status: Open`に更新する内容の差分を作成する。
     3. このステータス更新差分を、独立したブランチ（例: `chore/sync-plan-status`）にコミットし、Pull Requestを作成する準備をする。
-- **新規計画PRの作成準備:** 同期すべきタスクがない、かつ未計画の意思決定ドキュメントを発見した場合、新しい計画ブランチ（例: `plan-for-ADR-XXX`）を作成します。そのブランチ内で、**一つの意思決定（ADR）に対して一つのEpic Issueを基本単位とし**、それをStory、Taskへと階層的に分解します。各Epicは、ドキュメント作成（TECHNICAL_DESIGNER）、コーディング（BACKENDCODER, FRONTENDCODER）、UI/UX設計（UIUX_DESIGNER）など、**各エージェントの専門領域を組み合わせ、抜け漏れなく価値を提供できるような作業群として設計します**。計画は、それぞれを個別のMarkdownファイルとして`plans/ADR-XXX/`ディレクトリ配下に作成する準備をします。ファイル構造と命名規則は以下の通りです。
+- **新規計画PRの作成準備:** 同期すべきタスクがない、かつ未計画の意思決定ドキュメントを発見した場合、新しい計画ブランチ（例: `plan-for-ADR-XXX`）を作成します。そのブランチ内で、まず**実装計画全体の骨子**を設計します。
+
+    - **技術設計ドキュメントの計画:** 実装が複雑な場合（例: 複数のコンポーネントが連携する、複雑なロジックを含む）、開発エージェントの認識齟齬を防ぐため、実装に先立って技術設計ドキュメントの作成を計画に含めます。その際は、以下の思考プロセスに基づき、**過不足、抜け漏れ、無理無駄のない最適な設計ドキュメント群**を計画します。
+        1.  **目的の明確化:** 参照元ADR/Design Docの目的を達成するために、開発エージェントが知るべき情報は何かを自問する。
+        2.  **情報要件の定義:** 以下の観点から、必要な情報を抜け漏れなく定義する。
+            - **全体像 (Why & What):** システム全体の中でこの機能がどういう役割を担うのか？（→ コンテキスト図、コンポーネント図）
+            - **処理フロー (How):** どのような順序と条件で処理が進むのか？（→ アクティビティ図、シーケンス図）
+            - **データ規約 (Rules):** 入出力されるデータの厳密なフォーマットは？（→ データ仕様書）
+            - **実装上の制約 (Constraints):** 認証、エラー処理など、実装時に考慮すべき技術的な注意点は？（→ 実装ノート）
+        3.  **最適な表現形式の選択:** 各情報要件に対し、UML図やテキストによる仕様書など、最も無駄なく情報を伝達できる表現形式を選択します。**ユーザーから提案された図の種類を鵜呑みにせず、常にその必要性を主体的に吟味し、判断します。**
+        4.  **構造化されたドキュメント群の計画:** 選択した表現形式を、関心事の分離の原則に基づき、`docs/architecture/`配下に専用ディレクトリを設け、構造化されたファイル群として計画します。
+
+    - **Epic, Story, Taskへの分解:** 次に、**一つの意思決定（ADR）に対して一つのEpic Issueを基本単位とし**、それをStory、Taskへと階層的に分解します。各Epicは、ドキュメント作成（TECHNICAL_DESIGNER）、コーディング（BACKENDCODER, FRONTENDCODER）、UI/UX設計（UIUX_DESIGNER）など、**各エージェントの専門領域を組み合わせ、抜け漏れなく価値を提供できるような作業群として設計します**。計画は、それぞれを個別のMarkdownファイルとして`plans/ADR-XXX/`ディレクトリ配下に作成する準備をします。ファイル構造と命名規則は以下の通りです。
     ```
     plans/ADR-XXX/
     ├── <epic-branch-name>.md
-    ├── stories/
-    │   └── <story-branch-name>.md
-    └── tasks/
+    └── <story-branch-name>/
+        ├── <story-branch-name>.md
         └── <task-branch-name>.md
     ```
-- 各Markdownファイルには、`Issueテンプレート`に基づいた内容を記述します。特に`完了条件`は、Issueテンプレートで定義された基準（TDD、統合テスト、ADR要求満足）を基に、**誰が読んでも同じように解釈できる、検証可能なレベルまで具体的に記述すること**を徹底します。
+- 各Markdownファイルには、`Issueテンプレート`に基づいた内容を記述します。その際、**曖昧さを排除するため、以下のルールを遵守します。**
+    - **ADRの直接参照:** `As-is`、`To-be`、`完了条件`などのセクションでは、可能な限り参照元のADR/Design Docの文言を直接引用または参照し、解釈の余地をなくします。
+    - **検証基準の具体化:** 特に`完了条件`は、ADRに`検証基準`のセクションが存在する場合、その内容をそのまま引用し、客観的に合否を判断できるレベルまで具体化します。
+- 特に`完了条件`は、Issueテンプレートで定義された基準（TDD、統合テスト、ADR要求満足）を基に、**誰が読んでも同じように解釈できる、検証可能なレベルまで具体的に記述すること**を徹底します。
     - **Epicの完了条件:** 関連する全てのStoryの完了と、成果物の統合テストを通じてADRの要求が満たされていることを記述します。
     - **Storyの完了条件:** 関連する全てのTaskの完了と、統合テストを通じてStoryの目標が達成されていることを記述します。
     - **Taskの完了条件:** TDDに従った実装と単体テストの完了を記述します。
@@ -109,7 +123,7 @@
     7. `create_pull_request`を使い、ステータス同期のためのPRを作成します。
 - **新規計画Pull Requestの作成:**
     1. `git checkout -b plan-for-ADR-XXX` のように、新しい計画用のブランチを作成します。
-    2. `write_file`を複数回使用し、`Orient`フェーズで定義した計画内容に基づき、`plans/ADR-XXX/`配下にEpic、Story、Taskの各Markdownファイルを書き込みます。（例: `write_file`で`plans/ADR-XXX/epic-implement-adr-010.md`を作成、`write_file`で`plans/ADR-XXX/stories/story-unify-checks.md`を作成）
+    2. `write_file`を複数回使用し、`Orient`フェーズで定義した計画内容に基づき、`plans/ADR-XXX/`配下にEpic、Story、Taskの各Markdownファイルを書き込みます。（例: `write_file`で`plans/ADR-XXX/epic-implement-adr-010.md`を作成、`write_file`で`plans/ADR-XXX/story-unify-checks/story-unify-checks.md`を作成、`write_file`で`plans/ADR-XXX/story-unify-checks/task-a.md`を作成）
     3. `git add .`、`git commit`、`git push` を実行します。
     4. `create_pull_request`を使い、計画のレビューを依頼します。
 
@@ -138,9 +152,8 @@ app/
 ├── plans/      # Implementation Plans (PRODUCT_MANAGER)
 │   └── adr-001/
 │       ├── epic-branch-name.md
-│       ├── stories/
-│       │   └── story-branch-name.md
-│       └── tasks/
+│       └── story-branch-name/
+│           ├── story-branch-name.md
 │           └── task-branch-name.md
 |
 ├── research/   # Investigation & PoC artifacts (e.g., MARKET_RESEARCHER, TECHNICAL_DESIGNER)
