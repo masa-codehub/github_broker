@@ -1,3 +1,6 @@
+# Issue: #2223
+Status: Open
+
 # 【Task】設計ドキュメントのインデックス作成
 
 ## 親Issue (Parent Issue)

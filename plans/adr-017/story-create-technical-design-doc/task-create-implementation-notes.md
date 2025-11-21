@@ -1,3 +1,6 @@
+# Issue: #2224
+Status: Open
+
 # 【Task】実装上の考慮事項の作成
 
 ## 親Issue (Parent Issue)

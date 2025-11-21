@@ -1,3 +1,6 @@
+# Issue: #2228
+Status: Open
+
 # 【Task】Issue作成ロジックの実装
 
 ## 親Issue (Parent Issue)

@@ -1,3 +1,6 @@
+# Issue: #2227
+Status: Open
+
 # 【Task】ワークフローのトリガーとファイル特定ロジックの実装
 
 ## 親Issue (Parent Issue)

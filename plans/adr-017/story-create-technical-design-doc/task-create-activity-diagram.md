@@ -1,3 +1,6 @@
+# Issue: #2222
+Status: Open
+
 # 【Task】ワークフロー・アクティビティ図の作成
 
 ## 親Issue (Parent Issue)

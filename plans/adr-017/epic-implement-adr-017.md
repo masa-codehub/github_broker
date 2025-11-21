@@ -1,3 +1,6 @@
+# Issue: #2220
+Status: Open
+
 # 【Epic】_in_box方式によるIssue自動起票ワークフローの導入
 
 ## 親Issue (Parent Issue)
