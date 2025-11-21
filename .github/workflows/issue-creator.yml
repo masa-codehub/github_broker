@@ -20,6 +20,11 @@ jobs:
         with:
           python-version: '3.13.3' # プロジェクトのPythonバージョンに合わせて調整
 
+      - name: Configure Git User
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
       - name: Install dependencies
         run: pip install -e .
 
@@ -45,3 +50,47 @@ jobs:
             echo "$FILTERED_FILES" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
           fi
+
+      - name: Process _in_box/ files and commit
+        if: steps.identify_files.outputs.IN_BOX_FILES != ''
+        run: |
+          IN_BOX_FILES=$(echo "${{ steps.identify_files.outputs.IN_BOX_FILES }}" | tr '\n' ' ')
+          echo "Processing identified files: $IN_BOX_FILES"
+
+          MV_COMMANDS_SUCCESS=""
+          MV_COMMANDS_FAILURE=""
+
+          for file in $IN_BOX_FILES; do
+            # Simulate issue creation success/failure for demonstration
+            # In a real scenario, this would be actual issue creation logic.
+            # For now, let's make it succeed for even-indexed files and fail for odd-indexed files.
+            index=$(echo "$file" | cut -d'/' -f2 | sed 's/[^0-9]*//g') # Extract a numeric part for simulation
+            if (( index % 2 == 0 )); then
+              echo "Simulating SUCCESS for $file"
+              MV_COMMANDS_SUCCESS+="git mv \"$file\" \"_done_box/$(basename $file)\" && "
+            else
+              echo "Simulating FAILURE for $file"
+              MV_COMMANDS_FAILURE+="git mv \"$file\" \"_failed_box/$(basename $file)\" && "
+            fi
+          done
+
+          # Execute move commands for successful issues
+          if [ -n "$MV_COMMANDS_SUCCESS" ]; then
+            echo "Executing successful file moves..."
+            eval "${MV_COMMANDS_SUCCESS% && }"
+          fi
+
+          # Execute move commands for failed issues
+          if [ -n "$MV_COMMANDS_FAILURE" ]; then
+            echo "Executing failed file moves..."
+            eval "${MV_COMMANDS_FAILURE% && }"
+          fi
+
+          if [ -n "$MV_COMMANDS_SUCCESS" ] || [ -n "$MV_COMMANDS_FAILURE" ]; then
+            git add _done_box/ _failed_box/
+            git commit -m "chore(actions): Process _in_box/ files"
+            git push origin main
+          else
+            echo "No files were moved. Skipping commit."
+          fi
+
