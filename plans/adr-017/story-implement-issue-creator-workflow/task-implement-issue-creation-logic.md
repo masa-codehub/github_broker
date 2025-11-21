@@ -34,3 +34,7 @@ ADR-017の`決定`事項に基づき、ワークフローに対象ファイル�
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/implement-issue-creator-workflow`
 - **作業ブランチ (Feature Branch):** `task/implement-issue-creation-logic`
+
+## 子Issue (Sub-Issues)
+
+- 

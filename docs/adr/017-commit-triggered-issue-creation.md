@@ -60,3 +60,7 @@ Issue自動起票の機能は、**GitHub Actions Workflow** として`.github/wo
 -   Issue作成後、処理されたIssueファイルが`/_in_box/`から`/_done_box/`に移動し、その変更が`main`ブランチに自動コミットされていること。
 -   Issue作成に失敗した場合、対象のIssueファイルが`/_in_box/`から`/_failed_box/`に移動し、その変更が`main`ブランチに自動コミットされていること。
 -   ワークフローの実行ログにおいて、エラーなくIssueが作成され、ファイル移動が完了したことが確認できること。
+
+## 実装状況 / Implementation Status
+
+- [ ] In Progress

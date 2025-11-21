@@ -27,16 +27,8 @@ repos:
         name: Document Validation
         entry: python github_broker/infrastructure/document_validation/document_validator.py
         language: system
-        files: ^(docs/adr/|docs/design-docs/|plans/|_in_box/).*\\.md$
-        pass_filenames: true
-
-    -   id: debug-echo-files
-        name: Debug Echo Files
-        entry: echo
-        language: system
-        pass_filenames: true
-        types: [markdown]
-        files: \.md$ # Match all markdown files to see what paths are passed
+        files: ^.*$
+        pass_filenames: false
 
 -   repo: https://github.com/commitizen-tools/commitizen
     rev: 'v3.27.0'

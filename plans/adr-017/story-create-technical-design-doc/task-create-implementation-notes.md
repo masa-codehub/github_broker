@@ -24,3 +24,7 @@
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/create-technical-design-doc`
 - **作業ブランチ (Feature Branch):** `task/create-implementation-notes`
+
+## 子Issue (Sub-Issues)
+
+- 
