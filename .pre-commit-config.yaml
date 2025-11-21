@@ -35,6 +35,7 @@ repos:
         entry: echo
         language: system
         pass_filenames: true
+        types: [markdown]
         files: \.md$ # Match all markdown files to see what paths are passed
 
 -   repo: https://github.com/commitizen-tools/commitizen
