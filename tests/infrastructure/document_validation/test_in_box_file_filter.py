@@ -20,10 +20,9 @@ def test_filter_in_box_files_no_in_box_files():
     ]
     assert filter_in_box_files(file_list) == []
 
-def test_filter_in_box_files_with_in_box_files_not_filtered_yet():
+def test_filter_in_box_files_correctly_filters():
     """
-    Test that the function returns an empty list even when _in_box/ files are present,
-    as the implementation is currently a dummy. (Red phase)
+    Test that the function correctly filters _in_box/ files.
     """
     file_list = [
         "src/main.py",
@@ -31,6 +30,11 @@ def test_filter_in_box_files_with_in_box_files_not_filtered_yet():
         "docs/README.md",
         "_in_box/images/img1.png",
         "tests/test_something.py",
+        "another_in_box/file.txt", # Should not be included
     ]
-    assert filter_in_box_files(file_list) == []
+    expected_result = [
+        "_in_box/doc1.md",
+        "_in_box/images/img1.png",
+    ]
+    assert filter_in_box_files(file_list) == expected_result
 
