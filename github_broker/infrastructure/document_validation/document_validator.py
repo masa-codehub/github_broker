@@ -12,6 +12,7 @@ class DocumentType(Enum):
     ADR = auto()
     DESIGN_DOC = auto()
     PLAN = auto()
+    IN_BOX = auto()
 
 
 REQUIRED_HEADERS = MappingProxyType(
@@ -52,8 +53,14 @@ REQUIRED_HEADERS = MappingProxyType(
             "## 成果物 (Deliverables)",
             "## ブランチ戦略 (Branching Strategy)",
         ],
+        DocumentType.IN_BOX: [], # Temporarily empty
     }
 )
+
+# Update IN_BOX after REQUIRED_HEADERS is defined
+temp_required_headers = dict(REQUIRED_HEADERS)
+temp_required_headers[DocumentType.IN_BOX] = REQUIRED_HEADERS[DocumentType.PLAN]
+REQUIRED_HEADERS = MappingProxyType(temp_required_headers)
 
 
 def find_target_files(base_path: str) -> list[str]:
@@ -62,9 +69,10 @@ def find_target_files(base_path: str) -> list[str]:
     """
     p = Path(base_path)
     files: list[Path] = []
-    files.extend(p.joinpath("docs", "adr").glob("*.md"))
-    files.extend(p.joinpath("docs", "design-docs").glob("*.md"))
+    files.extend(p.joinpath("docs", "adr").rglob("*.md"))
+    files.extend(p.joinpath("docs", "design-docs").rglob("*.md"))
     files.extend(p.joinpath("plans").rglob("*.md"))
+    files.extend(p.joinpath("_in_box").rglob("*.md"))
 
     return sorted([str(f) for f in set(files)])
 
@@ -172,8 +180,10 @@ def get_document_type(file_path: str) -> DocumentType | None:
         return DocumentType.ADR
     if "docs/design-docs" in str(p.parent):
         return DocumentType.DESIGN_DOC
-    if "plans" in str(p.parts):
+    if "plans" in p.parts:
         return DocumentType.PLAN
+    if "_in_box" in p.parts:
+        return DocumentType.IN_BOX
     return None
 
 
@@ -181,8 +191,16 @@ def main() -> int:
     """
     すべての対象ドキュメントを検証し、エラーがあれば報告します。
     """
-    project_root = str(Path(__file__).parent.parent.parent.parent)
-    target_files = find_target_files(project_root)
+    if len(sys.argv) > 1:
+        # If filenames are passed, validate only those.
+        target_files = [str(Path(f)) for f in sys.argv[1:]]
+        logging.info(f"Validating specific files: {target_files}")
+    else:
+        # Otherwise, find all target files.
+        project_root = str(Path(__file__).parent.parent.parent.parent)
+        target_files = find_target_files(project_root)
+        logging.info(f"Validating all target files: {target_files}")
+
     error_count = 0
 
     for file_path in target_files:
