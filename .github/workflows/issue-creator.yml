@@ -1,0 +1,47 @@
+name: Issue Creator
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  create_issue:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.3' # プロジェクトのPythonバージョンに合わせて調整
+
+      - name: Install dependencies
+        run: pip install -e .
+
+      - name: Identify _in_box/ files
+        id: identify_files
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Identifying _in_box/ files in merged PR..."
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          # gh CLIを使ってPRのファイルリストを取得
+          FILES_JSON=$(gh pr view $PR_NUMBER --json files -q '.files[].path')
+          # Pythonスクリプトにファイルリストを渡し、フィルタリングを実行
+          FILTERED_FILES=$(python -c "import sys; from github_broker.infrastructure.document_validation.in_box_file_filter import filter_in_box_files; file_list = sys.stdin.read().splitlines(); print('\n'.join(filter_in_box_files(file_list)))" <<< "$FILES_JSON")
+
+          if [ -z "$FILTERED_FILES" ]; then
+            echo "No _in_box/ files found in the merged PR."
+          else
+            echo "Found _in_box/ files:"
+            echo "$FILTERED_FILES"
+            # 後続のステップで利用するために、出力を設定することも可能
+            echo "IN_BOX_FILES<<EOF" >> $GITHUB_OUTPUT
+            echo "$FILTERED_FILES" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
