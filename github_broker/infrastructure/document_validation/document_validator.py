@@ -53,9 +53,14 @@ REQUIRED_HEADERS = MappingProxyType(
             "## 成果物 (Deliverables)",
             "## ブランチ戦略 (Branching Strategy)",
         ],
-        DocumentType.IN_BOX: [],
+        DocumentType.IN_BOX: [], # Temporarily empty
     }
 )
+
+# Update IN_BOX after REQUIRED_HEADERS is defined
+temp_required_headers = dict(REQUIRED_HEADERS)
+temp_required_headers[DocumentType.IN_BOX] = REQUIRED_HEADERS[DocumentType.PLAN]
+REQUIRED_HEADERS = MappingProxyType(temp_required_headers)
 
 
 def find_target_files(base_path: str) -> list[str]:
@@ -175,9 +180,9 @@ def get_document_type(file_path: str) -> DocumentType | None:
         return DocumentType.ADR
     if "docs/design-docs" in str(p.parent):
         return DocumentType.DESIGN_DOC
-    if "plans" in str(p.parts):
+    if "plans" in p.parts:
         return DocumentType.PLAN
-    if "_in_box" in str(p.parts):
+    if "_in_box" in p.parts:
         return DocumentType.IN_BOX
     return None
 
