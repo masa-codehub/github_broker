@@ -31,33 +31,31 @@ YAML Front Matterは、Issueのメタデータを定義するために使用さ�
 | キー名     | データ型   | 必須/任意 | 説明                                                           | 例                                                      |
 | :--------- | :--------- | :-------- | :------------------------------------------------------------- | :------------------------------------------------------ |
 | `title`    | string     | 必須      | Issueのタイトル                                                | `title: 新機能: ユーザー登録機能`                       |
-| `labels`   | array<string> | 任意      | Issueに付与するラベルのリスト                                  | `labels: [feature, backend]`                            |
-| `assignees`| array<string> | 任意      | Issueの担当者のGitHubユーザー名のリスト                        | `assignees: [octocat, monalisa]`                        |
-| `milestone`| string / number | 任意      | Issueを関連付けるマイルストーンの名前または番号               | `milestone: Sprint 1` or `milestone: 1`                 |
+| `labels`   | array      | 任意      | Issueに付与するラベルのリスト                                  | `labels: [feature, backend]`                            |
+| `assignees`| array      | 任意      | Issueの担当者のGitHubユーザー名のリスト                        | `assignees: [octocat, monalisa]`                        |
+| `milestone`| string | number | 任意      | Issueを関連付けるマイルストーンの名前または番号               | `milestone: Sprint 1` or `milestone: 1`                 |
 | `due_date` | string (YYYY-MM-DD) | 任意      | Issueの期限 (日付のみ)                                         | `due_date: 2025-12-31`                                  |
 | `priority` | string     | 任意      | Issueの優先度 (`high`, `medium`, `low` のいずれか)                    | `priority: high`                                        |
 | `epic_id`  | string     | 任意      | 関連するEpicのID                                               | `epic_id: epic-123`                                     |
 | `issue_type` | string     | 任意      | Issueのタイプ (`bug`, `task`, `story` のいずれか)                    | `issue_type: story`                                     |
 | `status`   | string     | 任意      | Issueのステータス (`open`, `in progress`, `closed` のいずれか)       | `status: open`                                          |
 
-### 4. GitHub Issueへのフィールドマッピング
+## 4. GitHub Issueへのフィールドマッピング
 
 上記のうち、`due_date`, `priority`, `epic_id`, `issue_type`, `status` などはGitHub Issues APIの標準フィールドではありません。これらのフィールドは以下のようにマッピング・処理されます。
 
+- `milestone`:
+  マイルストーン番号（整数）を指定する場合はそのまま使用されます。マイルストーン名（文字列）を指定する場合は、ワークフロー側でリポジトリのマイルストーン一覧から該当する番号を検索して変換する必要があります。
 - `due_date`:
-  GitHub Issueの標準フィールドには存在しないため、Issue本文の先頭に「**期限: YYYY-MM-DD**」の形式で追記してください。
+  GitHub Issueの標準フィールドには存在しないため、Issue本文の先頭に「**期限: YYYY-MM-DD**」の形式で追記されます。
 - `priority`:
   `priority: high` などの値をラベルとして付与します（例: `priority: high` というラベルを自動付与）。
 - `epic_id`:
-  Issue本文の先頭に「**Epic ID: epic-123**」の形式で追記してください。
-- `issue_type`:
-  `issue_type: bug` などの値をラベルとして付与します（例: `issue_type: bug` というラベルを自動付与）。
-- `status`:
-  `status: open` などの値をラベルとして付与します（例: `status: open` というラベルを自動付与）。
+  Issue本文の先頭に「**Epic ID: epic-123**」の形式で追記されます。
 
 なお、GitHub Projectsのカスタムフィールド等を利用する場合は、別途ワークフローや自動化ツール側での対応が必要です。
 
-### 具体例
+## 5. 具体例
 
 ```yaml
 ---

@@ -27,6 +27,7 @@ graph TD
         Developer -- 1. Issueファイル作成 --> LocalRepo
         LocalRepo -- 2. コミット & 検証 --> Validation["pre-commitフック (doc-validation)"]
         Validation -- 3. (成功) --> PR["Pull Request (to main)"]
+        Validation -- "(失敗)" --> Developer
     end
 
     subgraph GitHubリポジトリ

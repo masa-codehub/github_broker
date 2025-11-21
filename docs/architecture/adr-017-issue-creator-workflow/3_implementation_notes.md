@@ -44,7 +44,11 @@
 *   **自動コミット:** ファイル移動による変更は、新しいコミットとして `main` ブランチにプッシュされます。
     *   この自動コミットは、当ワークフローのトリガー条件（`on: pull_request`）を満たさないため、無限ループを発生させることはありません。
 *   **コミットメッセージ規約:**
-    *   自動コミットのメッセージは、どのIssueファイルが処理されたか、成功したか失敗したか、移動先のフォルダを明確に示します。（例: `feat: process issue file <filename> to _done_box`）
+    *   自動コミットのメッセージは、どのIssueファイルが処理されたか、成功したか失敗したか、移動先のフォルダを明確に示します。
+    *   コミットメッセージの例では `chore:` プレフィックス（[Conventional Commits](https://www.conventionalcommits.org/ja/v1.0.0/) 形式）を使用していますが、これは必須ではありません。プロジェクトの方針に従って適宜調整してください。
+    *   例:
+        - 単一ファイル: `chore: process issue file <filename> to _done_box`
+        - 複数ファイル: `chore: process 3 issue files (2 to _done_box, 1 to _failed_box)`
 
 ## 5. ワークフローの分離
 

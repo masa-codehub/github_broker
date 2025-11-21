@@ -2,12 +2,13 @@
 flowchart TD
     %% Swimlanes
     subgraph 開発者
-        A[変更を伴うPull Request作成] --> B[Pull RequestをOpen]
-        B --> C{ファイルは_in_box/ にあるか？}
-        C -- Yes --> D[pre-commitフックでIssueファイルの形式を検証]
-        C -- No --> E[通常の開発プロセス]
-        D -- 検証成功 --> F[PRレビュー・承認を経てmainブランチにマージ]
-        E --> F
+        A[コード変更とIssueファイルをローカルでコミット] -- "git commit" --> B[pre-commitフックでIssueファイルの形式を検証]
+        B -- 検証成功 --> C[Pull Requestを作成]
+        B -- 検証失敗 --> A
+        C --> D{ファイルは_in_box/ にあるか？}
+        D -- Yes --> E[PRレビュー・承認を経てmainブランチにマージ]
+        D -- No --> F[通常の開発プロセス]
+        F --> E
     end
 
     subgraph GitHub (System)
