@@ -1,11 +1,16 @@
 # 3. 実装上の考慮事項 (Implementation Notes)
 
-本ドキュメントは、[ADR-017] Commit-triggered Issue Creation ワークフローの実装における技術的な詳細と考慮事項をまとめたものです。
+本ドキュメントは、[ADR-017](../../adr/017-commit-triggered-issue-creation.md) Commit-triggered Issue Creation ワークフローの実装における技術的な詳細と考慮事項をまとめたものです。
 
 ## 1. ワークフローのトリガーと実行条件
 
 *   **トリガー:** Pull Request が `main` ブランチにマージされた時。
-    *   `on: pull_request: types: [closed], branches: [main]`
+    *   ```yaml
+        on:
+          pull_request:
+            types: [closed]
+            branches: [main]
+        ```
     *   `if: github.event.pull_request.merged == true`
 *   **対象ファイル:** マージされた Pull Request に含まれる `/_in_box/` フォルダ内のファイル（Issueファイル）のみが処理対象となります。
 
@@ -17,7 +22,10 @@
 ## 3. Issue作成ロジック
 
 *   **ツールの選択:** GitHub Issue の作成には、`gh cli` または `actions/github-script` を使用します。
-    *   `gh cli` を使用する場合: `gh issue create --title "..." --body "..." --label "..." --assignee "..."` の形式でコマンドを実行します。
+    *   `gh cli` を使用する場合: 次の形式でコマンドを実行します。
+        ```bash
+        gh issue create --title "..." --body "..." --label "..." --assignee "..."
+        ```
     *   `actions/github-script` を使用する場合: JavaScript を用いて GitHub API を直接操作します。Issueファイルから抽出したメタデータに基づき `github.rest.issues.create()` メソッドを呼び出します。
 *   **メタデータ抽出:** Issueファイル（Markdown with YAML Front Matter）から、以下の情報を抽出します。
     *   タイトル (Title)
@@ -46,4 +54,4 @@
 ## 6. 認証要件
 
 *   GitHub Actions は、`GITHUB_TOKEN` を使用して GitHub API にアクセスし、Issueの作成やファイルのコミットを行います。
-*   `GITHUB_TOKEN` には、Issueの作成、リポジトリコンテンツの読み書きを行うための適切な権限が必要です。通常、デフォルトの `GITHUB_TOKEN` はこれらの権限を保持しています。
+*   `GITHUB_TOKEN` には、Issueの作成 (`issues: write`) やリポジトリコンテンツの読み書き (`contents: write`) を行うための適切な権限が必要です。これらの権限は、ワークフローファイル内で明示的に設定する必要があります。
