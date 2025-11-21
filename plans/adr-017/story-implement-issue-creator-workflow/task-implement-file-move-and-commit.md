@@ -1,3 +1,6 @@
+# Issue: #2229
+Status: Open
+
 # 【Task】ファイル移動と自動コミットロジックの実装
 
 ## 親Issue (Parent Issue)

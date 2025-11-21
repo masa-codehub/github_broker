@@ -1,3 +1,6 @@
+# Issue: #2230
+Status: Open
+
 # 【Story】pre-commitフック設定の更新
 
 ## 親Issue (Parent Issue)

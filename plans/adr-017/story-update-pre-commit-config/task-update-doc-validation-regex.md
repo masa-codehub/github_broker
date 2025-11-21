@@ -1,3 +1,6 @@
+# Issue: #2231
+Status: Open
+
 # 【Task】doc-validationフックの正規表現を更新
 
 ## 親Issue (Parent Issue)
