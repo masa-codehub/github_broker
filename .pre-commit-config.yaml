@@ -30,6 +30,13 @@ repos:
         files: ^(docs/adr/|docs/design-docs/|plans/|_in_box/).*\\.md$
         pass_filenames: true
 
+    -   id: debug-echo-files
+        name: Debug Echo Files
+        entry: echo
+        language: system
+        pass_filenames: true
+        files: \.md$ # Match all markdown files to see what paths are passed
+
 -   repo: https://github.com/commitizen-tools/commitizen
     rev: 'v3.27.0'
     hooks:
