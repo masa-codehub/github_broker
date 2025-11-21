@@ -23,6 +23,9 @@ jobs:
       - name: Install dependencies
         run: pip install -e .
 
+      - name: Install yq
+        run: sudo snap install yq
+
       - name: Identify _in_box/ files
         id: identify_files
         env:
@@ -45,3 +48,56 @@ jobs:
             echo "$FILTERED_FILES" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
           fi
+
+      - name: Process _in_box/ files and create issues
+        if: steps.identify_files.outputs.IN_BOX_FILES != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IN_BOX_FILES: ${{ steps.identify_files.outputs.IN_BOX_FILES }}
+        run: |
+          echo "Processing _in_box/ files..."
+          IFS=$'\n' read -r -d '' -a files <<< "$IN_BOX_FILES"
+          
+          for file_path in "${files[@]}"; do
+            echo "Processing file: $file_path"
+            
+            # ファイル内容の読み込みとFront Matterの分離
+            content=$(cat "$file_path")
+            front_matter=$(echo "$content" | yq '. as $item load_str("---\n" + $item + "\n---") | select(has("---")) | . as $doc | $doc["---"]' -)
+            body_content=$(echo "$content" | sed '1,/^---$/d; /^---$/d')
+
+            # Front Matterからメタデータを抽出
+            title=$(echo "$front_matter" | yq '.title' -)
+            labels=$(echo "$front_matter" | yq '.labels[]' - | paste -sd,)
+            assignees=$(echo "$front_matter" | yq '.assignees[]' - | paste -sd,)
+
+            echo "Title: $title"
+            echo "Labels: $labels"
+            echo "Assignees: $assignees"
+            echo "Body Content: $body_content"
+
+            # Issueの作成
+            # --repoは現在のリポジトリを指す
+            # gh issue create -t "$title" -b "$body_content" --label "$labels" --assignee "$assignees" --repo "$GITHUB_REPOSITORY"
+            issue_command="gh issue create -t \"$title\" -b \"$body_content\" --repo \"$GITHUB_REPOSITORY\""
+
+            if [ -n "$labels" ]; then
+              issue_command+=" --label \"$labels\""
+            fi
+            if [ -n "$assignees" ]; then
+              issue_command+=" --assignee \"$assignees\""
+            fi
+
+            echo "Executing: $issue_command"
+            
+            # 実際にはここでgh issue createを実行する
+            # eval "$issue_command"
+            # issue_number=$(eval "$issue_command" | grep -o 'https://github.com/.*/issues/[0-9]*' | sed 's#^.*/##')
+            # echo "Created issue #$issue_number"
+
+            # テスト用にコマンドを表示し、ダミーのIssue番号を出力
+            echo "Dummy Issue Created: #12345"
+            echo "ISSUE_NUMBER=12345" >> $GITHUB_ENV
+            echo "ISSUE_TITLE=$title" >> $GITHUB_ENV
+
+          done
