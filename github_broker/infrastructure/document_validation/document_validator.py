@@ -12,6 +12,7 @@ class DocumentType(Enum):
     ADR = auto()
     DESIGN_DOC = auto()
     PLAN = auto()
+    IN_BOX = auto()
 
 
 REQUIRED_HEADERS = MappingProxyType(
@@ -52,6 +53,7 @@ REQUIRED_HEADERS = MappingProxyType(
             "## 成果物 (Deliverables)",
             "## ブランチ戦略 (Branching Strategy)",
         ],
+        DocumentType.IN_BOX: [],
     }
 )
 
@@ -175,6 +177,8 @@ def get_document_type(file_path: str) -> DocumentType | None:
         return DocumentType.DESIGN_DOC
     if "plans" in str(p.parts):
         return DocumentType.PLAN
+    if "_in_box" in str(p.parts):
+        return DocumentType.IN_BOX
     return None
 
 
