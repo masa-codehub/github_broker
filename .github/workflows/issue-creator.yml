@@ -18,12 +18,13 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11' # プロジェクトのPythonバージョンに合わせて調整
+          python-version: '3.13.3' # プロジェクトのPythonバージョンに合わせて調整
 
       - name: Install dependencies
         run: pip install -e .
 
       - name: Identify _in_box/ files
+        id: identify_files
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
