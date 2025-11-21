@@ -12,6 +12,7 @@ class DocumentType(Enum):
     ADR = auto()
     DESIGN_DOC = auto()
     PLAN = auto()
+    IN_BOX = auto()
 
 
 REQUIRED_HEADERS = MappingProxyType(
@@ -52,6 +53,7 @@ REQUIRED_HEADERS = MappingProxyType(
             "## 成果物 (Deliverables)",
             "## ブランチ戦略 (Branching Strategy)",
         ],
+        DocumentType.IN_BOX: [],
     }
 )
 
@@ -65,6 +67,7 @@ def find_target_files(base_path: str) -> list[str]:
     files.extend(p.joinpath("docs", "adr").glob("*.md"))
     files.extend(p.joinpath("docs", "design-docs").glob("*.md"))
     files.extend(p.joinpath("plans").rglob("*.md"))
+    files.extend(p.joinpath("_in_box").glob("*.md"))
 
     return sorted([str(f) for f in set(files)])
 
@@ -174,6 +177,8 @@ def get_document_type(file_path: str) -> DocumentType | None:
         return DocumentType.DESIGN_DOC
     if "plans" in str(p.parts):
         return DocumentType.PLAN
+    if "_in_box" in str(p.parts):
+        return DocumentType.IN_BOX
     return None
 
 
