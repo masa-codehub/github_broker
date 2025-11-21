@@ -65,6 +65,7 @@ def find_target_files(base_path: str) -> list[str]:
     files.extend(p.joinpath("docs", "adr").glob("*.md"))
     files.extend(p.joinpath("docs", "design-docs").glob("*.md"))
     files.extend(p.joinpath("plans").rglob("*.md"))
+    files.extend(p.joinpath("_in_box").glob("*.md"))
 
     return sorted([str(f) for f in set(files)])
 
