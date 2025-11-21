@@ -191,8 +191,16 @@ def main() -> int:
     """
     すべての対象ドキュメントを検証し、エラーがあれば報告します。
     """
-    project_root = str(Path(__file__).parent.parent.parent.parent)
-    target_files = find_target_files(project_root)
+    if len(sys.argv) > 1:
+        # If filenames are passed, validate only those.
+        target_files = [str(Path(f)) for f in sys.argv[1:]]
+        logging.info(f"Validating specific files: {target_files}")
+    else:
+        # Otherwise, find all target files.
+        project_root = str(Path(__file__).parent.parent.parent.parent)
+        target_files = find_target_files(project_root)
+        logging.info(f"Validating all target files: {target_files}")
+
     error_count = 0
 
     for file_path in target_files:
