@@ -1,3 +1,6 @@
+# Issue: #2226
+Status: Open
+
 # 【Story】Issue自動起票ワークフローの実装
 
 ## 親Issue (Parent Issue)

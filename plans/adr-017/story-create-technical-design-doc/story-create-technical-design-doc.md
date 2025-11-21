@@ -1,3 +1,6 @@
+# Issue: #2221
+Status: Open
+
 # 【Story】Issue自動起票ワークフローの技術設計ドキュメント作成
 
 ## 親Issue (Parent Issue)

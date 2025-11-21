@@ -1,3 +1,6 @@
+# Issue: #2225
+Status: Open
+
 # 【Task】入力ファイル仕様の作成
 
 ## 親Issue (Parent Issue)
