@@ -27,7 +27,7 @@ repos:
         name: Document Validation
         entry: python github_broker/infrastructure/document_validation/document_validator.py
         language: system
-        files: ^(docs/adr/|docs/design-docs/|plans/|_in_box/).*\\.md$
+        files: ^docs/adr/.*\\.md$|^docs/design-docs/.*\\.md$|^plans/.*\\.md$|^_in_box/.*\\.md$
         pass_filenames: false
 
 -   repo: https://github.com/commitizen-tools/commitizen
