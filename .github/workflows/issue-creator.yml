@@ -1,0 +1,24 @@
+name: Issue Creator
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  create_issue:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Identify _in_box/ files
+        run: |
+          echo "Identifying _in_box/ files in merged PR..."
+          # This is a dummy step. Actual logic to be implemented later.
+          # For now, we just simulate finding some files.
+          echo "Found file: _in_box/test_file_1.md"
+          echo "Found file: _in_box/test_file_2.md"
