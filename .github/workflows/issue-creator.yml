@@ -28,6 +28,7 @@ jobs:
       - name: Install dependencies
         run: pip install -e .
 
+
       - name: Identify _in_box/ files
         id: identify_files
         env:
@@ -51,46 +52,119 @@ jobs:
             echo "EOF" >> $GITHUB_OUTPUT
           fi
 
-      - name: Process _in_box/ files and commit
+      - name: Process _in_box/ files and create issues
         if: steps.identify_files.outputs.IN_BOX_FILES != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IN_BOX_FILES: ${{ steps.identify_files.outputs.IN_BOX_FILES }}
         run: |
-          IN_BOX_FILES=$(echo "${{ steps.identify_files.outputs.IN_BOX_FILES }}" | tr '\n' ' ')
-          echo "Processing identified files: $IN_BOX_FILES"
+          python -c "
+          import os
+          import sys
+          import subprocess
+          import shutil
+          from github_broker.infrastructure.document_validation.issue_parser import parse_issue_content
 
-          MV_COMMANDS_SUCCESS=""
-          MV_COMMANDS_FAILURE=""
+          # 環境変数からファイルリストを取得
+          in_box_files = os.environ.get('IN_BOX_FILES', '').splitlines()
 
-          for file in $IN_BOX_FILES; do
-            # Simulate issue creation success/failure for demonstration
-            # In a real scenario, this would be actual issue creation logic.
-            # For now, let's make it succeed for even-indexed files and fail for odd-indexed files.
-            index=$(echo "$file" | cut -d'/' -f2 | sed 's/[^0-9]*//g') # Extract a numeric part for simulation
-            if (( index % 2 == 0 )); then
-              echo "Simulating SUCCESS for $file"
-              MV_COMMANDS_SUCCESS+="git mv \"$file\" \"_done_box/$(basename $file)\" && "
-            else
-              echo "Simulating FAILURE for $file"
-              MV_COMMANDS_FAILURE+="git mv \"$file\" \"_failed_box/$(basename $file)\" && "
-            fi
-          done
+          # 処理済みファイルを格納するディレクトリ
+          done_box = '_done_box'
+          failed_box = '_failed_box'
 
-          # Execute move commands for successful issues
-          if [ -n "$MV_COMMANDS_SUCCESS" ]; then
-            echo "Executing successful file moves..."
-            eval "${MV_COMMANDS_SUCCESS% && }"
-          fi
+          # ディレクトリが存在しない場合は作成
+          os.makedirs(done_box, exist_ok=True)
+          os.makedirs(failed_box, exist_ok=True)
 
-          # Execute move commands for failed issues
-          if [ -n "$MV_COMMANDS_FAILURE" ]; then
-            echo "Executing failed file moves..."
-            eval "${MV_COMMANDS_FAILURE% && }"
-          fi
+          file_moved = False
+          for file_path in in_box_files:
+              if not file_path or not os.path.exists(file_path):
+                  print(f'警告: ファイルが見つからないか、パスが空です: {file_path}', file=sys.stderr)
+                  continue
 
-          if [ -n "$MV_COMMANDS_SUCCESS" ] || [ -n "$MV_COMMANDS_FAILURE" ]; then
+              print(f'ファイルを処理中: {file_path}')
+              try:
+                  with open(file_path, 'r', encoding='utf-8') as f:
+                      content = f.read()
+              except IOError as e:
+                  print(f'ファイル読み込みエラー {file_path}: {e}', file=sys.stderr)
+                  # ファイルを _failed_box に移動
+                  try:
+                      shutil.move(file_path, os.path.join(failed_box, os.path.basename(file_path)))
+                      file_moved = True
+                  except Exception as move_e:
+                      print(f'読み込み失敗したファイルの移動エラー: {move_e}', file=sys.stderr)
+                  continue
+
+              issue_data = parse_issue_content(content)
+
+              if not issue_data:
+                  print(f'{file_path} からIssueデータのパースに失敗しました', file=sys.stderr)
+                  # ファイルを _failed_box に移動
+                  try:
+                      shutil.move(file_path, os.path.join(failed_box, os.path.basename(file_path)))
+                      file_moved = True
+                  except Exception as move_e:
+                      print(f'パース失敗したファイルの移動エラー: {move_e}', file=sys.stderr)
+                  continue
+
+              # gh CLIコマンドを構築
+              cmd = [
+                  'gh', 'issue', 'create',
+                  '-t', issue_data.title,
+                  '-b', issue_data.body,
+                  '--repo', os.environ['GITHUB_REPOSITORY']
+              ]
+              if issue_data.labels:
+                  cmd.extend(['-l', ','.join(issue_data.labels)])
+              if issue_data.assignees:
+                  cmd.extend(['-a', ','.join(issue_data.assignees)])
+
+              print(f'実行中: {' '.join(cmd)}')
+              try:
+                  result = subprocess.run(cmd, capture_output=True, text=True, check=True, encoding='utf-8')
+                  # ファイルを _done_box に移動
+                  try:
+                      shutil.move(file_path, os.path.join(done_box, os.path.basename(file_path)))
+                      file_moved = True
+                      issue_url = result.stdout.strip()
+                      issue_number = issue_url.split('/')[-1]
+                      print(f'Issue #{issue_number} を作成しました。')
+                  except Exception as move_e:
+                       print(f'処理成功したファイルの移動エラー: {move_e}', file=sys.stderr)
+
+              except subprocess.CalledProcessError as e:
+                  print(f'{file_path} のIssue作成エラー: {e.stderr}', file=sys.stderr)
+                  # ファイルを _failed_box に移動
+                  try:
+                      shutil.move(file_path, os.path.join(failed_box, os.path.basename(file_path)))
+                      file_moved = True
+                  except Exception as move_e:
+                      print(f'処理失敗したファイルの移動エラー: {move_e}', file=sys.stderr)
+                  continue
+          
+          if file_moved:
+              print('ファイル移動をコミットします。')
+              sys.exit(0) # 成功終了
+          else:
+              print('移動するファイルはありませんでした。')
+              sys.exit(78) # 中立終了
+          "
+      - name: Commit and push changes
+        if: success()
+        run: |
+          if [ -d "_done_box" ] || [ -d "_failed_box" ]; then
             git add _done_box/ _failed_box/
-            git commit -m "chore(actions): Process _in_box/ files"
-            git push origin main
+            # Check if there are staged changes
+            if git diff --staged --quiet; then
+              echo "No files were moved. Skipping commit."
+            else
+              git commit -m "chore(actions): Process _in_box/ files"
+              if ! git push origin main; then
+                echo "Error: Failed to push changes to remote repository"
+                exit 1
+              fi
+            fi
           else
-            echo "No files were moved. Skipping commit."
+            echo "No _done_box or _failed_box directories to process."
           fi
-
