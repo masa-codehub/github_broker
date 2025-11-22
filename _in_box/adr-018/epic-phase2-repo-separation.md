@@ -8,7 +8,8 @@
 - `_in_box/adr-018/epic-phase1-local-refactoring.md`
 
 ## 子Issue (Sub-Issues)
-- (起票後に追記)
+- `_in_box/adr-018/epic-phase2-repo-separation/story-create-and-migrate-repo.md`
+- `_in_box/adr-018/epic-phase2-repo-separation/story-finalize-and-verify-references.md`
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/018-decouple-issue-creation-and-validation-logic.md`
