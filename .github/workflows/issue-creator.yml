@@ -23,6 +23,7 @@ jobs:
       - name: Install dependencies
         run: pip install -e .
 
+
       - name: Identify _in_box/ files
         id: identify_files
         env:
@@ -45,3 +46,66 @@ jobs:
             echo "$FILTERED_FILES" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
           fi
+
+      - name: Process _in_box/ files and create issues
+        if: steps.identify_files.outputs.IN_BOX_FILES != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IN_BOX_FILES: ${{ steps.identify_files.outputs.IN_BOX_FILES }}
+        run: |
+          python -c "
+          import os
+          import sys
+          import json
+          # import subprocess
+          from github_broker.infrastructure.document_validation.issue_parser import parse_issue_content
+
+          in_box_files = os.environ.get('IN_BOX_FILES', '').splitlines()
+          
+          for file_path in in_box_files:
+              if not file_path or not os.path.exists(file_path):
+                  print(f'Warning: File not found or path is empty: {file_path}', file=sys.stderr)
+                  continue
+
+              print(f'Processing file: {file_path}')
+              try:
+                  with open(file_path, 'r') as f:
+                      content = f.read()
+              except IOError as e:
+                  print(f'Error reading file {file_path}: {e}', file=sys.stderr)
+                  continue
+
+              issue_data = parse_issue_content(content)
+
+              if not issue_data:
+                  print(f'Failed to parse issue data from {file_path}', file=sys.stderr)
+                  continue
+
+              cmd = [
+                  'gh', 'issue', 'create',
+                  '-t', issue_data.title,
+                  '-b', issue_data.body,
+                  '--repo', os.environ['GITHUB_REPOSITORY']
+              ]
+              if issue_data.labels:
+                  cmd.extend(['--label', ','.join(issue_data.labels)])
+              if issue_data.assignees:
+                  cmd.extend(['--assignee', ','.join(issue_data.assignees)])
+              
+              print(f'Executing: {\' \'.join(cmd)}')
+              # result = subprocess.run(cmd, capture_output=True, text=True)
+              # if result.returncode != 0:
+              #     print(f'Error creating issue for {file_path}: {result.stderr}', file=sys.stderr)
+              #     continue
+              # issue_url = result.stdout.strip()
+              # issue_number = issue_url.split('/')[-1]
+              # print(f'Created issue #{issue_number}')
+              
+              # For testing purposes:
+              issue_number = '12345'
+              print(f'Dummy Issue Created: #{issue_number}')
+
+              with open(os.environ['GITHUB_ENV'], 'a') as f:
+                  f.write(f'ISSUE_NUMBER={issue_number}\n')
+                  f.write(f'ISSUE_TITLE={issue_data.title}\n')
+          "
