@@ -34,3 +34,7 @@ Status: Open
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/update-pre-commit-config`
 - **作業ブランチ (Feature Branch):** `task/update-doc-validation-regex`
+
+## 子Issue (Sub-Issues)
+
+- 

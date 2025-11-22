@@ -27,3 +27,7 @@ Status: Open
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/create-technical-design-doc`
 - **作業ブランチ (Feature Branch):** `task/create-input-file-spec`
+
+## 子Issue (Sub-Issues)
+
+- 

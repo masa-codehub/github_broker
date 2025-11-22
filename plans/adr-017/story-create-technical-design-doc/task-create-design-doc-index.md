@@ -28,3 +28,7 @@ Issue自動起票ワークフローの設計ドキュメント群のハブとな
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/create-technical-design-doc`
 - **作業ブランチ (Feature Branch):** `task/create-design-doc-index`
+
+## 子Issue (Sub-Issues)
+
+- 

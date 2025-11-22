@@ -35,3 +35,7 @@ ADR-017の`決定`事項に従い、`.github/workflows/issue-creator.yml`とい�
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/implement-issue-creator-workflow`
 - **作業ブランチ (Feature Branch):** `task/implement-workflow-trigger`
+
+## 子Issue (Sub-Issues)
+
+- 

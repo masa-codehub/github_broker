@@ -37,3 +37,7 @@ ADR-017の`決定`事項に基づき、Issue作成の成功・失敗に応じて
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `story/implement-issue-creator-workflow`
 - **作業ブランチ (Feature Branch):** `task/implement-file-move-and-commit`
+
+## 子Issue (Sub-Issues)
+
+- 

@@ -1,0 +1,115 @@
+name: Create Issue from _in_box
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  create_issues:
+    if: github.event.pull_request.merged == true
+    runs-on: [self-hosted]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: python -m pip install PyYAML
+
+      - name: Configure git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Process issue files
+        id: process_issues
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: python
+        run: |
+          import os
+          import subprocess
+          import yaml
+          from pathlib import Path
+
+          in_box = Path("_in_box")
+          done_box = Path("_done_box")
+          failed_box = Path("_failed_box")
+
+          done_box.mkdir(exist_ok=True)
+          failed_box.mkdir(exist_ok=True)
+
+          issue_files = list(in_box.glob("*.md"))
+          moved_files = False
+
+          if not issue_files:
+              print("No issue files found in _in_box. Exiting.")
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                f.write('moved_files=false\n')
+              exit(0)
+
+          for f in issue_files:
+              print(f"Processing {f}...")
+              try:
+                  content = f.read_text(encoding='utf-8')
+                  parts = content.split('---', 2)
+                  if len(parts) < 3:
+                      raise ValueError("Invalid markdown format, no frontmatter found.")
+
+                  frontmatter = yaml.safe_load(parts[1])
+                  if not isinstance(frontmatter, dict):
+                      raise ValueError("Frontmatter is not a valid YAML object.")
+
+                  body = parts[2].strip()
+
+                  title = frontmatter.get("title")
+                  if not title:
+                      raise ValueError("'title' is missing in frontmatter.")
+
+                  assignees = ",".join(frontmatter.get("assignees", []))
+                  labels = ",".join(frontmatter.get("labels", []))
+
+                  cmd = [
+                      'gh',
+                      'issue',
+                      'create',
+                      '--title',
+                      title,
+                      '--body',
+                      body,
+                  ]
+                  if assignees:
+                      cmd.extend(['--assignee', assignees])
+                  if labels:
+                      cmd.extend(['--label', labels])
+
+                  result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                  print(f"Successfully created issue for {f}")
+                  print(result.stdout)
+                  subprocess.run(['git', 'mv', str(f), str(done_box)], check=True)
+                  moved_files = True
+
+              except Exception as e:
+                  print(f"Failed to process {f}: {e}")
+                  if isinstance(e, subprocess.CalledProcessError):
+                      print(f"Stderr: {e.stderr}")
+                  subprocess.run(['git', 'mv', str(f), str(failed_box)], check=True)
+                  moved_files = True
+          
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+            f.write(f'moved_files={str(moved_files).lower()}\n')
+
+      - name: Commit and push changes
+        if: steps.process_issues.outputs.moved_files == 'true'
+        run: |
+          git add _done_box _failed_box
+          git commit -m "chore(issues): Move processed issue files from _in_box"
+          git push
