@@ -5,11 +5,11 @@
 - (なし)
 
 ## 子Issue (Sub-Issues)
-- `_in_box/adr-018/epic-phase1-local-refactoring/story-build-foundation.md`
-- `_in_box/adr-018/epic-phase1-local-refactoring/story-migrate-doc-validator.md`
-- `_in_box/adr-018/epic-phase1-local-refactoring/story-migrate-issue-creator.md`
-- `_in_box/adr-018/epic-phase1-local-refactoring/story-update-and-verify-references.md`
-- `_in_box/adr-018/epic-phase1-local-refactoring/story-cleanup-old-files.md`
+- `_in_box/adr-018/epic-phase1-local-refactoring/story-build-foundation/story-build-foundation.md`
+- `_in_box/adr-018/epic-phase1-local-refactoring/story-migrate-doc-validator/story-migrate-doc-validator.md`
+- `_in_box/adr-018/epic-phase1-local-refactoring/story-migrate-issue-creator/story-migrate-issue-creator.md`
+- `_in_box/adr-018/epic-phase1-local-refactoring/story-update-and-verify-references/story-update-and-verify-references.md`
+- `_in_box/adr-018/epic-phase1-local-refactoring/story-cleanup-old-files/story-cleanup-old-files.md`
 
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/018-decouple-issue-creation-and-validation-logic.md`

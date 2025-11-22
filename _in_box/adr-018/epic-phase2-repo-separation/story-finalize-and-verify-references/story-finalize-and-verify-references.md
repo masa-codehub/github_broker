@@ -2,7 +2,7 @@
 # 【Story】github_brokerの参照を最終化し検証する
 
 ## 親Issue (Parent Issue)
-- `_in_box/adr-_in_box/adr-018/epic-phase2-repo-separation.md`
+- `_in_box/adr-018/epic-phase2-repo-separation.md`
 
 ## 子Issue (Sub-Issues)
 - (起票後に追記)

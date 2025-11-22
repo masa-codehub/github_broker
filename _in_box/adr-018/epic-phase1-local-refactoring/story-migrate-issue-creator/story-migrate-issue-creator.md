@@ -14,7 +14,7 @@
 - (なし)
 
 ## As-is (現状)
-ドキュメント検証機能の移行に続き、Issue作成機能の移行に着手します。ADR-018の決定に基づき、現在`github_broker/infrastructure/github_actions/`ディレクトリおよび`tests/infrastructure/github_actions/`に存在するIssue自動起票関連の全ロ-ジックとテストが、このStoryの移行対象となります。現状のコードはGitHub Actionsという特定の実行環境と密結合している可能性があります。
+現状、Issue自動起票機能のロジックとテストは`github_broker/infrastructure/github_actions/`および`tests/infrastructure/github_actions/`に実装されており、GitHub Actionsという特定のCI環境に強く依存しています。この密結合により、機能単体での再利用や他のCI環境への展開、テスト容易性が阻害されている状況です。ADR-018の決定を受け、これらの課題を解消するためにIssue作成機能の移行が必要となっています。
 
 ## To-be (あるべき姿)
 As-isで特定されたコード群を、`issue_creator_kit`パッケージ内に移行します。ドキュメント検証機能と同様に、domain（Issueのデータ構造）、application（起票オーケストレーション）、infrastructure（GitHub CLI呼び出し）、interface（CLI）の各レイヤーの責務に従ってリファクタリングされます。これにより、特定のCI環境への依存を低減し、機能単体での再利用性とテスト容易性が向上した状態になります。
