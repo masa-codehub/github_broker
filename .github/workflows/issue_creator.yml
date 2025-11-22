@@ -47,7 +47,7 @@ jobs:
           done_box.mkdir(exist_ok=True)
           failed_box.mkdir(exist_ok=True)
 
-          issue_files = list(in_box.glob("*.md"))
+          issue_files = list(in_box.rglob("*.md"))
           moved_files = False
 
           if not issue_files:
