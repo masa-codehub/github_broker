@@ -1,8 +1,8 @@
 # 概要 / Summary
 [ADR-018] Issue作成と検証ロジックの`issue-creator-kit`リポジトリへの分離
 
-- **Status**: 提案中
-- **Date**: 2025-11-22
+- Status: 提案中
+- Date: 2025-11-22
 
 ## 状況 / Context
 
