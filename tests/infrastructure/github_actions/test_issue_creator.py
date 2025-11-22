@@ -54,12 +54,16 @@ class TestIssueCreator:
         mock_github_client.get_file_content.assert_called_once_with("_in_box/test_issue.md", "file_sha")
         mock_inbox_parser.parse_issue_file.assert_called_once_with("file content")
         mock_github_client.create_issue.assert_called_once_with("Test Issue", "Test Body", ["bug"], ["user"])
-        mock_github_client.move_file.assert_called_once_with(
-            "_in_box/test_issue.md",
-            "_done_box/test_issue.md",
-            "feat: Move _in_box/test_issue.md to _done_box after issue #123 creation",
-            "file content"
-        )
+
+        mock_github_client.move_file.assert_called_once()
+        args, _ = mock_github_client.move_file.call_args
+        assert args[0] == "_in_box/test_issue.md"
+        assert args[1].startswith("_done_box/test_issue_")
+        assert args[1].endswith(".md")
+        assert "feat: Move _in_box/test_issue.md to" in args[2]
+        assert f"after issue #{mock_issue.number} creation" in args[2]
+        assert args[3] == "file content"
+
 
     @patch('github_broker.infrastructure.github_actions.issue_creator.get_pr_files')
     def test_create_issues_from_inbox_no_files(self, mock_get_pr_files, issue_creator):
@@ -76,7 +80,8 @@ class TestIssueCreator:
         mock_get_pr_files.return_value = [mock_pr_file]
 
         mock_github_client.get_file_content.return_value = "invalid content"
-        mock_inbox_parser.parse_issue_file.return_value = {"title": "", "body": ""} # Simulate parsing failure (e.g., no title)
+        mock_inbox_parser.parse_issue_file.side_effect = ValueError("Issue title not found")
+
 
         # Run the method
         issue_creator.create_issues_from_inbox(pull_number=1)
@@ -85,11 +90,15 @@ class TestIssueCreator:
         mock_github_client.get_file_content.assert_called_once_with("_in_box/bad_issue.md", "file_sha")
         mock_inbox_parser.parse_issue_file.assert_called_once_with("invalid content")
         mock_github_client.create_issue.assert_not_called()
+
         mock_github_client.move_file.assert_called_once()
-        args, kwargs = mock_github_client.move_file.call_args
+        args, _ = mock_github_client.move_file.call_args
         assert args[0] == "_in_box/bad_issue.md"
-        assert args[1] == "_failed_box/bad_issue.md"
+        assert args[1].startswith("_failed_box/bad_issue_")
+        assert args[1].endswith(".md")
+        assert "fix: Move _in_box/bad_issue.md to" in args[2]
         assert "due to error" in args[2]
+
 
     @patch('github_broker.infrastructure.github_actions.issue_creator.get_pr_files')
     def test_create_issues_from_inbox_issue_creation_failure(self, mock_get_pr_files, issue_creator, mock_github_client, mock_inbox_parser):
@@ -101,15 +110,19 @@ class TestIssueCreator:
         mock_github_client.get_file_content.return_value = "file content"
         mock_inbox_parser.parse_issue_file.return_value = {"title": "Error Issue", "body": "Body"}
         mock_github_client.create_issue.side_effect = Exception("GitHub API Error")
-        mock_github_client.repo.get_branch.return_value.commit.sha = "main_branch_sha"
+
         # Run the method
         issue_creator.create_issues_from_inbox(pull_number=1)
 
         # Assertions
         mock_github_client.create_issue.assert_called_once()
-        mock_github_client.move_file.assert_called_once_with(
-            "_in_box/error_issue.md",
-            "_failed_box/error_issue.md",
-            "fix: Move _in_box/error_issue.md to _failed_box due to error",
-            "file content"
-        )
+
+        mock_github_client.move_file.assert_called_once()
+        args, _ = mock_github_client.move_file.call_args
+        assert args[0] == "_in_box/error_issue.md"
+        assert args[1].startswith("_failed_box/error_issue_")
+        assert args[1].endswith(".md")
+        assert "fix: Move _in_box/error_issue.md to" in args[2]
+        assert "due to error" in args[2]
+        assert args[3] == "file content"
+

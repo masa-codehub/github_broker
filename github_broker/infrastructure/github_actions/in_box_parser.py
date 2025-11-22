@@ -21,7 +21,9 @@ class InboxParser:
         # Check for YAML front matter
         if file_content.startswith("---"):
             parts = file_content.split("---", 2)
-            if len(parts) == 3:
+            # len(parts) must be 3: ['', front_matter_str, content_str]
+            # parts[0] must be empty, meaning no text before the first '---'
+            if len(parts) == 3 and not parts[0].strip():
                 try:
                     front_matter = yaml.safe_load(parts[1])
                     content_without_front_matter = parts[2].strip()
@@ -31,7 +33,7 @@ class InboxParser:
                     front_matter = None
                     content_without_front_matter = file_content
             else:
-                # If only one '---' or malformed, treat entire content as body
+                # If the structure is not valid, treat the entire content as the body
                 content_without_front_matter = file_content
 
         if front_matter:

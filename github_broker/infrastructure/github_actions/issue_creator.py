@@ -1,7 +1,10 @@
 import logging
 import os
 
-from github_broker.infrastructure.github_actions.github_action_utils import get_pr_files
+from github_broker.infrastructure.github_actions.github_action_utils import (
+    get_pr_files,
+    get_unique_path,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +31,7 @@ class IssueCreator:
 
         for pr_file in inbox_files:
             file_path = pr_file.filename
+            file_content = None  # Initialize file_content to ensure it's available in the except block
             logger.info(f"Processing file: {file_path}")
 
             try:
@@ -49,14 +53,15 @@ class IssueCreator:
                 issue = self.github_client.create_issue(title, body, labels, assignees)
 
                 # Move file to _done_box
-                new_path = os.path.join(self.DONE_BOX_PATH, os.path.basename(file_path))
-                commit_message = f"feat: Move {file_path} to {self.DONE_BOX_PATH} after issue #{issue.number} creation"
+                new_path = get_unique_path(self.DONE_BOX_PATH, os.path.basename(file_path))
+                commit_message = f"feat: Move {file_path} to {new_path} after issue #{issue.number} creation"
                 self.github_client.move_file(file_path, new_path, commit_message, file_content)
 
             except Exception as e:
                 logger.error(f"Failed to process {file_path}: {e}")
-                # Move file to _failed_box
-                new_path = os.path.join(self.FAILED_BOX_PATH, os.path.basename(file_path))
-                commit_message = f"fix: Move {file_path} to {self.FAILED_BOX_PATH} due to error"
-                # Reuse the already retrieved file_content
-                self.github_client.move_file(file_path, new_path, commit_message, file_content)
+                if file_content is not None:
+                    # Move file to _failed_box
+                    new_path = get_unique_path(self.FAILED_BOX_PATH, os.path.basename(file_path))
+                    commit_message = f"fix: Move {file_path} to {new_path} due to error"
+                    self.github_client.move_file(file_path, new_path, commit_message, file_content)
+

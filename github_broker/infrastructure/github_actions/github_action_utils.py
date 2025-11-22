@@ -1,7 +1,27 @@
 # github_broker/infrastructure/github_actions/github_action_utils.py
 
+import datetime
+import os
+
 import github
 from github import Github
+
+
+def get_unique_path(base_path: str, file_name: str) -> str:
+    """
+    Generates a unique file path by appending a timestamp to the file name.
+
+    Args:
+        base_path: The base directory path.
+        file_name: The original file name.
+
+    Returns:
+        A unique file path.
+    """
+    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
+    name, ext = os.path.splitext(file_name)
+    unique_file_name = f"{name}_{timestamp}{ext}"
+    return os.path.join(base_path, unique_file_name)
 
 
 def get_github_repo(repo_full_name: str, github_token: str):
