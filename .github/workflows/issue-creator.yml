@@ -23,8 +23,6 @@ jobs:
       - name: Install dependencies
         run: pip install -e .
 
-      - name: Install yq
-        run: sudo snap install yq
 
       - name: Identify _in_box/ files
         id: identify_files
@@ -55,49 +53,59 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IN_BOX_FILES: ${{ steps.identify_files.outputs.IN_BOX_FILES }}
         run: |
-          echo "Processing _in_box/ files..."
-          IFS=$'\n' read -r -d '' -a files <<< "$IN_BOX_FILES"
+          python -c "
+          import os
+          import sys
+          import json
+          # import subprocess
+          from github_broker.infrastructure.document_validation.issue_parser import parse_issue_content
+
+          in_box_files = os.environ.get('IN_BOX_FILES', '').splitlines()
           
-          for file_path in "${files[@]}"; do
-            echo "Processing file: $file_path"
-            
-            # ファイル内容の読み込みとFront Matterの分離
-            content=$(cat "$file_path")
-            front_matter=$(echo "$content" | yq '. as $item load_str("---\n" + $item + "\n---") | select(has("---")) | . as $doc | $doc["---"]' -)
-            body_content=$(echo "$content" | sed '1,/^---$/d; /^---$/d')
+          for file_path in in_box_files:
+              if not file_path or not os.path.exists(file_path):
+                  print(f'Warning: File not found or path is empty: {file_path}', file=sys.stderr)
+                  continue
 
-            # Front Matterからメタデータを抽出
-            title=$(echo "$front_matter" | yq '.title' -)
-            labels=$(echo "$front_matter" | yq '.labels[]' - | paste -sd,)
-            assignees=$(echo "$front_matter" | yq '.assignees[]' - | paste -sd,)
+              print(f'Processing file: {file_path}')
+              try:
+                  with open(file_path, 'r') as f:
+                      content = f.read()
+              except IOError as e:
+                  print(f'Error reading file {file_path}: {e}', file=sys.stderr)
+                  continue
 
-            echo "Title: $title"
-            echo "Labels: $labels"
-            echo "Assignees: $assignees"
-            echo "Body Content: $body_content"
+              issue_data = parse_issue_content(content)
 
-            # Issueの作成
-            # --repoは現在のリポジトリを指す
-            # gh issue create -t "$title" -b "$body_content" --label "$labels" --assignee "$assignees" --repo "$GITHUB_REPOSITORY"
-            issue_command="gh issue create -t \"$title\" -b \"$body_content\" --repo \"$GITHUB_REPOSITORY\""
+              if not issue_data:
+                  print(f'Failed to parse issue data from {file_path}', file=sys.stderr)
+                  continue
 
-            if [ -n "$labels" ]; then
-              issue_command+=" --label \"$labels\""
-            fi
-            if [ -n "$assignees" ]; then
-              issue_command+=" --assignee \"$assignees\""
-            fi
+              cmd = [
+                  'gh', 'issue', 'create',
+                  '-t', issue_data.title,
+                  '-b', issue_data.body,
+                  '--repo', os.environ['GITHUB_REPOSITORY']
+              ]
+              if issue_data.labels:
+                  cmd.extend(['--label', ','.join(issue_data.labels)])
+              if issue_data.assignees:
+                  cmd.extend(['--assignee', ','.join(issue_data.assignees)])
+              
+              print(f'Executing: {\' \'.join(cmd)}')
+              # result = subprocess.run(cmd, capture_output=True, text=True)
+              # if result.returncode != 0:
+              #     print(f'Error creating issue for {file_path}: {result.stderr}', file=sys.stderr)
+              #     continue
+              # issue_url = result.stdout.strip()
+              # issue_number = issue_url.split('/')[-1]
+              # print(f'Created issue #{issue_number}')
+              
+              # For testing purposes:
+              issue_number = '12345'
+              print(f'Dummy Issue Created: #{issue_number}')
 
-            echo "Executing: $issue_command"
-            
-            # 実際にはここでgh issue createを実行する
-            # eval "$issue_command"
-            # issue_number=$(eval "$issue_command" | grep -o 'https://github.com/.*/issues/[0-9]*' | sed 's#^.*/##')
-            # echo "Created issue #$issue_number"
-
-            # テスト用にコマンドを表示し、ダミーのIssue番号を出力
-            echo "Dummy Issue Created: #12345"
-            echo "ISSUE_NUMBER=12345" >> $GITHUB_ENV
-            echo "ISSUE_TITLE=$title" >> $GITHUB_ENV
-
-          done
+              with open(os.environ['GITHUB_ENV'], 'a') as f:
+                  f.write(f'ISSUE_NUMBER={issue_number}\n')
+                  f.write(f'ISSUE_TITLE={issue_data.title}\n')
+          "

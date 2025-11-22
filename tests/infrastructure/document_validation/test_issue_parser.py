@@ -24,6 +24,7 @@ It can span multiple lines.
     assert issue_data.labels == ["bug", "documentation"]
     assert issue_data.assignees == ["octocat", "monalisa"]
 
+
 def test_parse_issue_content_no_front_matter():
     """
     Test that parse_issue_content returns None when no YAML Front Matter is present.
@@ -33,6 +34,7 @@ This is just a body.
 No front matter here.
 """
     assert parse_issue_content(content) is None
+
 
 def test_parse_issue_content_invalid_yaml():
     """
@@ -47,6 +49,7 @@ This is the body.
 """
     assert parse_issue_content(content) is None
 
+
 def test_parse_issue_content_missing_title():
     """
     Test that parse_issue_content returns None if title is missing from Front Matter.
@@ -59,6 +62,7 @@ assignees: ["octocat"]
 Body without title.
 """
     assert parse_issue_content(content) is None
+
 
 def test_parse_issue_content_empty_labels_and_assignees():
     """
@@ -75,6 +79,7 @@ Body with no labels or assignees.
     assert issue_data.title == "Another Test"
     assert issue_data.labels == []
     assert issue_data.assignees == []
+
 
 def test_parse_issue_content_non_string_labels_or_assignees():
     """

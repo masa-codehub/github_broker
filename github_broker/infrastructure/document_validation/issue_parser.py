@@ -4,16 +4,70 @@ import yaml
 
 
 class IssueData:
+    """
+    データクラス: GitHubイシューのメタデータとボディを保持します。
+
+    Attributes:
+        title: イシューのタイトル
+        body: イシューの本文（Markdown形式）
+        labels: ラベルのリスト
+        assignees: アサイン先ユーザー名のリスト
+    """
     def __init__(self, title: str, body: str, labels: list[str] | None = None, assignees: list[str] | None = None):
         self.title = title
         self.body = body
         self.labels = labels if labels is not None else []
         self.assignees = assignees if assignees is not None else []
 
+def _sanitize_string_list(data: object) -> list[str]:
+    if not isinstance(data, list):
+        return []
+    return [item for item in data if isinstance(item, str)]
+
 def parse_issue_content(content: str) -> IssueData | None:
     """
-    Parses the content of a file to extract issue data (title, body, labels, assignees).
-    Expected format: YAML Front Matter followed by markdown body.
+    ファイルコンテンツからイシューデータ（タイトル、本文、ラベル、担当者）を抽出します。
+
+    パラメータ:
+        content (str): 解析対象のファイルコンテンツ。YAML Front Matter（---で囲まれた部分）の後にMarkdown本文が続く形式である必要があります。
+            例:
+                ---
+                title: "サンプルイシュー"
+                labels: ["bug", "urgent"]
+                assignees: ["user1"]
+                ---
+                これはイシューの本文です。
+
+    戻り値:
+        IssueData | None: 抽出されたイシューデータ（タイトル、本文、ラベル、担当者）を含むIssueDataインスタンス。
+            フロントマターが無効または必須項目（title）が不足している場合はNoneを返します。
+
+    期待されるフォーマット:
+        - ファイルの先頭に'---'で囲まれたYAML Front Matterがあり、その後にMarkdown形式の本文が続くこと。
+        - YAML Front Matterには少なくとも'title'キーが必要です。'labels'および'assignees'は省略可能です（省略時は空リスト）。
+
+    例:
+        >>> content = '''---
+        ... title: "Sample Issue"
+        ... labels: ["bug"]
+        ... assignees: ["alice"]
+        ... ---
+        ... Issue body here.
+        ... '''
+        >>> data = parse_issue_content(content)
+        >>> data.title
+        'Sample Issue'
+        >>> data.body
+        'Issue body here.'
+        >>> data.labels
+        ['bug']
+        >>> data.assignees
+        ['alice']
+
+        # フロントマターが無効な場合
+        >>> invalid_content = 'No front matter here'
+        >>> parse_issue_content(invalid_content) is None
+        True
     """
     parts = content.split('---', 2) # Split into at most 3 parts: before first ---, front matter, body
 
@@ -33,20 +87,10 @@ def parse_issue_content(content: str) -> IssueData | None:
         return None
 
     title = metadata.get('title')
-    labels = metadata.get('labels', [])
-    assignees = metadata.get('assignees', [])
-
-    if not isinstance(title, str):
+    if not isinstance(title, str) or not title.strip():
         return None
 
-    if isinstance(labels, list):
-        labels = [label for label in labels if isinstance(label, str)]
-    else:
-        labels = []
-
-    if isinstance(assignees, list):
-        assignees = [assignee for assignee in assignees if isinstance(assignee, str)]
-    else:
-        assignees = []
+    labels = _sanitize_string_list(metadata.get('labels'))
+    assignees = _sanitize_string_list(metadata.get('assignees'))
 
     return IssueData(title=title, body=body, labels=labels, assignees=assignees)
