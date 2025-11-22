@@ -6,7 +6,7 @@ from github import Github, InputGitTreeElement
 logger = logging.getLogger(__name__)
 
 class GitHubClientForIssueCreator:
-    def __init__(self, github_token: str, repository_name: str, repo: github.Repository.Repository, default_branch: str):
+    def __init__(self, github_token: str, repo: github.Repository.Repository, default_branch: str):
         self.g = Github(github_token)
         self.repo = repo
         self.default_branch = default_branch
@@ -52,7 +52,9 @@ class GitHubClientForIssueCreator:
                 new_blob = self.repo.create_git_blob(file_content, "utf-8")
                 elements.append(InputGitTreeElement(path=new_file_path, mode='100644', type='blob', sha=new_blob.sha))
 
-            # Mark old file for deletion if paths are different
+            # Mark old file for deletion if paths are different.
+            # If old_file_path is empty/None, this is skipped, which is intentional
+            # as it means we are creating a new file, not moving or deleting an old one.
             if old_file_path and old_file_path != new_file_path:
                 elements.append(InputGitTreeElement(path=old_file_path, mode='100644', type='blob', sha='')) # sha='' for deletion
 

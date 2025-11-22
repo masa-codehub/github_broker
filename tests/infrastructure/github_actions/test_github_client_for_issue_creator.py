@@ -20,7 +20,7 @@ class TestGitHubClientForIssueCreator:
     @pytest.fixture
     def client(self, mock_github_objects):
         mock_g, mock_repo = mock_github_objects
-        return GitHubClientForIssueCreator("fake_token", "owner/repo", mock_repo, "main")
+        return GitHubClientForIssueCreator("fake_token", mock_repo, "main")
 
     def test_create_issue_success(self, client):
         mock_issue = Mock()

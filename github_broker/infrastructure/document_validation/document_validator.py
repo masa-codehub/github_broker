@@ -15,6 +15,16 @@ class DocumentType(Enum):
     IN_BOX = auto()
 
 
+PLAN_HEADERS = [
+    "## 親Issue (Parent Issue)",
+    "## 子Issue (Sub-Issues)",
+    "## As-is (現状)",
+    "## To-be (あるべき姿)",
+    "## 完了条件 (Acceptance Criteria)",
+    "## 成果物 (Deliverables)",
+    "## ブランチ戦略 (Branching Strategy)",
+]
+
 REQUIRED_HEADERS = MappingProxyType(
     {
         DocumentType.ADR: [
@@ -44,23 +54,10 @@ REQUIRED_HEADERS = MappingProxyType(
             "## 検証基準 / Verification Criteria",
             "## 実装状況 / Implementation Status",
         ],
-        DocumentType.PLAN: [
-            "## 親Issue (Parent Issue)",
-            "## 子Issue (Sub-Issues)",
-            "## As-is (現状)",
-            "## To-be (あるべき姿)",
-            "## 完了条件 (Acceptance Criteria)",
-            "## 成果物 (Deliverables)",
-            "## ブランチ戦略 (Branching Strategy)",
-        ],
-        DocumentType.IN_BOX: [], # Temporarily empty
+        DocumentType.PLAN: PLAN_HEADERS,
+        DocumentType.IN_BOX: PLAN_HEADERS,
     }
 )
-
-# Update IN_BOX after REQUIRED_HEADERS is defined
-temp_required_headers = dict(REQUIRED_HEADERS)
-temp_required_headers[DocumentType.IN_BOX] = REQUIRED_HEADERS[DocumentType.PLAN]
-REQUIRED_HEADERS = MappingProxyType(temp_required_headers)
 
 
 def find_target_files(base_path: str) -> list[str]:
@@ -204,11 +201,16 @@ def main() -> int:
     error_count = 0
 
     for file_path in target_files:
+        p = Path(file_path)
+        if not p.is_file():
+            logging.warning(f"⚠️  File not found or not a regular file, skipping: {file_path}")
+            continue
+
         doc_type = get_document_type(file_path)
         if not doc_type:
             continue
 
-        with open(file_path, encoding="utf-8") as f:
+        with open(p, encoding="utf-8") as f:
             content = f.read()
 
         # 共通のセクション検証

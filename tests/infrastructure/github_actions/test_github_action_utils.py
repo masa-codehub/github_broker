@@ -3,7 +3,6 @@ from unittest.mock import Mock, patch
 import github
 
 from github_broker.infrastructure.github_actions.github_action_utils import (
-    create_issue,
     get_default_branch,
     get_file_content,
     get_github_repo,
@@ -75,16 +74,3 @@ class TestGitHubActionUtils:
 
         assert result is None
 
-    def test_create_issue(self):
-        mock_repo = Mock()
-        mock_issue = Mock()
-        mock_repo.create_issue.return_value = mock_issue
-
-        title = "Test Issue"
-        body = "Test Body"
-        labels = ["bug"]
-        assignees = ["user"]
-        result = create_issue(mock_repo, title, body, labels, assignees)
-
-        mock_repo.create_issue.assert_called_once_with(title=title, body=body, labels=labels, assignees=assignees)
-        assert result == mock_issue
