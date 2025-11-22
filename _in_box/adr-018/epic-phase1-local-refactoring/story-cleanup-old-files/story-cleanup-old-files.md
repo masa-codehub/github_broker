@@ -1,0 +1,38 @@
+
+# 【Story】不要なファイルをクリーンアップする
+
+## 親Issue (Parent Issue)
+- `_in_box/adr-018/epic-phase1-local-refactoring.md`
+
+## 子Issue (Sub-Issues)
+- (起票後に追記)
+
+## 参照元の意思決定 (Source Decision Document)
+- `docs/adr/018-decouple-issue-creation-and-validation-logic.md`
+
+## 実装の参照資料 (Implementation Reference Documents)
+- (なし)
+
+## As-is (現状)
+`issue_creator_kit`への機能移行と、`github_broker`からの参照更新がすべて完了しました。現状分析として、その結果`github_broker`リポジトリ内には、`github_broker/infrastructure/document_validation/`や`github_broker/infrastructure/github_actions/`といった、もはやどこからも参照されていない古いソースコードとテストが残存しており、技術的負債となっています。
+
+## To-be (あるべき姿)
+As-isで特定された不要なディレクトリ群をリポジトリから完全に削除します。これにより、リポジトリの関心事が「Issue割り当て」という本来の責務に限定され、コードベースがクリーンになります。この状態をもって、ADR-018のフェーズ1が完了となります。
+
+## 目標達成までの手順 (Steps to Achieve Goal)
+1. `git rm -r` コマンドを使用して、指定された古いディレクトリをすべて削除する。
+2. `docs/adr/017-commit-triggered-issue-creation.md` を編集し、実装の現状について追記する。
+3. すべてのテストが引き続きパスすることを確認する。
+
+## 完了条件 (Acceptance Criteria)
+- このStoryを構成する全てのTaskの実装が完了していること。
+- 指定されたディレクトリが`github_broker`リポジトリから完全に削除されていること。
+- ADR-017のドキュメントが更新されていること。
+
+## 成果物 (Deliverables)
+- 更新された `docs/adr/017-commit-triggered-issue-creation.md`
+- 削除されたディレクトリの証明（`git log`など）
+
+## ブランチ戦略 (Branching Strategy)
+- **ベースブランチ (Base Branch):** `epic/adr018-phase1-refactoring`
+- **作業ブランチ (Feature Branch):** `story/cleanup-old-files`

@@ -1,0 +1,39 @@
+
+# 【Story】issue-creator-kitリポジトリを作成しコードを移行する
+
+## 親Issue (Parent Issue)
+- `_in_box/adr-018/epic-phase2-repo-separation.md`
+
+## 子Issue (Sub-Issues)
+- (起票後に追記)
+
+## 参照元の意思決定 (Source Decision Document)
+- `docs/adr/018-decouple-issue-creation-and-validation-logic.md`
+
+## As-is (現状)
+親Epic「リポジトリの完全分離」の最初のステップとして、`issue_creator_kit`を独立したリポジトリとして確立します。現状分析として、フェーズ1の成果物である`issue_creator_kit`の全コードが、`github_broker`リポジトリ内のローカルディレクトリとしてのみ存在しており、独立したバージョン管理やCI/CDプロセスを持っていません。
+
+## To-be (あるべき姿)
+As-isの問題を解決するため、`issue_creator_kit`という名前で新しいGitHubリポジトリを作成し、フェーズ1のコードを移行します。さらに、そのリポジトリ専用のCIを設定し、テストがパスすることを確認します。これにより、`issue_creator_kit`は独立したライフサイクル（バージョン管理、CI）を持つコンポーネントとしての第一歩を踏み出した状態になります。
+
+
+
+## 目標達成までの手順 (Steps to Achieve Goal)
+1. GitHub上で`issue-creator-kit`リポジトリをプライベートで作成する。
+2. `github_broker`リポジトリから`issue_creator_kit`ディレクトリの履歴を抽出し、新しいリポジトリにプッシュする。
+3. 新しいリポジトリに、Pythonパッケージ向けの基本的なCIワークフロー（pytestの実行など）を設定する。
+4. CIが正常に動作し、すべてのテストがパスすることを確認する。
+
+## 完了条件 (Acceptance Criteria)
+- このStoryを構成する全てのTaskの実装が完了していること。
+- `issue-creator-kit` GitHubリポジトリが作成されていること。
+- フェーズ1のコードベースが新しいリポジトリに正しく移行されていること。
+- 新しいリポジトリのCIでテストがすべてパスすること。
+
+## 成果物 (Deliverables)
+- `issue-creator-kit` GitHubリポジトリ
+- `issue-creator-kit`リポジトリ内のCI設定ファイル
+
+## ブランチ戦略 (Branching Strategy)
+- **ベースブランチ (Base Branch):** `epic/adr018-phase2-separation`
+- **作業ブランチ (Feature Branch):** `story/create-ick-repo`

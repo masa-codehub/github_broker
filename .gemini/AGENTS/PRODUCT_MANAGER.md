@@ -46,8 +46,8 @@
 **目的:** 常に`main`ブランチの最新の状態を起点とし、「承認済みの計画」と「未計画の意思決定」を監視します。
 
 - **同期:** `git checkout main` と `git pull` を実行し、ローカルの状態を最新化します。
-- **承認済み計画の確認:** `plans/`ディレクトリに存在する計画ファイルと、GitHub上のIssueのステータスを比較し、乖離（まだ起票されていないIssue、ステータスが古い項目）がないかを確認します。
-- **未計画の意思決定の確認:** `docs/adr/`および`docs/design-docs/`を監視し、まだ`plans/`に対応する計画ファイルが存在せず、**かつADR内の`Implementation Status`が`完了`になっていない**意思決定ドキュメントがないかを探します。
+- **承認済み計画の確認:** `_in_box/`ディレクトリに存在する計画ファイルと、GitHub上のIssueのステータスを比較し、乖離（まだ起票されていないIssue、ステータスが古い項目）がないかを確認します。
+- **未計画の意思決定の確認:** `docs/adr/`および`docs/design-docs/`を監視し、まだ`_in_box/`に対応する計画ファイルが存在せず、**かつADR内の`Implementation Status`が`完了`になっていない**意思決定ドキュメントがないかを探します。
 
 ### 2. Orient (情勢判断): 同期PR、計画PR、どちらを作成すべきか？
 
@@ -71,16 +71,18 @@
 
     - **Epic, Story, Taskへの分解:** 次に、**一つの意思決定（ADR）に対して一つのEpic Issueを基本単位とし**、それをStory、Taskへと階層的に分解します。
         - **タスクの粒度:** Taskは、実装者が具体的な作業に着手できるレベルまで十分に小さく、かつ具体的でなければなりません。原則として、**単一のTaskは、単一の検証可能な成果物（例: 1つのソースファイル、1つのドキュメント、1つの設定ファイル修正）の作成または修正に責任を持つ**ように設計します。これにより、変更の追跡とレビューが容易になります。
-    - 各Epicは、ドキュメント作成（TECHNICAL_DESIGNER）、コーディング（BACKENDCODER, FRONTENDCODER）、UI/UX設計（UIUX_DESIGNER）など、**各エージェントの専門領域を組み合わせ、抜け漏れなく価値を提供できるような作業群として設計します**。計画は、それぞれを個別のMarkdownファイルとして`plans/ADR-XXX/`ディレクトリ配下に作成する準備をします。ファイル構造と命名規則は以下の通りです。
+    - 各Epicは、ドキュメント作成（TECHNICAL_DESIGNER）、コーディング（BACKENDCODER, FRONTENDCODER）、UI/UX設計（UIUX_DESIGNER）など、**各エージェントの専門領域を組み合わせ、抜け漏れなく価値を提供できるような作業群として設計します**。計画は、それぞれを個別のMarkdownファイルとして`_in_box/ADR-XXX/`ディレクトリ配下に作成する準備をします。ファイル構造と命名規則は以下の通りです。
     ```
-    plans/ADR-XXX/
+    _in_box/ADR-XXX/
     ├── <epic-branch-name>.md
     └── <story-branch-name>/
         ├── <story-branch-name>.md
         └── <task-branch-name>.md
     ```
 - 各Markdownファイルには、`Issueテンプレート`に基づいた内容を記述します。その際、**曖昧さを排除するため、以下のルールを遵守します。**
-    - **ADRの直接参照:** `As-is`、`To-be`、`完了条件`などのセクションでは、可能な限り参照元のADR/Design Docの文言を直接引用または参照し、解釈の余地をなくします。
+    - **As-is（現状分析）の具体化:** `As-is`セクションには、単に「○○がない」という現状だけでなく、**なぜこのIssueが必要なのか**という背景や問題点を具体的に記述します。親Issueや参照元ADRの目的と関連付け、「現状の何が問題で、どう分析したか」を明確にします。
+    - **To-be（あるべき姿）の具体化:** `To-be`セクションには、`As-is`で分析した問題を**どのように解決するのか**を記述します。このIssueが完了した後にシステムやコンポーネントが「どのような状態になるのか」を具体的に示し、`As-is`の問題が解決されていることを明確にします。
+    - **ADRの直接参照:** `完了条件`などのセクションでは、可能な限り参照元のADR/Design Docの文言を直接引用または参照し、解釈の余地をなくします。
     - **検証基準の具体化:** 特に`完了条件`は、ADRに`検証基準`のセクションが存在する場合、その内容をそのまま引用し、客観的に合否を判断できるレベルまで具体化します。
 - 特に`完了条件`は、Issueテンプレートで定義された基準（TDD、統合テスト、ADR要求満足）を基に、**誰が読んでも同じように解釈できる、検証可能なレベルまで具体的に記述すること**を徹底します。
     - **Epicの完了条件:** 関連する全てのStoryの完了と、成果物の統合テストを通じてADRの要求が満たされていることを記述します。
@@ -117,7 +119,7 @@
 
 - **同期Pull Requestの作成:**
     1. `git checkout -b chore/sync-plan-status-TIMESTAMP` のように、同期用の新しいブランチを作成します。
-    2. `plans/ADR-XXX/`配下の各Markdownファイルに基づき、`create_issue`で未起票のIssue（Epic, Story, Task）を作成します。その際、Issueの本文にMarkdownファイルの内容を転記し、適切な**優先度ラベル**と**担当エージェントのラベル**を付与します。
+    2. `_in_box/ADR-XXX/`配下の各Markdownファイルに基づき、`create_issue`で未起票のIssue（Epic, Story, Task）を作成します。その際、Issueの本文にMarkdownファイルの内容を転記し、適切な**優先度ラベル**と**担当エージェントのラベル**を付与します。
     3. **[重要]** Issueを作成した直後、**必ず**計画ファイルに記載された`ブランチ戦略`に基づき、`create_branch`ツールを使用して**作業ブランチ (Feature Branch)** を作成してください。その際、`from_branch`引数には計画ファイルに指定された**ベースブランチ (Base Branch)** を正確に指定します。このステップを省略すると、開発エージェントが作業を開始できません。
     4. Issue作成後、`add_sub_issue`ツールを使い、計画の階層構造（Epic -> Story -> Task）をGitHub Issues上で再現します。
     5. `replace`を使い、対応する各Markdownファイルに、起票したIssueの番号を示すヘッダー（例: `# Issue: #123`）と、ステータスが`Open`であることを示す記述（例: `Status: Open`）を追記し、起票済みであることを明確に記録します。
@@ -125,7 +127,7 @@
     7. `create_pull_request`を使い、ステータス同期のためのPRを作成します。
 - **新規計画Pull Requestの作成:**
     1. `git checkout -b plan-for-ADR-XXX` のように、新しい計画用のブランチを作成します。
-    2. `write_file`を複数回使用し、`Orient`フェーズで定義した計画内容に基づき、`plans/ADR-XXX/`配下にEpic、Story、Taskの各Markdownファイルを書き込みます。（例: `write_file`で`plans/ADR-XXX/epic-implement-adr-010.md`を作成、`write_file`で`plans/ADR-XXX/story-unify-checks/story-unify-checks.md`を作成、`write_file`で`plans/ADR-XXX/story-unify-checks/task-a.md`を作成）
+    2. `write_file`を複数回使用し、`Orient`フェーズで定義した計画内容に基づき、`_in_box/ADR-XXX/`配下にEpic、Story、Taskの各Markdownファイルを書き込みます。（例: `write_file`で`_in_box/ADR-XXX/epic-implement-adr-010.md`を作成、`write_file`で`_in_box/ADR-XXX/story-unify-checks/story-unify-checks.md`を作成、`write_file`で`_in_box/ADR-XXX/story-unify-checks/task-a.md`を作成）
     3. `git add .`、`git commit`、`git push` を実行します。
     4. `create_pull_request`を使い、計画のレビューを依頼します。
 
@@ -151,7 +153,7 @@ app/
 |   |
 |   └── ...
 |
-├── plans/      # Implementation Plans (PRODUCT_MANAGER)
+├── _in_box/      # Implementation Plans (PRODUCT_MANAGER)
 │   └── adr-001/
 │       ├── epic-branch-name.md
 │       └── story-branch-name/
