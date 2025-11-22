@@ -14,11 +14,10 @@
 - (なし)
 
 ## As-is (現状)
-- `github_broker`のCI/CDとpre-commitフックは、リポジトリ内のローカルスクリプトを直接参照している。
+`issue_creator_kit`への全機能の移行が完了し、`doc-validator`と`issue-creator`コマンドがローカルパッケージとして利用可能になりました。しかし、現状の`github_broker`リポジトリのCI/CDワークフロー (`.github/workflows/`) とローカル開発用の`.pre-commit-config.yaml`は、この新しいエントリーポイントを参照しておらず、依然として古いリポジトリ内のスクリプトパスを直接参照しているため、リファクタリングの恩恵を受けられていません。
 
 ## To-be (あるべき姿)
-- `github_broker`のCI/CDとpre-commitフックは、`pip install -e ./issue_creator_kit`でインストールされた`doc-validator`と`issue-creator`コマンドを呼び出すように変更されている。
-- 更新された設定で、すべてのCI/CDジョブとpre-commitフックが正常に動作する。
+As-isの問題を解決するため、CI/CDとpre-commitフックの設定ファイルを修正し、`pip install -e ./issue_creator_kit`でインストールされたコマンド（`doc-validator`, `issue-creator`）を直接呼び出すように変更します。これにより、リファクタリングの成果が実際にCI/CDプロセスに反映され、機能分離の有効性がローカル環境で検証可能な状態になります。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
 1. `.github/workflows/ci.yml`と`issue_creator.yml`を修正し、`pip install -e ./issue_creator_kit`ステップを追加し、コマンド呼び出しを更新する。

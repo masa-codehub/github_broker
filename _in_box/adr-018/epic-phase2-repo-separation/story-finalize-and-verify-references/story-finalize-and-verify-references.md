@@ -11,13 +11,10 @@
 - `docs/adr/018-decouple-issue-creation-and-validation-logic.md`
 
 ## As-is (現状)
-- `github_broker`はローカルの`issue_creator_kit`ディレクトリを参照している。
-- `issue_creator_kit`リポジトリは独立して存在する。
+`issue_creator_kit`が独立したGitHubリポジトリとして作成され、CIも正常に動作する状態になりました。しかし、現状分析として、`github_broker`側では依然としてローカルの`issue_creator_kit`ディレクトリを参照する設定（`pip install -e`）のままになっており、リポジトリの分離が完了していません。これは、リファクタリングの最終段階で解消すべき課題です。
 
 ## To-be (あるべき姿)
-- `github_broker`のCI/CDとpre-commitフックは、`git+https://...`経由で`issue_creator_kit`リポジトリの特定のGitタグを参照してパッケージをインストールする。
-- `github_broker`リポジトリからローカルの`issue_creator_kit`ディレクトリが完全に削除されている。
-- すべてのCI/CDジョブとpre-commitフックが正常に動作する。
+As-isの問題を解決するため、`github_broker`のCI/CDとpre-commitフックを修正し、`issue_creator_kit`をGitリポジトリ経由で（例: `git+https://...@v1.0.0`）インストールするように変更します。その後、不要になったローカルの`issue_creator_kit`ディレクトリを完全に削除します。これにより、`github_broker`と`issue_creator_kit`の依存関係が正式なものとなり、ADR-018で計画されたリファクタリングが完了した状態になります。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
 1. `issue-creator_kit`リポジトリで最初のバージョンタグ（例: `v1.0.0`）を作成する。

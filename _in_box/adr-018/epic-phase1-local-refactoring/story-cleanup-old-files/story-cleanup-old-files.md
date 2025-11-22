@@ -14,11 +14,10 @@
 - (なし)
 
 ## As-is (現状)
-- `issue_creator_kit`への機能移行後も、`github_broker`リポジトリ内に古いソースコードとテストが残っている可能性がある。
+`issue_creator_kit`への機能移行と、`github_broker`からの参照更新がすべて完了しました。現状分析として、その結果`github_broker`リポジトリ内には、`github_broker/infrastructure/document_validation/`や`github_broker/infrastructure/github_actions/`といった、もはやどこからも参照されていない古いソースコードとテストが残存しており、技術的負債となっています。
 
 ## To-be (あるべき姿)
-- `github_broker/infrastructure/document_validation/`, `github_broker/infrastructure/github_actions/`, `tests/infrastructure/document_validation/`, `tests/infrastructure/github_actions/` が完全に削除されている。
-- ADR-017関連のドキュメントで、実装が`issue_creator_kit`に分離された旨が追記されている。
+As-isで特定された不要なディレクトリ群をリポジトリから完全に削除します。これにより、リポジトリの関心事が「Issue割り当て」という本来の責務に限定され、コードベースがクリーンになります。この状態をもって、ADR-018のフェーズ1が完了となります。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
 1. `git rm -r` コマンドを使用して、指定された古いディレクトリをすべて削除する。

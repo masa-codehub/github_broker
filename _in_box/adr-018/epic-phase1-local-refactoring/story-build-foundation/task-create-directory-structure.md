@@ -11,10 +11,10 @@
 - `docs/adr/018-decouple-issue-creation-and-validation-logic.md`
 
 ## As-is (現状)
-- `github_broker`リポジトリのルートに`issue_creator_kit`ディレクトリが存在しない。
+親Story「issue_creator_kitの基盤を構築する」に基づき、コードの受け皿となるディレクトリ構造を具体的に作成します。現状では`issue_creator_kit`ディレクトリ自体が存在しないため、ADR-018で定義されたClean Architecture（domain, application, infrastructure, interfaceの各レイヤー）に準拠したサブディレクトリ群を一括で作成する必要があります。
 
 ## To-be (あるべき姿)
-- ADR-018で定義された`issue_creator_kit`の完全なディレクトリ構造（`issue_creator_kit/`, `issue_creator_kit/issue_creator_kit/`, `issue_creator_kit/tests/`と各レイヤーのサブディレクトリ）が作成されている。
+As-isの要求に基づき、`issue_creator_kit`の完全なディレクトリ構造が作成されます。これにより、後の機能移行Taskにおいて、開発者が迷わずに責務に合った適切なレイヤーへコードを配置できるような、明確な骨格が提供された状態になります。
 
 ## 完了条件 (Acceptance Criteria)
 - TDD（テスト駆動開発）のサイクル（Red-Green-Refactor）に従って実装と単体テストが完了していること（このTaskでは主にディレクトリ作成なので、後続Taskのための準備が完了していればよい）。

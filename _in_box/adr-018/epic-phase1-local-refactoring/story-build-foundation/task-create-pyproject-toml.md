@@ -11,10 +11,10 @@
 - `docs/adr/018-decouple-issue-creation-and-validation-logic.md`
 
 ## As-is (現状)
-- `issue_creator_kit/pyproject.toml`ファイルが存在しない。
+親Story「issue_creator_kitの基盤を構築する」に基づき、`issue_creator_kit`をインストール可能なPythonパッケージとして定義します。現状では、パッケージのメタデータ、依存関係、そして`doc-validator`や`issue-creator`といった重要なCLIエントリーポイントを定義するための`pyproject.toml`ファイルが存在していません。
 
 ## To-be (あるべき姿)
-- `issue_creator_kit/pyproject.toml`が作成され、`issue_creator_kit`をインストール可能なPythonパッケージとして定義する基本的な設定と、ADR-018で指定された`doc-validator`と`issue-creator`のCLIエントリーポイントが記述されている。
+As-isの要求に基づき、`pyproject.toml`ファイルが作成され、基本的なパッケージ定義とCLIエントリーポイントが記述されます。これにより、`pip install -e .`コマンドでの編集可能モードでのインストールが可能になり、後続の「参照更新と検証」Storyの前提条件が整った状態になります。
 
 ## 完了条件 (Acceptance Criteria)
 - TDDのサイクルに従って実装と単体テストが完了していること（このTaskでは主に設定ファイル作成なので、内容の正しさが検証できればよい）。

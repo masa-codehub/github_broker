@@ -18,12 +18,10 @@
 - (なし)
 
 ## As-is (現状)
-- `issue_creator_kit`のすべてのコードが`github_broker`リポジトリ内にローカルディレクトリとして存在している（フェーズ1完了時点）。
+ADR-018のフェーズ1が完了し、`issue_creator_kit`は`github_broker`リポジトリ内のローカルディレクトリとして、すべての機能が集約され、正常に動作しています。現状分析として、このままではまだ`github_broker`リポジトリに強く結合しており、ADR-018が目指す「他リポジトリからの再利用」という目標は達成できていません。
 
 ## To-be (あるべき姿)
-- `issue_creator_kit`が独立したGitHubリポジトリとして作成されている。
-- `github_broker`のCI/CDとpre-commitフックは、`git+https://...`経由で`issue-creator-kit`パッケージをインストールして利用する。
-- `github_broker`リポジトリからローカルの`issue_creator_kit`ディレクトリが削除されている。
+As-isの問題を解決するため、`issue_creator_kit`を完全に独立したGitHubリポジトリとして分離します。`github_broker`は、ローカルパス参照ではなく`git+https://...`経由でこの新しいリポジトリをライブラリとして利用するようになります。これにより、ADR-018の最終目標である「責務の分離」と「再利用性の向上」が完全に達成された状態になります。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
 1. `issue-creator-kit`のGitHubリポジトリを作成する。

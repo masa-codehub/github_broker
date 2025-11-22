@@ -14,11 +14,10 @@
 - (なし)
 
 ## As-is (現状)
-- ドキュメント検証に関連するロジックとテストが`github_broker/infrastructure/document_validation/`と`tests/infrastructure/document_validation/`に存在する。
+`issue_creator_kit`の基盤構築が完了したことを受け、具体的な機能移行を開始します。ADR-018の決定に基づき、現在`github_broker/infrastructure/document_validation/`ディレクトリおよび`tests/infrastructure/document_validation/`に存在するドキュメント検証関連の全ロジックとテストが、このStoryの移行対象となります。現状のコードは特定の責務（インフラ層）に配置されていますが、Clean Architectureの観点での再評価が必要です。
 
 ## To-be (あるべき姿)
-- `github_broker`からドキュメント検証関連のコードが削除されている。
-- `issue_creator_kit`内のClean Architectureの各レイヤー（domain, application, infrastructure, interface）に、責務に基づいてロジックとテストが再配置されている。
+As-isで特定されたコード群を、`issue_creator_kit`パッケージ内に移行します。このとき、単にファイルを移動するだけでなく、domain（検証ルール）、application（ユースケース）、infrastructure（ファイル読み込み）、interface（CLI）の各レイヤーの責務に従って、必要に応じて既存のクラスや関数が分割・再設計された状態になります。これにより、ドキュメント検証機能のモジュール性とテスト容易性が向上します。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
 1. `github_broker/infrastructure/document_validation/`のコードを`issue_creator_kit`の適切なレイヤーに移動・リファクタリングする。

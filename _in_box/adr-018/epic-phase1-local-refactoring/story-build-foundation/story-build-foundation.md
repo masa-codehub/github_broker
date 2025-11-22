@@ -15,11 +15,10 @@
 - (なし)
 
 ## As-is (現状)
-- `github_broker`リポジトリ内に`issue_creator_kit`のディレクトリが存在しない。
+親Epic「ローカルリファクタリングと集約」の最初のステップとして、移行先となる`issue_creator_kit`パッケージの骨格を`github_broker`リポジトリ内に準備します。現状分析として、移行対象のコードを受け入れるための明確に定義されたディレクトリ構造や、Pythonパッケージとして管理するための`pyproject.toml`が存在しないため、機能移行に着手できない状態です。
 
 ## To-be (あるべき姿)
-- `github_broker`リポジトリのルートに、ADR-018で定義されたClean Architectureに基づく`issue_creator_kit`のディレクトリ構造が作成されている。
-- `issue_creator_kit`をPythonパッケージとして定義する`pyproject.toml`が作成されている。
+As-isの問題を解決するため、ADR-018で定義されたClean Architectureに基づくディレクトリ構造と、基本的なパッケージ情報を定義した`pyproject.toml`を作成します。これにより、後続の機能移行Story（ドキュメント検証、Issue作成）がスムーズに着手できるための、明確で安定した基盤（=受け皿）が構築された状態になります。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
 1. `Task: issue_creator_kitのディレクトリ構造を作成する` を実行する。

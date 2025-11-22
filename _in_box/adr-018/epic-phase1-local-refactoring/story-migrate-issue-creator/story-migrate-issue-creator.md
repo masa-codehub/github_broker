@@ -14,11 +14,10 @@
 - (なし)
 
 ## As-is (現状)
-- Issue作成に関連するロジックとテストが`github_broker/infrastructure/github_actions/`と`tests/infrastructure/github_actions/`に存在する。
+ドキュメント検証機能の移行に続き、Issue作成機能の移行に着手します。ADR-018の決定に基づき、現在`github_broker/infrastructure/github_actions/`ディレクトリおよび`tests/infrastructure/github_actions/`に存在するIssue自動起票関連の全ロ-ジックとテストが、このStoryの移行対象となります。現状のコードはGitHub Actionsという特定の実行環境と密結合している可能性があります。
 
 ## To-be (あるべき姿)
-- `github_broker`からIssue作成関連のコードが削除されている。
-- `issue_creator_kit`内のClean Architectureの各レイヤーに、責務に基づいてロジックとテストが再配置されている。
+As-isで特定されたコード群を、`issue_creator_kit`パッケージ内に移行します。ドキュメント検証機能と同様に、domain（Issueのデータ構造）、application（起票オーケストレーション）、infrastructure（GitHub CLI呼び出し）、interface（CLI）の各レイヤーの責務に従ってリファクタリングされます。これにより、特定のCI環境への依存を低減し、機能単体での再利用性とテスト容易性が向上した状態になります。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
 1. `github_broker/infrastructure/github_actions/`のコードを`issue_creator_kit`の適切なレイヤーに移動・リファクタリングする。

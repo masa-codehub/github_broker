@@ -11,7 +11,10 @@
 - `docs/adr/018-decouple-issue-creation-and-validation-logic.md`
 
 ## As-is (現状)
-- `issue_creator_kit`のコードは`github_broker`リポジトリ内にローカルディレクトリとして存在する。
+親Epic「リポジトリの完全分離」の最初のステップとして、`issue_creator_kit`を独立したリポジトリとして確立します。現状分析として、フェーズ1の成果物である`issue_creator_kit`の全コードが、`github_broker`リポジトリ内のローカルディレクトリとしてのみ存在しており、独立したバージョン管理やCI/CDプロセスを持っていません。
+
+## To-be (あるべき姿)
+As-isの問題を解決するため、`issue_creator_kit`という名前で新しいGitHubリポジトリを作成し、フェーズ1のコードを移行します。さらに、そのリポジトリ専用のCIを設定し、テストがパスすることを確認します。これにより、`issue_creator_kit`は独立したライフサイクル（バージョン管理、CI）を持つコンポーネントとしての第一歩を踏み出した状態になります。
 
 ## To-be (あるべき姿)
 - `issue-creator-kit`という名前の新しいGitHubリポジトリが作成されている。
