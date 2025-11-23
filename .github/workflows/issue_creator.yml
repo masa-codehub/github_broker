@@ -77,8 +77,8 @@ jobs:
                   if not title:
                       raise ValueError("'title' is missing in frontmatter.")
 
-                  assignees = ",".join(frontmatter.get("assignees", []))
-                  labels = ",".join(frontmatter.get("labels", []))
+                  assignees = frontmatter.get("assignees", [])
+                  labels = frontmatter.get("labels", [])
 
                   cmd = [
                       'gh', 'issue', 'create',
@@ -86,9 +86,10 @@ jobs:
                       '--body', body
                   ]
                   if assignees:
-                      cmd.extend(['--assignee', assignees])
+                      cmd.extend(['--assignee', ",".join(assignees)])
                   if labels:
-                      cmd.extend(['--label', labels])
+                      for label in labels:
+                          cmd.extend(['--label', label])
 
                   # Execute gh command
                   result = subprocess.run(cmd, check=True, capture_output=True, text=True, encoding='utf-8')
