@@ -34,15 +34,20 @@ jobs:
 
       - name: Process issue files
         id: process_issues
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: python
         run: |
           import os
           import subprocess
           import yaml
+          import json
           from pathlib import Path
 
+          # --- Helper Function to run shell commands ---
+          def run_command(cmd, check=True, capture=True, text=True, env=None):
+              print(f"Executing: {' '.join(cmd)}", flush=True)
+              return subprocess.run(cmd, check=check, capture_output=capture, text=text, encoding='utf-8', env=env)
+
+          # --- Main script ---
           in_box = Path("_in_box")
           done_box = Path("_done_box")
           failed_box = Path("_failed_box")
@@ -50,17 +55,32 @@ jobs:
           done_box.mkdir(exist_ok=True)
           failed_box.mkdir(exist_ok=True)
 
+          # Prepare auth token for gh commands
+          auth_env = os.environ.copy()
+          auth_env["GH_TOKEN"] = auth_env.get("GITHUB_TOKEN")
+
+          # Get all existing repository labels
+          try:
+              result = run_command(['gh', 'label', 'list', '--json', 'name'], env=auth_env)
+              existing_labels = {label['name'] for label in json.loads(result.stdout)}
+              print(f"Found existing labels: {existing_labels}", flush=True)
+          except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
+              print(f"ERROR: Failed to fetch repository labels. Exiting. Error: {e}", flush=True)
+              if isinstance(e, subprocess.CalledProcessError):
+                  print(f"Stderr: {e.stderr}", flush=True)
+              exit(1)
+
           issue_files = list(in_box.rglob("*.md"))
           moved_files = False
 
           if not issue_files:
-              print("No issue files found in _in_box. Exiting.")
+              print("No issue files found in _in_box. Exiting.", flush=True)
               with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-                f.write('moved_files=false\n')
+                  f.write('moved_files=false\n')
               exit(0)
 
           for f in issue_files:
-              print(f"Processing {f}...")
+              print(f"Processing {f}...", flush=True)
               try:
                   content = f.read_text(encoding='utf-8')
                   parts = content.split('---', 2)
@@ -72,40 +92,48 @@ jobs:
                       raise ValueError("Frontmatter is not a valid YAML object.")
 
                   body = parts[2].strip()
-
                   title = frontmatter.get("title")
                   if not title:
                       raise ValueError("'title' is missing in frontmatter.")
 
-                  assignees = frontmatter.get("assignees", [])
-                  labels = frontmatter.get("labels", [])
+                  # --- Label Validation and Creation ---
+                  required_labels = frontmatter.get("labels", [])
+                  if required_labels:
+                      for label in required_labels:
+                          if label not in existing_labels:
+                              print(f"Label '{label}' not found. Creating it...", flush=True)
+                              try:
+                                  run_command(['gh', 'label', 'create', label], env=auth_env)
+                                  print(f"Successfully created label '{label}'.", flush=True)
+                                  existing_labels.add(label) # Add to our set to avoid re-creating
+                              except subprocess.CalledProcessError as e:
+                                  print(f"ERROR: Failed to create label '{label}'.", flush=True)
+                                  print(f"Stderr: {e.stderr}", flush=True)
+                                  raise  # Re-raise the exception to move file to failed_box
+                  # --- End of Label Logic ---
 
-                  cmd = [
-                      'gh', 'issue', 'create',
-                      '--title', title,
-                      '--body', body
-                  ]
+                  assignees = frontmatter.get("assignees", [])
+                  
+                  cmd = ['gh', 'issue', 'create', '--title', title, '--body', body]
                   if assignees:
                       cmd.extend(['--assignee', ",".join(assignees)])
-                  if labels:
-                      for label in labels:
+                  if required_labels:
+                      for label in required_labels:
                           cmd.extend(['--label', label])
 
-                  # Execute gh command
-                  result = subprocess.run(cmd, check=True, capture_output=True, text=True, encoding='utf-8')
-                  print(f"Successfully created issue for {f}")
-                  print(result.stdout)
-                  subprocess.run(['git', 'mv', str(f), str(done_box)], check=True)
+                  # Execute issue creation
+                  run_command(cmd, env=auth_env)
+                  print(f"Successfully created issue for {f}", flush=True)
+                  run_command(['git', 'mv', str(f), str(done_box)], capture=False)
                   moved_files = True
 
-              except subprocess.CalledProcessError as e:
-                  print(f"ERROR: Failed to create issue for {f} using 'gh' command.", flush=True)
-                  print(f"Stderr: {e.stderr}", flush=True)
-                  subprocess.run(['git', 'mv', str(f), str(failed_box)], check=True)
-                  moved_files = True
               except Exception as e:
                   print(f"ERROR: An unexpected error occurred while processing {f}: {e}", flush=True)
-                  subprocess.run(['git', 'mv', str(f), str(failed_box)], check=True)
+                  if isinstance(e, subprocess.CalledProcessError):
+                      # The helper function already prints the command, so just print stderr if available
+                      if e.stderr:
+                          print(f"Stderr: {e.stderr}", flush=True)
+                  run_command(['git', 'mv', str(f), str(failed_box)], capture=False)
                   moved_files = True
           
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
