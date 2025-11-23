@@ -48,17 +48,16 @@ jobs:
 
           # --- Helper Function to run shell commands ---
           def run_command(cmd, check=True, capture=True, text=True, env=None):
-              # Use a simple print to avoid quoting issues
-              print("Executing command...")
+              print(f"Executing: {" ".join(cmd)}", flush=True)
               return subprocess.run(cmd, check=check, capture_output=capture, text=text, encoding="utf-8", env=env)
 
           # --- Main script ---
           in_box = Path("_in_box")
           done_box = Path("_done_box")
-          failed_box = Path("_failed_box")
+          fail_box = Path("_fail_box") # CORRECTED: Changed from _failed_box to _fail_box
 
           done_box.mkdir(exist_ok=True)
-          failed_box.mkdir(exist_ok=True)
+          fail_box.mkdir(exist_ok=True)
 
           # --- Prepare auth token for gh commands ---
           github_token = os.environ.get("GITHUB_TOKEN")
@@ -110,18 +109,23 @@ jobs:
                   # --- Label Validation and Creation ---
                   required_labels = frontmatter.get("labels", [])
                   if required_labels:
-                      for label_from_frontmatter in required_labels:
-                          cleaned_label = label_from_frontmatter.strip()
-                          if cleaned_label not in existing_labels:
-                              print(f"Label ''{cleaned_label}'' not found. Creating it...", flush=True)
+                      for label in required_labels:
+                          cleaned_label = label.strip()
+                          if cleaned_label and cleaned_label not in existing_labels:
+                              print(f"Label ''{cleaned_label}'' not found. Attempting to create it...", flush=True)
                               try:
                                   run_command(["gh", "label", "create", cleaned_label], env=auth_env)
                                   print(f"Successfully created label ''{cleaned_label}''.", flush=True)
-                                  existing_labels.add(cleaned_label) # Add to our set to avoid re-creating
+                                  existing_labels.add(cleaned_label)
                               except subprocess.CalledProcessError as e:
-                                  print(f"ERROR: Failed to create label ''{cleaned_label}''.", flush=True)
-                                  print(f"Stderr: {e.stderr}", flush=True)
-                                  raise
+                                  # If the error is "already exists", ignore it and proceed.
+                                  if "already exists" in e.stderr:
+                                      print(f"Label ''{cleaned_label}'' already exists. Continuing.", flush=True)
+                                      existing_labels.add(cleaned_label)
+                                  else:
+                                      # For any other error, re-raise it.
+                                      print(f"ERROR: Failed to create label ''{cleaned_label}''.", flush=True)
+                                      raise
                   # --- End of Label Logic ---
 
                   assignees = frontmatter.get("assignees", [])
@@ -130,8 +134,10 @@ jobs:
                   if assignees:
                       cmd.extend(["--assignee", ",".join(assignees)])
                   if required_labels:
-                      for label_to_add in required_labels: # Use original label string for adding to issue
-                          cmd.extend(["--label", label_to_add.strip()]) # Ensure labels added to issue are also stripped
+                      for label_to_add in required_labels:
+                          cleaned_label_to_add = label_to_add.strip()
+                          if cleaned_label_to_add:
+                              cmd.extend(["--label", cleaned_label_to_add])
 
                   # Execute issue creation
                   run_command(cmd, env=auth_env)
@@ -144,7 +150,7 @@ jobs:
                   if isinstance(e, subprocess.CalledProcessError):
                       if e.stderr:
                           print(f"Stderr: {e.stderr}", flush=True)
-                  run_command(["git", "mv", str(f), str(failed_box)], capture=False)
+                  run_command(["git", "mv", str(f), str(fail_box)], capture=False) # CORRECTED: use fail_box
                   moved_files = True
           
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
@@ -158,6 +164,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore(issues): Move processed issue files from _in_box"
           title: "Chore: Sync processed issue files"
-          body: "Automated PR to move processed issue files from `_in_box` to `_done_box` or `_failed_box`."
+          body: "Automated PR to move processed issue files from `_in_box` to `_done_box` or `_fail_box`."
           branch: "chore/sync-issue-files"
           delete-branch: true
