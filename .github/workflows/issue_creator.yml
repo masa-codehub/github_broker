@@ -47,7 +47,7 @@ jobs:
 
           # --- Helper Function to run shell commands ---
           def run_command(cmd, check=True, capture=True, text=True, env=None):
-              print(f"Executing: {\" \".join(cmd)}", flush=True)
+              print("Executing:", " ".join(cmd), flush=True)
               return subprocess.run(cmd, check=check, capture_output=capture, text=text, encoding=\"utf-8\", env=env)
 
           # --- Main script ---
