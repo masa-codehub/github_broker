@@ -1,15 +1,13 @@
-import sys
+# 標準ライブラリのインポート
 
-
+# doc-validator CLIエントリーポイント
 def doc_validator_cli():
-    pass # Replaced print with pass
-    sys.exit(0) # Exit with success
+    pass # プレースホルダー関数
 
+# issue-creator CLIエントリーポイント
 def issue_creator_cli():
-    pass # Replaced print with pass
-    sys.exit(0) # Exit with success
+    pass # プレースホルダー関数
 
+# モジュールが直接実行された場合の処理（CLIエントリーポイントからは実行されない）
 if __name__ == "__main__":
-    # This block will not be executed when the entry point scripts are called,
-    # but it's good practice for direct module execution.
-    pass # Replaced print with pass
+    pass # 何もしない
