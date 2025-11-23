@@ -7,6 +7,7 @@ on:
 permissions:
   contents: write
   issues: write
+  pull-requests: write
 
 jobs:
   create_issues:
@@ -71,7 +72,7 @@ jobs:
 
           # Get all existing repository labels
           try:
-              result = run_command(["gh", "label", "list", "--json", "name"], env=auth_env)
+              result = run_command(["gh", "label", "list", "--limit", "1000", "--json", "name"], env=auth_env)
               existing_labels = {label["name"] for label in json.loads(result.stdout)}
               print(f"Found existing labels: {existing_labels}", flush=True)
           except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
