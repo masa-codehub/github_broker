@@ -1,0 +1,25 @@
+# issue_creator_kitパッケージのプロジェクト設定
+[project]
+name = "issue_creator_kit"
+version = "0.1.0"
+description = "GitHub Issueの作成と管理のためのキット。"
+authors = [{name = "masa-codehub"}] # メールアドレスは公開しないため削除
+requires-python = ">=3.13" # ルートのpyproject.tomlと一貫性を持たせる
+readme = "README.md" # パッケージのREADMEファイル
+classifiers = [ # PyPIでの検索性を高めるための分類
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+]
+
+# CLIエントリーポイントの定義
+[project.scripts]
+doc-validator = "issue_creator_kit.main:doc_validator_cli"
+issue-creator = "issue_creator_kit.main:issue_creator_cli"
+
+# ビルドシステムの設定
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
