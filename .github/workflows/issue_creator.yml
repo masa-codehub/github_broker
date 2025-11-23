@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history is needed to check for moved files
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -44,7 +46,9 @@ jobs:
           import yaml
           import json
           import sys
+          import re
           from pathlib import Path
+          from collections import defaultdict
 
           # --- Helper Function to run shell commands ---
           def run_command(cmd, check=True, capture=True, text=True, env=None):
@@ -54,7 +58,7 @@ jobs:
           # --- Main script ---
           in_box = Path("_in_box")
           done_box = Path("_done_box")
-          fail_box = Path("_fail_box") # CORRECTED: Changed from _failed_box to _fail_box
+          fail_box = Path("_fail_box")
 
           done_box.mkdir(exist_ok=True)
           fail_box.mkdir(exist_ok=True)
@@ -69,90 +73,134 @@ jobs:
           auth_env["GH_TOKEN"] = github_token
           # --- End of Auth Prep ---
 
-          # Get all existing repository labels
-          try:
-              result = run_command(["gh", "label", "list", "--limit", "1000", "--json", "name"], env=auth_env)
-              existing_labels = {label["name"] for label in json.loads(result.stdout)}
-              print(f"Found existing labels: {existing_labels}", flush=True)
-          except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
-              print(f"ERROR: Failed to fetch repository labels. Exiting. Error: {e}", flush=True)
-              if isinstance(e, subprocess.CalledProcessError):
-                  print(f"Stderr: {e.stderr}", flush=True)
-              sys.exit(1)
+          # --- Phase 1: Collect all files and build dependency graph ---
+          all_files = list(in_box.rglob("*.md"))
+          file_node_map = {}
+          parent_child_map = defaultdict(list)
+          
+          print("--- Phase 1: Building dependency graph ---", flush=True)
+          for f in all_files:
+              content = f.read_text(encoding="utf-8")
+              file_node_map[str(f)] = {"path": f, "content": content, "issue_number": None, "children": []}
+              
+              parent_match = re.search(r"## 親Issue \(Parent Issue\)\s*-\s*(.+)", content)
+              if parent_match:
+                  parent_path_str = parent_match.group(1).strip()
+                  # Normalize path for consistency
+                  normalized_parent_path = str(Path(parent_path_str))
+                  parent_child_map[normalized_parent_path].append(str(f))
+                  file_node_map[str(f)]["parent"] = normalized_parent_path
+          
+          print(f"Found {len(file_node_map)} files.", flush=True)
+          print(f"Dependency map: {json.dumps(dict(parent_child_map), indent=2)}", flush=True)
 
-          issue_files = list(in_box.rglob("*.md"))
+          # --- Phase 2: Process files in topological order (parents first) ---
+          print("\n--- Phase 2: Creating issues in order ---", flush=True)
+          processed_files = set()
           moved_files = False
 
-          if not issue_files:
-              print("No issue files found in _in_box. Exiting.", flush=True)
-              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-                  f.write("moved_files=false\n")
-              sys.exit(0)
+          # Function to process a single file
+          def process_file(file_path_str):
+              if file_path_str in processed_files:
+                  return
 
-          for f in issue_files:
-              print(f"Processing {f}...", flush=True)
+              node = file_node_map.get(file_path_str)
+              if not node:
+                  print(f"Warning: File '{file_path_str}' not found in map, skipping.", flush=True)
+                  return
+
+              # Ensure parent is processed first
+              parent_path = node.get("parent")
+              if parent_path and parent_path not in processed_files:
+                  process_file(parent_path)
+
+              print(f"Processing {node["path"]}", flush=True)
               try:
-                  content = f.read_text(encoding="utf-8")
-                  parts = content.split("---", 2)
-                  if len(parts) < 3:
-                      raise ValueError("Invalid markdown format, no frontmatter found.")
-
+                  # Parse frontmatter
+                  parts = node["content"].split("---", 2)
+                  if len(parts) < 3: raise ValueError("Invalid md format")
                   frontmatter = yaml.safe_load(parts[1])
-                  if not isinstance(frontmatter, dict):
-                      raise ValueError("Frontmatter is not a valid YAML object.")
+                  if not isinstance(frontmatter, dict): raise ValueError("Invalid YAML")
 
                   body = parts[2].strip()
                   title = frontmatter.get("title")
-                  if not title:
-                      raise ValueError("''title'' is missing in frontmatter.")
+                  if not title: raise ValueError("''title'' missing")
 
-                  # --- Label Validation and Creation ---
-                  required_labels = frontmatter.get("labels", [])
-                  if required_labels:
-                      for label in required_labels:
-                          cleaned_label = label.strip()
-                          if cleaned_label and cleaned_label not in existing_labels:
-                              print(f"Label ''{cleaned_label}'' not found. Attempting to create it...", flush=True)
-                              try:
-                                  run_command(["gh", "label", "create", cleaned_label], env=auth_env)
-                                  print(f"Successfully created label ''{cleaned_label}''.", flush=True)
-                                  existing_labels.add(cleaned_label)
-                              except subprocess.CalledProcessError as e:
-                                  # If the error is "already exists", ignore it and proceed.
-                                  if "already exists" in e.stderr:
-                                      print(f"Label ''{cleaned_label}'' already exists. Continuing.", flush=True)
-                                      existing_labels.add(cleaned_label)
-                                  else:
-                                      # For any other error, re-raise it.
-                                      print(f"ERROR: Failed to create label ''{cleaned_label}''.", flush=True)
-                                      raise
-                  # --- End of Label Logic ---
-
-                  assignees = frontmatter.get("assignees", [])
+                  # Prepare gh command
+                  cmd = ["gh", "issue", "create", "--title", title, "--body", body] 
                   
-                  cmd = ["gh", "issue", "create", "--title", title, "--body", body]
-                  if assignees:
-                      cmd.extend(["--assignee", ",".join(assignees)])
-                  if required_labels:
-                      for label_to_add in required_labels:
-                          cleaned_label_to_add = label_to_add.strip()
-                          if cleaned_label_to_add:
-                              cmd.extend(["--label", cleaned_label_to_add])
+                  # Add assignees
+                  assignees = frontmatter.get("assignees", [])
+                  if assignees: cmd.extend(["--assignee", ",".join(assignees)])
+                  
+                  # Add labels (no need to check/create, assuming previous steps are fixed)
+                  labels = frontmatter.get("labels", [])
+                  for label in labels:
+                      if label.strip(): cmd.extend(["--label", label.strip()])
+                  
+                  # Create the issue
+                  result = run_command(cmd, env=auth_env)
+                  issue_url = result.stdout.strip()
+                  issue_number = int(issue_url.split("/")[-1])
+                  node["issue_number"] = issue_number
+                  print(f"Successfully created issue #{issue_number} for {node["path"]}", flush=True)
 
-                  # Execute issue creation
-                  run_command(cmd, env=auth_env)
-                  print(f"Successfully created issue for {f}", flush=True)
-                  run_command(["git", "mv", str(f), str(done_box)], capture=False)
-                  moved_files = True
+                  # Move file to done_box, preserving structure
+                  destination_path = done_box / node["path"].relative_to(in_box)
+                  destination_path.parent.mkdir(parents=True, exist_ok=True)
+                  run_command(["git", "mv", str(node["path"]), str(destination_path)], capture=False)
 
               except Exception as e:
-                  print(f"ERROR: An unexpected error occurred while processing {f}: {e}", flush=True)
-                  if isinstance(e, subprocess.CalledProcessError):
-                      if e.stderr:
-                          print(f"Stderr: {e.stderr}", flush=True)
-                  run_command(["git", "mv", str(f), str(fail_box)], capture=False) # CORRECTED: use fail_box
+                  print(f"ERROR processing {node["path"]}: {e}", flush=True)
+                  if isinstance(e, subprocess.CalledProcessError) and e.stderr:
+                      print(f"Stderr: {e.stderr}", flush=True)
+                  
+                  # Move file to fail_box, preserving structure
+                  destination_path = fail_box / node["path"].relative_to(in_box)
+                  destination_path.parent.mkdir(parents=True, exist_ok=True)
+                  run_command(["git", "mv", str(node["path"]), str(destination_path)], capture=False)
+              
+              finally:
+                  processed_files.add(file_path_str)
+                  nonlocal moved_files
                   moved_files = True
-          
+
+          # Process all files
+          for file_path_str in file_node_map:
+              process_file(file_path_str)
+
+          # --- Phase 3: Update parent issues with children task lists ---
+          print("\n--- Phase 3: Linking parent and child issues ---", flush=True)
+          for parent_path_str, child_paths in parent_child_map.items():
+              parent_node = file_node_map.get(parent_path_str)
+              if not parent_node or not parent_node.get("issue_number"):
+                  print(f"Warning: Could not find created issue for parent '{parent_path_str}'. Skipping linking.", flush=True)
+                  continue
+
+              parent_issue_number = parent_node["issue_number"]
+              
+              child_issue_body_lines = []
+              for child_path_str in child_paths:
+                  child_node = file_node_map.get(child_path_str)
+                  if child_node and child_node.get("issue_number"):
+                      child_issue_body_lines.append(f"- [ ] #{child_node["issue_number"]}")
+              
+              if child_issue_body_lines:
+                  update_body = "\n\n## Sub-Issues\n" + "\n".join(child_issue_body_lines)
+                  try:
+                      run_command(["gh", "issue", "edit", str(parent_issue_number), "--body", update_body], env=auth_env)
+                      print(f"Successfully linked children to parent issue #{parent_issue_number}", flush=True)
+                  except Exception as e:
+                      print(f"ERROR linking issues to parent #{parent_issue_number}: {e}", flush=True)
+
+          # --- Finalization ---
+          # Requirement 1: Ensure _in_box directory is kept
+          gitkeep_path = in_box / ".gitkeep"
+          if not gitkeep_path.exists():
+              print("Creating .gitkeep in _in_box", flush=True)
+              gitkeep_path.touch()
+              run_command(["git", "add", str(gitkeep_path)], capture=False)
+
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
             f.write(f"moved_files={str(moved_files).lower()}\n")
           '
@@ -162,8 +210,8 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore(issues): Move processed issue files from _in_box"
-          title: "Chore: Sync processed issue files"
-          body: "Automated PR to move processed issue files from `_in_box` to `_done_box` or `_fail_box`."
-          branch: "chore/sync-issue-files"
+          commit-message: "chore(issues): Sync processed issue files"
+          title: "Chore: Sync processed issue files from _in_box"
+          body: "Automated PR to move processed files from `_in_box` to `_done_box` or `_fail_box` and update issue relationships."
+          branch: "chore/sync-issue-files-advanced"
           delete-branch: true
