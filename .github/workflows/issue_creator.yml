@@ -110,15 +110,16 @@ jobs:
                   # --- Label Validation and Creation ---
                   required_labels = frontmatter.get("labels", [])
                   if required_labels:
-                      for label in required_labels:
-                          if label not in existing_labels:
-                              print(f"Label ''{label}'' not found. Creating it...", flush=True)
+                      for label_from_frontmatter in required_labels:
+                          cleaned_label = label_from_frontmatter.strip()
+                          if cleaned_label not in existing_labels:
+                              print(f"Label ''{cleaned_label}'' not found. Creating it...", flush=True)
                               try:
-                                  run_command(["gh", "label", "create", label], env=auth_env)
-                                  print(f"Successfully created label ''{label}''.", flush=True)
-                                  existing_labels.add(label)
+                                  run_command(["gh", "label", "create", cleaned_label], env=auth_env)
+                                  print(f"Successfully created label ''{cleaned_label}''.", flush=True)
+                                  existing_labels.add(cleaned_label) # Add to our set to avoid re-creating
                               except subprocess.CalledProcessError as e:
-                                  print(f"ERROR: Failed to create label ''{label}''.", flush=True)
+                                  print(f"ERROR: Failed to create label ''{cleaned_label}''.", flush=True)
                                   print(f"Stderr: {e.stderr}", flush=True)
                                   raise
                   # --- End of Label Logic ---
@@ -129,8 +130,8 @@ jobs:
                   if assignees:
                       cmd.extend(["--assignee", ",".join(assignees)])
                   if required_labels:
-                      for label in required_labels:
-                          cmd.extend(["--label", label])
+                      for label_to_add in required_labels: # Use original label string for adding to issue
+                          cmd.extend(["--label", label_to_add.strip()]) # Ensure labels added to issue are also stripped
 
                   # Execute issue creation
                   run_command(cmd, env=auth_env)
