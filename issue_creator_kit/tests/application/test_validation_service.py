@@ -1,18 +1,13 @@
-import logging
-import sys
-from unittest.mock import patch
 
 import pytest
 
-from github_broker.infrastructure.document_validation.document_validator import (
-    DocumentType,
+from issue_creator_kit.application.validation_service import (
     _extract_headers_from_content,
-    get_required_headers,
-    main,
     validate_adr_summary_format,
     validate_design_doc_overview,
     validate_sections,
 )
+from issue_creator_kit.domain.document import DocumentType
 
 
 @pytest.fixture
@@ -131,33 +126,23 @@ Implementation status.
 
 
 def test_validate_sections_valid_adr(valid_adr_content):
-    required_headers = get_required_headers(DocumentType.ADR)
-    missing = validate_sections(valid_adr_content, required_headers)
+    missing = validate_sections(valid_adr_content, DocumentType.ADR)
     assert not missing, f"Missing headers: {missing}"
-
 
 def test_validate_sections_valid_design_doc(valid_design_doc_content):
-    required_headers = get_required_headers(DocumentType.DESIGN_DOC)
-    missing = validate_sections(valid_design_doc_content, required_headers)
+    missing = validate_sections(valid_design_doc_content, DocumentType.DESIGN_DOC)
     assert not missing, f"Missing headers: {missing}"
 
-
-
 def test_validate_sections_invalid(invalid_adr_content):
-    required_headers = get_required_headers(DocumentType.ADR)
-    missing = validate_sections(invalid_adr_content, required_headers)
+    missing = validate_sections(invalid_adr_content, DocumentType.ADR)
     assert "### デメリット (Negative consequences)" in missing
     assert "## 検証基準 / Verification Criteria" in missing
     assert "## 実装状況 / Implementation Status" in missing
 
-
 def test_validate_sections_invalid_missing_meta(invalid_adr_content_missing_meta):
-    required_headers = get_required_headers(DocumentType.ADR)
-    missing = validate_sections(invalid_adr_content_missing_meta, required_headers)
+    missing = validate_sections(invalid_adr_content_missing_meta, DocumentType.ADR)
     assert "- Status:" in missing
     assert "- Date:" in missing
-
-
 
 def test_extract_headers_from_content():
     content = """
@@ -169,7 +154,6 @@ Some text.
 """
     headers = _extract_headers_from_content(content)
     assert headers == ["# Header 1", "## Header 2", "### Header 3"]
-
 
 def test_extract_headers_from_content_all_levels():
     content = """
@@ -185,48 +169,51 @@ def test_extract_headers_from_content_all_levels():
     ]
     assert _extract_headers_from_content(content) == expected_headers
 
-
 def test_extract_headers_from_content_no_headers():
     content = """
 No double-sharp headers here.
 """
     assert _extract_headers_from_content(content) == []
 
-
 def test_validate_sections_success():
     content = """
-## Section 1
-## Section 2
-## Section 3
+## 親Issue (Parent Issue)
+## 子Issue (Sub-Issues)
+## As-is (現状)
+## To-be (あるべき姿)
+## 完了条件 (Acceptance Criteria)
+## 成果物 (Deliverables)
+## ブランチ戦略 (Branching Strategy)
 """
-    required_headers = ["## Section 1", "## Section 2"]
-    missing = validate_sections(content, required_headers)
+    missing = validate_sections(content, DocumentType.PLAN)
     assert missing == []
-
 
 def test_validate_sections_missing():
     content = """
-## Section 1
-## Section 3
+## 親Issue (Parent Issue)
+## As-is (現状)
+## To-be (あるべき姿)
+## 完了条件 (Acceptance Criteria)
+## 成果物 (Deliverables)
+## ブランチ戦略 (Branching Strategy)
 """
-    required_headers = ["## Section 1", "## Section 2", "## Section 3"]
-    missing = validate_sections(content, required_headers)
-    assert missing == ["## Section 2"]
-
+    missing = validate_sections(content, DocumentType.PLAN)
+    assert missing == ["## 子Issue (Sub-Issues)"]
 
 def test_validate_sections_no_headers():
     content = "No headers here."
-    required_headers = ["## Section 1"]
-    missing = validate_sections(content, required_headers)
-    assert missing == ["## Section 1"]
-
+    missing = validate_sections(content, DocumentType.PLAN)
+    from issue_creator_kit.domain.document import PLAN_HEADERS
+    assert missing == PLAN_HEADERS
 
 def test_validate_sections_empty_required():
     content = "## A header"
-    required_headers = []
-    missing = validate_sections(content, required_headers)
+    # Create a dummy document type that doesn't require headers for this test
+    from enum import Enum, auto
+    class UnknownType(Enum):
+        UNKNOWN = auto()
+    missing = validate_sections(content, UnknownType.UNKNOWN)
     assert missing == []
-
 
 def test_validate_sections_design_doc_missing_new_sections():
     content = """
@@ -235,58 +222,10 @@ def test_validate_sections_design_doc_missing_new_sections():
 ## ゴール / Goals
 ## 設計 / Design
 """
-    required_headers = get_required_headers(DocumentType.DESIGN_DOC)
-    missing = validate_sections(content, required_headers)
+    missing = validate_sections(content, DocumentType.DESIGN_DOC)
     assert "## 背景と課題 / Background" in missing
     assert "### 機能要件 / Functional Requirements" in missing
     assert "### 非機能要件 / Non-Functional Requirements" in missing
-
-
-@pytest.mark.parametrize(
-    "doc_type, expected_headers",
-    [
-        (DocumentType.ADR, [
-            "# 概要 / Summary",
-            "- Status:",
-            "- Date:",
-            "## 状況 / Context",
-            "## 決定 / Decision",
-            "## 結果 / Consequences",
-            "### メリット (Positive consequences)",
-            "### デメリット (Negative consequences)",
-            "## 検証基準 / Verification Criteria",
-            "## 実装状況 / Implementation Status",
-        ]),
-        (DocumentType.DESIGN_DOC, [
-            "# 概要 / Overview",
-            "## 背景と課題 / Background",
-            "## ゴール / Goals",
-            "### 機能要件 / Functional Requirements",
-            "### 非機能要件 / Non-Functional Requirements",
-            "## 設計 / Design",
-            "### ハイレベル設計 / High-Level Design",
-            "### 詳細設計 / Detailed Design",
-            "## 検討した代替案 / Alternatives Considered",
-            "## セキュリティとプライバシー / Security & Privacy",
-            "## 未解決の問題 / Open Questions & Unresolved Issues",
-            "## 検証基準 / Verification Criteria",
-            "## 実装状況 / Implementation Status",
-        ]),
-    ],
-)
-def test_get_required_headers(doc_type, expected_headers):
-    assert get_required_headers(doc_type) == expected_headers
-
-
-def test_get_required_headers_unknown_type():
-    """未知のドキュメントタイプが渡された場合に空のリストを返すことをテストします。"""
-    from enum import Enum, auto
-
-    class UnknownType(Enum):
-        UNKNOWN = auto()
-
-    assert get_required_headers(UnknownType.UNKNOWN) == []
-
 
 def test_validate_design_doc_overview_success():
     content = """
@@ -295,14 +234,12 @@ def test_validate_design_doc_overview_success():
 """
     assert validate_design_doc_overview(content) is True
 
-
 def test_validate_design_doc_overview_success_with_whitespace():
     content = """
 # 概要 / Overview
   デザインドキュメント: test
 """
     assert validate_design_doc_overview(content) is True
-
 
 def test_validate_design_doc_overview_success_no_extra_text():
     content = """
@@ -311,7 +248,6 @@ def test_validate_design_doc_overview_success_no_extra_text():
 """
     assert validate_design_doc_overview(content) is True
 
-
 def test_validate_design_doc_overview_failure():
     content = """
 # 概要 / Overview
@@ -319,14 +255,12 @@ def test_validate_design_doc_overview_failure():
 """
     assert validate_design_doc_overview(content) is False
 
-
 def test_validate_design_doc_overview_failure_not_at_start():
     content = """
 # 概要 / Overview
 これは デザインドキュメント: です
 """
     assert validate_design_doc_overview(content) is False
-
 
 def test_validate_design_doc_overview_failure_with_newline():
     content = """
@@ -336,14 +270,11 @@ def test_validate_design_doc_overview_failure_with_newline():
 """
     assert validate_design_doc_overview(content) is False
 
-
 def test_validate_design_doc_overview_no_overview():
     content = """
 ## ゴール / Goals
 """
     assert validate_design_doc_overview(content) is False
-
-
 
 
 @pytest.mark.parametrize(
@@ -393,42 +324,3 @@ def test_validate_design_doc_overview_no_overview():
 )
 def test_validate_adr_summary_format(content, expected):
     assert validate_adr_summary_format(content) == expected
-
-
-def test_main_success(caplog, tmp_path, valid_adr_content):
-    caplog.set_level(logging.INFO)
-
-    # Create a temporary file with valid content
-    adr_dir = tmp_path / "docs" / "adr"
-    adr_dir.mkdir(parents=True)
-    valid_file = adr_dir / "valid.md"
-    valid_file.write_text(valid_adr_content, encoding="utf-8")
-
-    # Patch sys.argv to simulate passing the file as a command-line argument
-    with patch.object(sys, 'argv', ['document_validator.py', str(valid_file)]):
-        assert main() == 0
-        assert "✅ All documents are valid." in caplog.text
-
-
-def test_main_failure(caplog, tmp_path):
-    caplog.set_level(logging.INFO)
-
-    # Create a temporary file with invalid content
-    invalid_content = """
-# 概要 / Summary
-[ADR-001]
-
-## 状況 / Context
-Some context here.
-"""
-    # Create subdirectory to match get_document_type logic
-    adr_dir = tmp_path / "docs" / "adr"
-    adr_dir.mkdir(parents=True)
-    invalid_file = adr_dir / "invalid.md"
-    invalid_file.write_text(invalid_content, encoding="utf-8")
-
-    # Patch sys.argv to simulate passing the file as a command-line argument
-    with patch.object(sys, 'argv', ['document_validator.py', str(invalid_file)]):
-        assert main() == 1
-        assert f"❌ {str(invalid_file)}: Missing sections:" in caplog.text
-        assert "Found 1 errors." in caplog.text

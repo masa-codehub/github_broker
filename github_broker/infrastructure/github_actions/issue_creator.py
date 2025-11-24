@@ -1,14 +1,13 @@
 import logging
 import os
 
-# Use the consolidated parser
-from github_broker.infrastructure.document_validation.issue_parser import (
-    parse_issue_content,
-)
 from github_broker.infrastructure.github_actions.github_action_utils import (
     get_pr_files,
     get_unique_path,
 )
+
+# Use the consolidated parser
+from issue_creator_kit.application.issue_service import parse_issue_content
 
 logger = logging.getLogger(__name__)
 

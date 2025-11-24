@@ -1,7 +1,7 @@
-from github_broker.infrastructure.document_validation.issue_parser import (
-    IssueData,
+from issue_creator_kit.application.issue_service import (
     parse_issue_content,
 )
+from issue_creator_kit.domain.issue import IssueData
 
 
 def test_parse_issue_content_with_valid_front_matter():
