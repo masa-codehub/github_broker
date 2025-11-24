@@ -70,3 +70,4 @@ graph TD
 ## License
 
 このプロジェクトは [MIT License](./LICENSE) の下で公開されています。
+
