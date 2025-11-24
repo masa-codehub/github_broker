@@ -1,4 +1,7 @@
+from dataclasses import dataclass, field
 
+
+@dataclass
 class IssueData:
     """
     データクラス: GitHubイシューのメタデータとボディを保持します。
@@ -9,8 +12,7 @@ class IssueData:
         labels: ラベルのリスト
         assignees: アサイン先ユーザー名のリスト
     """
-    def __init__(self, title: str, body: str, labels: list[str] | None = None, assignees: list[str] | None = None):
-        self.title = title
-        self.body = body
-        self.labels = labels if labels is not None else []
-        self.assignees = assignees if assignees is not None else []
+    title: str
+    body: str
+    labels: list[str] = field(default_factory=list)
+    assignees: list[str] = field(default_factory=list)

@@ -3,15 +3,15 @@ import sys
 from pathlib import Path
 
 from issue_creator_kit.application import validation_service
+from issue_creator_kit.domain.document import DocumentType
 from issue_creator_kit.infrastructure import file_system_service
-
-logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 
 def main() -> int:
     """
     すべての対象ドキュメントを検証し、エラーがあれば報告します。
     """
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     if len(sys.argv) > 1:
         # If filenames are passed, validate only those.
         target_files = [str(Path(f)) for f in sys.argv[1:]]
@@ -43,11 +43,11 @@ def main() -> int:
             logging.error(f"❌ {file_path}: Missing sections: {', '.join(missing_sections)}")
 
         # ドキュメントタイプ別の追加検証
-        if doc_type == validation_service.DocumentType.ADR:
+        if doc_type == DocumentType.ADR:
             if not validation_service.validate_adr_summary_format(content):
                 error_count += 1
                 logging.error(f"❌ {file_path}: Invalid ADR summary format.")
-        elif doc_type == validation_service.DocumentType.DESIGN_DOC and not validation_service.validate_design_doc_overview(content):
+        elif doc_type == DocumentType.DESIGN_DOC and not validation_service.validate_design_doc_overview(content):
             error_count += 1
             logging.error(f"❌ {file_path}: Invalid Design Doc overview format.")
 
