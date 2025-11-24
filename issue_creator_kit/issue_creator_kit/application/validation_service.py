@@ -77,7 +77,7 @@ def validate_filename_prefix(file_path: str, base_path: str) -> bool:
     if not str(relative_path).startswith("plans"):
         return True
 
-    return bool(re.match(r"(?i)^(epic-|story-|task-).+\\.md$", p.name))
+    return bool(re.match(r"(?i)^(epic-|story-|task-).+\.md$", p.name))
 
 def validate_folder_structure(file_path: str, base_path: str) -> bool:
     """
