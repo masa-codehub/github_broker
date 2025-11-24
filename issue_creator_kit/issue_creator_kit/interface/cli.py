@@ -1,63 +1,51 @@
+import argparse
 import logging
+import os
+import re
 import sys
-from pathlib import Path
 
-from issue_creator_kit.application import validation_service
-from issue_creator_kit.domain.document import DocumentType
-from issue_creator_kit.infrastructure import file_system_service
+from issue_creator_kit.application.issue_service import IssueCreationService
+from issue_creator_kit.infrastructure.github_service import GithubService
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-def main() -> int:
-    """
-    すべての対象ドキュメントを検証し、エラーがあれば報告します。
-    """
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
-    if len(sys.argv) > 1:
-        # If filenames are passed, validate only those.
-        target_files = [str(Path(f)) for f in sys.argv[1:]]
-        logging.info(f"Validating specific files: {target_files}")
-    else:
-        # Otherwise, find all target files.
-        project_root = str(Path(__file__).parent.parent.parent.parent)
-        target_files = file_system_service.find_target_files(project_root)
-        logging.info(f"Validating all target files: {target_files}")
+def main():
+    logger.info("Issue Creator CLI started.")
 
-    error_count = 0
+    parser = argparse.ArgumentParser(description="Create GitHub issues from files in a PR's _in_box directory.")
+    parser.add_argument("--token", default=os.getenv("GITHUB_TOKEN"), help="GitHub token.")
+    parser.add_argument("--repo", default=os.getenv("GITHUB_REPOSITORY"), help="Repository name in 'owner/repo' format.")
+    parser.add_argument("--pr-number", type=int, help="Pull request number.")
 
-    for file_path in target_files:
-        p = Path(file_path)
-        if not p.is_file():
-            logging.warning(f"⚠️  File not found or not a regular file, skipping: {file_path}")
-            continue
+    # First-pass parsing to see if --pr-number is provided
+    args, remaining_argv = parser.parse_known_args()
 
-        doc_type = validation_service.get_document_type(file_path)
-        if not doc_type:
-            continue
+    # If --pr-number is not given, try to get it from GITHUB_REF
+    if args.pr_number is None:
+        github_ref = os.getenv("GITHUB_REF")
+        if github_ref:
+            pr_match = re.match(r"refs/pull/(\d+)/merge", github_ref)
+            if pr_match:
+                args.pr_number = int(pr_match.group(1))
 
-        content = file_system_service.read_file_content(file_path)
+    # Final validation
+    if not args.token or not args.repo or args.pr_number is None:
+        parser.print_help()
+        sys.exit(1)
 
-        # 共通のセクション検証
-        missing_sections = validation_service.validate_sections(content, doc_type)
-        if missing_sections:
-            error_count += 1
-            logging.error(f"❌ {file_path}: Missing sections: {', '.join(missing_sections)}")
+    try:
+        github_service = GithubService(github_token=args.token, repo_full_name=args.repo)
+        issue_creation_service = IssueCreationService(github_service)
+        issue_creation_service.create_issues_from_inbox(pull_number=args.pr_number)
 
-        # ドキュメントタイプ別の追加検証
-        if doc_type == DocumentType.ADR:
-            if not validation_service.validate_adr_summary_format(content):
-                error_count += 1
-                logging.error(f"❌ {file_path}: Invalid ADR summary format.")
-        elif doc_type == DocumentType.DESIGN_DOC and not validation_service.validate_design_doc_overview(content):
-            error_count += 1
-            logging.error(f"❌ {file_path}: Invalid Design Doc overview format.")
+    except Exception as e:
+        logger.error(f"Error during Issue Creator execution: {e}", exc_info=True)
+        sys.exit(1)
 
-    if error_count > 0:
-        logging.error(f"\nFound {error_count} errors.")
-        return 1
-
-    logging.info("✅ All documents are valid.")
-    return 0
-
+    logger.info("Issue Creator CLI finished.")
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
+

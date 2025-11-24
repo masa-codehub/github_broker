@@ -77,7 +77,7 @@ def validate_filename_prefix(file_path: str, base_path: str) -> bool:
     if not str(relative_path).startswith("plans"):
         return True
 
-    return bool(re.match(r"(?i)^(epic-|story-|task-).+\\.md$", p.name))
+    return bool(re.match(r"(?i)^(epic-|story-|task-).+\.md$", p.name))
 
 def validate_folder_structure(file_path: str, base_path: str) -> bool:
     """
@@ -98,10 +98,16 @@ def validate_folder_structure(file_path: str, base_path: str) -> bool:
 
     filename = p.name
     dirname = p.parent.name
+    filename_without_ext = p.stem
 
-    # "story-"で始まるファイルは親ディレクトリが"stories"である必要がある
-    is_story_ok = (not filename.startswith("story-")) or (dirname == "stories")
-    # "task-"で始まるファイルは親ディレクトリが"tasks"である必要がある
-    is_task_ok = (not filename.startswith("task-")) or (dirname == "tasks")
+    is_story_ok = True
+    if filename.startswith("story-"):
+        # A story can be in a 'stories' dir, or in its own directory
+        is_story_ok = (dirname == "stories") or (dirname == filename_without_ext)
+
+    is_task_ok = True
+    if filename.startswith("task-"):
+        # A task can be in a 'tasks' dir, or inside a story's directory
+        is_task_ok = (dirname == "tasks") or dirname.startswith("story-")
 
     return is_story_ok and is_task_ok

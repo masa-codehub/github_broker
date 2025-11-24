@@ -16,7 +16,8 @@ dependencies = [
 
 # CLIエントリーポイントの定義
 [project.scripts]
-doc-validator = "issue_creator_kit.interface.cli:main"
+doc-validator = "issue_creator_kit.interface.validation_cli:main"
+issue-creator = "issue_creator_kit.interface.cli:main"
 
 
 # ビルドシステムの設定
