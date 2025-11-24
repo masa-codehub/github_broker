@@ -10,6 +10,23 @@ from issue_creator_kit.infrastructure.github_service import GithubService
 logger = logging.getLogger(__name__)
 
 class IssueCreationService:
+    """
+    IssueCreationService is responsible for managing the creation of GitHub issues
+    from files located in a pull request's `_in_box` directory. It processes each file,
+    attempts to create a corresponding GitHub issue using the provided GithubService,
+    and then moves the file to either the `_done_box` (on success) or `_failed_box` (on failure).
+
+    Responsibilities:
+        - Retrieve and process files from the `_in_box` directory in a PR.
+        - Parse file contents to extract issue details (title, body, labels, assignees).
+        - Create GitHub issues using the extracted information.
+        - Move processed files to appropriate directories based on the outcome.
+        - Log processing steps and errors for traceability.
+
+    Usage:
+        Instantiate with a GithubService instance, then call `create_issues_from_inbox(pull_number)`
+        to process all files in the `_in_box` for the given pull request.
+    """
     INBOX_PATH = "_in_box"
     DONE_BOX_PATH = "_done_box"
     FAILED_BOX_PATH = "_failed_box"
@@ -18,6 +35,27 @@ class IssueCreationService:
         self.github_service = github_service
 
     def create_issues_from_inbox(self, pull_number: int):
+        """
+        指定されたプルリクエスト番号（pull_number）に関連する `_in_box` ディレクトリ内のファイルを処理し、
+        各ファイルからイシューデータを抽出してGitHub Issueを作成します。
+        成功した場合はファイルを `_done_box` ディレクトリに移動し、失敗した場合は `_failed_box` ディレクトリに移動します。
+
+        Parameters
+        ----------
+        pull_number : int
+            対象となるGitHubプルリクエストの番号。
+
+        Behavior
+        --------
+        - `_in_box` ディレクトリ内のファイルを取得し、各ファイルの内容を解析します。
+        - イシューデータ（タイトル、本文、ラベル、担当者）を抽出し、GitHub Issueを作成します。
+        - Issue作成に成功したファイルは `_done_box` に、失敗したファイルは `_failed_box` に移動します。
+
+        Exceptions
+        ----------
+        - ファイルの取得や解析、Issue作成時に例外が発生した場合は、エラーログを出力し、該当ファイルを `_failed_box` に移動します。
+        - 例外は内部で処理され、外部には送出しません。
+        """
         logger.info(f"Processing _in_box for pull request #{pull_number}")
 
         pr_files = self.github_service.get_pr_files(pull_number)
@@ -59,7 +97,7 @@ class IssueCreationService:
                     try:
                         file_content = self.github_service.get_file_content(file_path, pr_file.sha)
                         if file_content is None:
-                             file_content = ""
+                            file_content = ""
                     except Exception as fetch_err:
                         logger.error(f"Could not re-fetch content for failed file {file_path}. Moving an empty file. Error: {fetch_err}")
                         file_content = ""
@@ -78,7 +116,47 @@ def _sanitize_string_list(data: object) -> list[str]:
 def parse_issue_content(content: str) -> IssueData | None:
     """
     ファイルコンテンツからイシューデータ（タイトル、本文、ラベル、担当者）を抽出します。
-    ...
+
+    パラメータ:
+        content (str): 解析対象のファイルコンテンツ。YAML Front Matter（---で囲まれた部分）の後にMarkdown本文が続く形式である必要があります。
+            例:
+                ---
+                title: "サンプルイシュー"
+                labels: ["bug", "urgent"]
+                assignees: ["user1"]
+                ---
+                これはイシューの本文です。
+
+    戻り値:
+        IssueData | None: 抽出されたイシューデータ（タイトル、本文、ラベル、担当者）を含むIssueDataインスタンス。
+            フロントマターが無効または必須項目（title）が不足している場合はNoneを返します。
+
+    期待されるフォーマット:
+        - ファイルの先頭に'---'で囲まれたYAML Front Matterがあり、その後にMarkdown形式の本文が続くこと。
+        - YAML Front Matterには少なくとも'title'キーが必要です。'labels'および'assignees'は省略可能です（省略時は空リスト）。
+
+    例:
+        >>> content = '''---
+        ... title: "Sample Issue"
+        ... labels: ["bug"]
+        ... assignees: ["alice"]
+        ... ---
+        ... Issue body here.
+        ... '''
+        >>> data = parse_issue_content(content)
+        >>> data.title
+        'Sample Issue'
+        >>> data.body
+        'Issue body here.'
+        >>> data.labels
+        ['bug']
+        >>> data.assignees
+        ['alice']
+
+        # フロントマターが無効な場合
+        >>> invalid_content = 'No front matter here'
+        >>> parse_issue_content(invalid_content) is None
+        True
     """
     parts = content.split('---', 2)
 
