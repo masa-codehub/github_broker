@@ -2,9 +2,10 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-# Import the class that will be used as a return value for the mocked parser
-from github_broker.infrastructure.document_validation.issue_parser import IssueData
 from github_broker.infrastructure.github_actions.issue_creator import IssueCreator
+
+# Import the class that will be used as a return value for the mocked parser
+from issue_creator_kit.domain.issue import IssueData
 
 
 class TestIssueCreator:

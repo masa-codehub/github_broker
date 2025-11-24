@@ -1,26 +1,13 @@
 import yaml
 
+from issue_creator_kit.domain.issue import IssueData
 
-class IssueData:
-    """
-    データクラス: GitHubイシューのメタデータとボディを保持します。
-
-    Attributes:
-        title: イシューのタイトル
-        body: イシューの本文（Markdown形式）
-        labels: ラベルのリスト
-        assignees: アサイン先ユーザー名のリスト
-    """
-    def __init__(self, title: str, body: str, labels: list[str] | None = None, assignees: list[str] | None = None):
-        self.title = title
-        self.body = body
-        self.labels = labels if labels is not None else []
-        self.assignees = assignees if assignees is not None else []
 
 def _sanitize_string_list(data: object) -> list[str]:
     if not isinstance(data, list):
         return []
     return [item for item in data if isinstance(item, str)]
+
 
 def parse_issue_content(content: str) -> IssueData | None:
     """

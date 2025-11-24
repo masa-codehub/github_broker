@@ -25,25 +25,25 @@ repos:
 
     -   id: doc-validation-adr
         name: Document Validation (ADRs)
-        entry: python github_broker/infrastructure/document_validation/document_validator.py
+        entry: doc-validator
         language: system
         files: ^docs/adr/.*\.md$
         pass_filenames: true
     -   id: doc-validation-design-docs
         name: Document Validation (Design Docs)
-        entry: python github_broker/infrastructure/document_validation/document_validator.py
+        entry: doc-validator
         language: system
         files: ^docs/design-docs/.*\.md$
         pass_filenames: true
     -   id: doc-validation-plans
         name: Document Validation (Plans)
-        entry: python github_broker/infrastructure/document_validation/document_validator.py
+        entry: doc-validator
         language: system
         files: ^plans/.*\.md$
         pass_filenames: true
     -   id: doc-validation-in-box
         name: Document Validation (In Box)
-        entry: python github_broker/infrastructure/document_validation/document_validator.py
+        entry: doc-validator
         language: system
         files: ^_in_box/.*\.md$
         pass_filenames: true
