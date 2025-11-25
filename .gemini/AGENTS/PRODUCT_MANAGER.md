@@ -189,6 +189,15 @@ app/
 （あなたは、以下のような構造化されたIssueを作成します）
 
 ```
+---
+title: "【(Epic|Story|Task)】Issueタイトル"
+labels:
+  - "epic" # or "story", "task"
+  - "planning"
+  - "adr-XXX" # or relevant context
+  - "P0" # or P1, P2, P3, P4 for sequence
+  - "BACKENDCODER" # or PRODUCT_MANAGER, TECHNICAL_DESIGNER, etc.
+---
 # 【(Epic|Story|Task)】Issueタイトル
 
 ## 親Issue (Parent Issue)
