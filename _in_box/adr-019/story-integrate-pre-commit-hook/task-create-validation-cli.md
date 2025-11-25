@@ -11,6 +11,9 @@ labels:
 ## 親Issue (Parent Issue)
 - `story-integrate-pre-commit-hook` (起票後にIssue番号を記載)
 
+## 子Issue (Sub-Issues)
+- (なし)
+
 ## 参照元の意思決定 (Source Decision Document)
 - `docs/adr/019-fix-issue-creator-workflow.md`
 
