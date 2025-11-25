@@ -43,7 +43,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          moved_files_output=$(issue-creator)
+          # Execute the command, redirecting stdout and stderr to separate log files.
+          # If the command fails, output the content of stderr.log and exit with an error.
+          issue-creator > stdout.log 2> stderr.log || (cat stderr.log && exit 1)
+          
+          # Process the standard output as before.
+          moved_files_output=$(cat stdout.log)
           if echo "$moved_files_output" | grep -q "moved_files=true"; then
             echo "moved_files=true" >> $GITHUB_OUTPUT
           fi
