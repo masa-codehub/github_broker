@@ -44,6 +44,36 @@ class GithubService:
         except github.UnknownObjectException:
             return None
 
+    def get_inbox_files_from_repo(self, path: str = "_in_box") -> list:
+        """
+        Recursively retrieves all file contents from a given directory in the repository.
+        """
+        try:
+            initial_contents = self.repo.get_contents(path, ref=self.default_branch)
+
+            # Ensure contents is a list for uniform processing
+            if not isinstance(initial_contents, list):
+                contents = [initial_contents]
+            else:
+                contents = initial_contents
+
+            file_list = []
+            while contents:
+                file_content = contents.pop(0)
+                if file_content.type == "dir":
+                    # The result of get_contents can also be a single item or a list
+                    dir_contents = self.repo.get_contents(file_content.path, ref=self.default_branch)
+                    if isinstance(dir_contents, list):
+                        contents.extend(dir_contents)
+                    else:
+                        contents.append(dir_contents)
+                else:
+                    file_list.append(file_content)
+            return file_list
+        except github.UnknownObjectException:
+            logger.warning(f"Directory not found: {path}")
+            return []
+
     def move_file(self, old_file_path: str, new_file_path: str, commit_message: str, file_content: str | None = None):
         """
         Moves a file by creating a new commit. If file_content is None, it implies deletion.
@@ -55,13 +85,13 @@ class GithubService:
 
             elements = []
 
-            # Add new file if content is provided
+            # Create a new blob for the new file path
             if file_content is not None:
                 new_blob = self.repo.create_git_blob(file_content, "utf-8")
                 elements.append(InputGitTreeElement(path=new_file_path, mode='100644', type='blob', sha=new_blob.sha))
 
-            # Mark old file for deletion if paths are different.
-            if old_file_path and old_file_path != new_file_path:
+            # Create an element to remove the old file by setting its SHA to None
+            if old_file_path:
                 elements.append(InputGitTreeElement(path=old_file_path, mode='100644', type='blob', sha=None))
 
             if not elements: # No changes to commit

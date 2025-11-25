@@ -45,14 +45,13 @@ class IssueCreationService:
         Returns:
             A boolean indicating if any files were moved.
         """
-        logger.info(f"Processing _in_box for pull request #{pull_number}")
+        logger.info(f"Scanning _in_box directory after merge to pull request #{pull_number}")
         moved_files = False
 
-        pr_files = self.github_service.get_pr_files(pull_number)
-        inbox_files = [f for f in pr_files if f.filename.startswith(self.INBOX_PATH + "/")]
+        inbox_files = self.github_service.get_inbox_files_from_repo()
 
         if not inbox_files:
-            logger.info("No files found in _in_box directory for this PR.")
+            logger.info("No files found in _in_box directory.")
             return False
 
         for pr_file in inbox_files:
