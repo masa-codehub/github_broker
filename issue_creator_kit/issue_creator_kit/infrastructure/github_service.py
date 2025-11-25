@@ -2,7 +2,7 @@
 import logging
 
 import github
-from github import Github, InputGitTreeElement
+from github import Github
 
 logger = logging.getLogger(__name__)
 
@@ -73,40 +73,4 @@ class GithubService:
         except github.UnknownObjectException:
             logger.warning(f"Directory not found: {path}")
             return []
-
-    def move_file(self, old_file_path: str, new_file_path: str, commit_message: str, file_content: str | None = None):
-        """
-        Moves a file by creating a new commit. If file_content is None, it implies deletion.
-        """
-        try:
-            # Get the latest commit SHA of the default branch
-            head_sha = self.repo.get_branch(self.default_branch).commit.sha
-            base_tree = self.repo.get_git_tree(head_sha)
-
-            elements = []
-
-            # Create a new blob for the new file path
-            if file_content is not None:
-                new_blob = self.repo.create_git_blob(file_content, "utf-8")
-                elements.append(InputGitTreeElement(path=new_file_path, mode='100644', type='blob', sha=new_blob.sha))
-
-            # Create an element to remove the old file by setting its SHA to None
-            if old_file_path:
-                elements.append(InputGitTreeElement(path=old_file_path, mode='100644', type='blob', sha=None))
-
-            if not elements: # No changes to commit
-                logger.info("No file changes to commit.")
-                return None
-
-            new_tree = self.repo.create_git_tree(elements, base_tree=base_tree)
-            parent = self.repo.get_git_commit(head_sha)
-            new_commit = self.repo.create_git_commit(commit_message, new_tree, [parent])
-
-            # Update the default branch reference
-            self.repo.get_git_ref(f"heads/{self.default_branch}").edit(sha=new_commit.sha)
-            logger.info(f"Successfully moved/updated file(s) with commit: {new_commit.sha}")
-            return new_commit
-        except Exception as e:
-            logger.error(f"Error moving/updating file: {e}")
-            raise
 
