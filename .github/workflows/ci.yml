@@ -42,6 +42,8 @@ jobs:
       # 毎回依存関係をインストールする
       - name: Install Python dependencies (including pre-commit hooks)
         run: pip install -e .[test,dev]
+      - name: Install issue_creator_kit
+        run: pip install -e ./issue_creator_kit
       - name: Run unified quality checks (lint, format, test, type-check)
         run: pre-commit run --all-files
       - name: Server startup test

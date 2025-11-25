@@ -1,6 +1,6 @@
 import pytest
 
-from github_broker.infrastructure.document_validation.in_box_file_filter import (
+from issue_creator_kit.domain.in_box_file_filter import (
     filter_in_box_files,
 )
 
@@ -37,4 +37,3 @@ def test_filter_in_box_files(file_list: list[str], expected: list[str]):
     across various scenarios.
     """
     assert filter_in_box_files(file_list) == expected
-

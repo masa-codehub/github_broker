@@ -1,3 +1,4 @@
+
 import logging
 
 import github
@@ -5,11 +6,18 @@ from github import Github, InputGitTreeElement
 
 logger = logging.getLogger(__name__)
 
-class GitHubClientForIssueCreator:
-    def __init__(self, github_token: str, repo: github.Repository.Repository, default_branch: str):
+class GithubService:
+    def __init__(self, github_token: str, repo_full_name: str):
         self.g = Github(github_token)
-        self.repo = repo
-        self.default_branch = default_branch
+        self.repo = self.g.get_repo(repo_full_name)
+        self.default_branch = self.repo.default_branch
+
+    def get_pr_files(self, pull_number: int):
+        """
+        Retrieves the list of files changed in a given Pull Request.
+        """
+        pr = self.repo.get_pull(pull_number)
+        return pr.get_files()
 
     def create_issue(self, title: str, body: str, labels: list | None = None, assignees: list | None = None):
         """
@@ -53,10 +61,8 @@ class GitHubClientForIssueCreator:
                 elements.append(InputGitTreeElement(path=new_file_path, mode='100644', type='blob', sha=new_blob.sha))
 
             # Mark old file for deletion if paths are different.
-            # If old_file_path is empty/None, this is skipped, which is intentional
-            # as it means we are creating a new file, not moving or deleting an old one.
             if old_file_path and old_file_path != new_file_path:
-                elements.append(InputGitTreeElement(path=old_file_path, mode='100644', type='blob', sha='')) # sha='' for deletion
+                elements.append(InputGitTreeElement(path=old_file_path, mode='100644', type='blob', sha=None))
 
             if not elements: # No changes to commit
                 logger.info("No file changes to commit.")
@@ -73,3 +79,4 @@ class GitHubClientForIssueCreator:
         except Exception as e:
             logger.error(f"Error moving/updating file: {e}")
             raise
+
