@@ -1,7 +1,6 @@
 import argparse
 import logging
 import os
-import re
 import sys
 
 from issue_creator_kit.application.issue_service import IssueCreationService
@@ -17,28 +16,23 @@ def main():
     parser = argparse.ArgumentParser(description="Create GitHub issues from files in a PR's _in_box directory.")
     parser.add_argument("--token", default=os.getenv("GITHUB_TOKEN"), help="GitHub token.")
     parser.add_argument("--repo", default=os.getenv("GITHUB_REPOSITORY"), help="Repository name in 'owner/repo' format.")
-    parser.add_argument("--pr-number", type=int, help="Pull request number.")
 
-    # First-pass parsing to see if --pr-number is provided
-    args, remaining_argv = parser.parse_known_args()
+    # Parse arguments from the command line
+    args = parser.parse_args()
 
-    # If --pr-number is not given, try to get it from GITHUB_REF
-    if args.pr_number is None:
-        github_ref = os.getenv("GITHUB_REF")
-        if github_ref:
-            pr_match = re.match(r"refs/pull/(\d+)/merge", github_ref)
-            if pr_match:
-                args.pr_number = int(pr_match.group(1))
+    # Get the pull request number directly from the environment variable
+    pr_number_str = os.getenv("PR_NUMBER")
+    pr_number = int(pr_number_str) if pr_number_str else None
 
     # Final validation
-    if not args.token or not args.repo or args.pr_number is None:
+    if not args.token or not args.repo or pr_number is None:
         parser.print_help()
         sys.exit(1)
 
     try:
         github_service = GithubService(github_token=args.token, repo_full_name=args.repo)
         issue_creation_service = IssueCreationService(github_service)
-        moved_files = issue_creation_service.create_issues_from_inbox(pull_number=args.pr_number)
+        moved_files = issue_creation_service.create_issues_from_inbox(pull_number=pr_number)
 
         if moved_files:
             print("moved_files=true")  # noqa: T201

@@ -42,6 +42,7 @@ jobs:
         id: process_issues
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           # Execute the command, redirecting stdout and stderr to separate log files.
           # If the command fails, output the content of stderr.log and exit with an error.
