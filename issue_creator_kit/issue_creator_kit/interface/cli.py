@@ -45,6 +45,7 @@ def main():
 
     except Exception as e:
         logger.error(f"Error during Issue Creator execution: {e}", exc_info=True)
+        print(f"An unexpected error occurred: {type(e).__name__} - {e}", file=sys.stderr)  # noqa: T201
         sys.exit(1)
 
     logger.info("Issue Creator CLI finished.")
