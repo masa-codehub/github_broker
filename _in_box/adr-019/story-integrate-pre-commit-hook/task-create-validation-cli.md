@@ -1,3 +1,10 @@
+---
+title: "【Task】検証CLIの作成"
+labels:
+  - "task"
+  - "planning"
+  - "adr-019"
+---
 # 【Task】検証CLIの作成
 
 ## 親Issue (Parent Issue)

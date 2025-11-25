@@ -1,3 +1,10 @@
+---
+title: "【Story】Issueデータ検証ロジックの実装"
+labels:
+  - "story"
+  - "planning"
+  - "adr-019"
+---
 # 【Story】Issueデータ検証ロジックの実装
 
 ## 親Issue (Parent Issue)
