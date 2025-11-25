@@ -84,14 +84,17 @@ class IssueCreationService:
             except Exception as e:
                 logger.error(f"Failed to process {file_path}: {e}")
 
+                # If content couldn't be fetched initially, try one more time.
                 if file_content is None:
                     try:
                         file_content = self.github_service.get_file_content(file_path, pr_file.sha)
-                        if file_content is None:
-                            file_content = ""
                     except Exception as fetch_err:
-                        logger.error(f"Could not re-fetch content for failed file {file_path}. Moving an empty file. Error: {fetch_err}")
-                        file_content = ""
+                        logger.warning(f"Could not re-fetch content for failed file {file_path}. Error: {fetch_err}")
+
+                # If still no content, default to an empty string for the move.
+                if file_content is None:
+                    file_content = ""
+                    logger.warning(f"Moving an empty file to {self.FAILED_BOX_PATH}.")
 
                 new_path = get_unique_path(self.FAILED_BOX_PATH, os.path.basename(file_path))
                 commit_message = f"fix: Move {file_path} to {new_path} due to error"

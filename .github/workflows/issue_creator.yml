@@ -55,6 +55,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore(issues): Sync processed issue files"
           title: "Chore: Sync processed issue files from _in_box"
-          body: "Automated PR to move processed files from `_in_box` to `_done_box` or `_fail_box` and update issue relationships."
+          body: "Automated PR to move processed files from `_in_box` to `_done_box` or `_failed_box` and update issue relationships."
           branch: "chore/sync-issue-files-advanced"
           delete-branch: true

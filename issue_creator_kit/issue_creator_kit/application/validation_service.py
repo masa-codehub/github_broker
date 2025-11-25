@@ -82,8 +82,8 @@ def validate_filename_prefix(file_path: str, base_path: str) -> bool:
 def validate_folder_structure(file_path: str, base_path: str) -> bool:
     """
     plans配下のMarkdownファイルのフォルダ構成を検証します。
-    - story-*.md という名前のファイルは、必ず stories/ サブディレクトリ内に配置されなければならない。
-    - task-*.md という名前のファイルは、必ず tasks/ サブディレクトリ内に配置されなければならない。
+    - `story-*.md` ファイルは、`stories/` ディレクトリ、またはファイル名と同じ名前のディレクトリ（例: `plans/story-foo/story-foo.md`）内に配置されなければならない。
+    - `task-*.md` ファイルは、`tasks/` ディレクトリ、または `story-*` で始まるディレクトリ（例: `plans/story-foo/task-bar.md`）内に配置されなければならない。
     plans配下以外のファイルは常にTrueを返します。
     """
     p = Path(file_path)
