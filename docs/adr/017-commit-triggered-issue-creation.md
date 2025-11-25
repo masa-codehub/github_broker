@@ -64,3 +64,6 @@ Issue自動起票の機能は、**GitHub Actions Workflow** として`.github/wo
 ## 実装状況 / Implementation Status
 
 - [x] 完了
+
+**追記 (2025-11-25):**
+本ADRで決定されたワークフローは、`ADR-018: Issue作成と検証ロジックの関心事を分離する` に基づき、`issue_creator_kit`パッケージとしてリファクタリングされました。Issue作成のロジックは現在、GitHub ActionsのWorkflow内ではなく、この独立したパッケージに内包されています。
