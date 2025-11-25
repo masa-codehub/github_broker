@@ -2,7 +2,6 @@
 title: "【Story】検証ロジックのpre-commitフックへの統合"
 labels:
   - "story"
-  - "planning"
   - "adr-019"
   - "P3"
   - "PRODUCT_MANAGER"

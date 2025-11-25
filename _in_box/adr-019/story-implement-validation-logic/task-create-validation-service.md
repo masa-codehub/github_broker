@@ -2,7 +2,6 @@
 title: "【Task】検証サービスの作成"
 labels:
   - "task"
-  - "planning"
   - "adr-019"
   - "P0"
   - "BACKENDCODER"

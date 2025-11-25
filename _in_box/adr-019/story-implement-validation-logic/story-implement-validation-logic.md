@@ -2,7 +2,6 @@
 title: "【Story】Issueデータ検証ロジックの実装"
 labels:
   - "story"
-  - "planning"
   - "adr-019"
   - "P1"
   - "PRODUCT_MANAGER"

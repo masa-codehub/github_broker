@@ -2,7 +2,6 @@
 title: "【Epic】ADR-019対応：コミット時Issueデータ検証の導入"
 labels:
   - "epic"
-  - "planning"
   - "adr-019"
   - "P2"
   - "PRODUCT_MANAGER"

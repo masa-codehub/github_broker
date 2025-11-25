@@ -2,7 +2,6 @@
 title: "【Task】単体テストの実装"
 labels:
   - "task"
-  - "planning"
   - "adr-019"
   - "P1"
   - "BACKENDCODER"

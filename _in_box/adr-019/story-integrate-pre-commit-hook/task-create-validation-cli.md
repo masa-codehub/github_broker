@@ -2,7 +2,6 @@
 title: "【Task】検証CLIの作成"
 labels:
   - "task"
-  - "planning"
   - "adr-019"
   - "P2"
   - "BACKENDCODER"

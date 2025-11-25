@@ -2,7 +2,6 @@
 title: "【Task】pre-commit設定の更新"
 labels:
   - "task"
-  - "planning"
   - "adr-019"
   - "P3"
   - "BACKENDCODER"
