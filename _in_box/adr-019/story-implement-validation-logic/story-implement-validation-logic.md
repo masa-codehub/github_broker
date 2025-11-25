@@ -4,6 +4,7 @@ labels:
   - "story"
   - "planning"
   - "adr-019"
+  - "P1"
 ---
 # 【Story】Issueデータ検証ロジックの実装
 

@@ -4,6 +4,7 @@ labels:
   - "task"
   - "planning"
   - "adr-019"
+  - "P0"
 ---
 # 【Task】検証サービスの作成
 

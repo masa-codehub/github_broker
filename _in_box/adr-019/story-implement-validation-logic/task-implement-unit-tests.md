@@ -4,6 +4,7 @@ labels:
   - "task"
   - "planning"
   - "adr-019"
+  - "P1"
 ---
 # 【Task】単体テストの実装
 

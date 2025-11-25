@@ -4,6 +4,7 @@ labels:
   - "story"
   - "planning"
   - "adr-019"
+  - "P3"
 ---
 # 【Story】検証ロジックのpre-commitフックへの統合
 

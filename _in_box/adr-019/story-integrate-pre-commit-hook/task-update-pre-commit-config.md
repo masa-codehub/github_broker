@@ -4,6 +4,7 @@ labels:
   - "task"
   - "planning"
   - "adr-019"
+  - "P3"
 ---
 # 【Task】pre-commit設定の更新
 
