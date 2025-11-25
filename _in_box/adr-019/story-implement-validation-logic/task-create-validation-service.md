@@ -5,6 +5,7 @@ labels:
   - "planning"
   - "adr-019"
   - "P0"
+  - "BACKENDCODER"
 ---
 # 【Task】検証サービスの作成
 

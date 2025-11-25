@@ -5,6 +5,7 @@ labels:
   - "planning"
   - "adr-019"
   - "P1"
+  - "BACKENDCODER"
 ---
 # 【Task】単体テストの実装
 

@@ -5,6 +5,7 @@ labels:
   - "planning"
   - "adr-019"
   - "P1"
+  - "PRODUCT_MANAGER"
 ---
 # 【Story】Issueデータ検証ロジックの実装
 

@@ -5,6 +5,7 @@ labels:
   - "planning"
   - "adr-019"
   - "P2"
+  - "BACKENDCODER"
 ---
 # 【Task】検証CLIの作成
 

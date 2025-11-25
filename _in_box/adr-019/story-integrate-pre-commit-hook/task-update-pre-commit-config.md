@@ -5,6 +5,7 @@ labels:
   - "planning"
   - "adr-019"
   - "P3"
+  - "BACKENDCODER"
 ---
 # 【Task】pre-commit設定の更新
 

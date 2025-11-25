@@ -5,6 +5,7 @@ labels:
   - "planning"
   - "adr-019"
   - "P3"
+  - "PRODUCT_MANAGER"
 ---
 # 【Story】検証ロジックのpre-commitフックへの統合
 
