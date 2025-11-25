@@ -16,14 +16,19 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
 
-      - name: Install dependencies
-        run: python -m pip install PyYAML
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install issue_creator_kit
+        run: pip install -e ./issue_creator_kit
 
       - name: Verify GitHub CLI
         run: gh --version
@@ -38,240 +43,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python -c '
-          import os
-          import subprocess
-          import yaml
-          import json
-          import sys
-          import re
-          from pathlib import Path
-          from collections import defaultdict
-
-          # --- Helper Function to run shell commands ---
-          def run_command(cmd, check=True, capture=True, text=True, env=None):
-              print(f"Executing: {" ".join(cmd)}", flush=True)
-              try:
-                  return subprocess.run(cmd, check=check, capture_output=capture, text=text, encoding="utf-8", env=env)
-              except subprocess.CalledProcessError as e:
-                  print(f"Command failed: {" ".join(cmd)}", flush=True)
-                  if e.stdout:
-                      print(f"Stdout: {e.stdout}", flush=True)
-                  if e.stderr:
-                      print(f"Stderr: {e.stderr}", flush=True)
-                  raise
-
-          # --- Main script ---
-          in_box = Path("_in_box")
-          done_box = Path("_done_box")
-          fail_box = Path("_fail_box")
-
-          done_box.mkdir(exist_ok=True)
-          fail_box.mkdir(exist_ok=True)
-
-          # --- Prepare auth token for gh commands ---
-          github_token = os.environ.get("GITHUB_TOKEN")
-          if not github_token:
-              print("ERROR: GITHUB_TOKEN secret is not set.", flush=True)
-              sys.exit(1)
-          
-          auth_env = os.environ.copy()
-          auth_env["GH_TOKEN"] = github_token
-          
-          # --- Global State ---
-          file_node_map = {}
-          parent_child_map = defaultdict(list)
-          existing_labels = set()
-          
-          # --- Phase 1: Collect files and build dependency graph ---
-          def build_dependency_graph():
-              print("\n--- Phase 1: Building dependency graph ---", flush=True)
-              all_files = list(in_box.rglob("*.md"))
-              for f in all_files:
-                  normalized_path = f.as_posix()
-                  content = f.read_text(encoding="utf-8")
-                  file_node_map[normalized_path] = {"path": f, "content": content, "issue_number": None}
-                  
-                  parent_match = re.search(r"## 親Issue \(Parent Issue\)\s*-\s*(.+?)(?:\n|$)", content)
-                  if parent_match:
-                      parent_path_str = parent_match.group(1).strip()
-                      normalized_parent_path = Path(parent_path_str).as_posix()
-                      parent_child_map[normalized_parent_path].append(normalized_path)
-                      file_node_map[normalized_path]["parent"] = normalized_parent_path
-              
-              print(f"Found {len(file_node_map)} files.", flush=True)
-              print(f"Dependency map: {json.dumps(dict(parent_child_map), indent=2)}", flush=True)
-
-          # --- Phase 2: Create Labels ---
-          def ensure_labels_exist():
-              print("\n--- Phase 2: Ensuring all labels exist ---", flush=True)
-              nonlocal existing_labels
-              try:
-                  result = run_command(["gh", "label", "list", "--limit", "1000", "--json", "name"], env=auth_env)
-                  existing_labels = {label["name"] for label in json.loads(result.stdout)}
-              except Exception as e:
-                  print(f"CRITICAL: Failed to fetch repository labels. Exiting. Error: {e}", flush=True)
-                  sys.exit(1)
-
-              all_required_labels = set()
-              for node in file_node_map.values():
-                  parts = node["content"].split("---", 2)
-                  if len(parts) >= 3:
-                      frontmatter = yaml.safe_load(parts[1]) or {}
-                      for label in frontmatter.get("labels", []):
-                          if label and label.strip():
-                              all_required_labels.add(label.strip())
-              
-              for label in all_required_labels:
-                  if label not in existing_labels:
-                      print(f"Label ''{label}'' not found. Creating it...", flush=True)
-                      try:
-                          run_command(["gh", "label", "create", label], env=auth_env)
-                          existing_labels.add(label)
-                      except Exception as e:
-                          print(f"Warning: Could not create label ''{label}'': {e}. This may cause issues later.", flush=True)
-
-          # --- Phase 3: Process files and create issues ---
-          def process_files_and_create_issues():
-              print("\n--- Phase 3: Creating issues in topological order ---", flush=True)
-              processed_files = set()
-              processing_stack = set()
-              nonlocal moved_files
-
-              def move_file_to_box(node, box_path):
-                  nonlocal moved_files
-                  try:
-                      destination_path = box_path / node["path"].relative_to(in_box)
-                      destination_path.parent.mkdir(parents=True, exist_ok=True)
-                      run_command(["git", "mv", str(node["path"]), str(destination_path)], capture=False)
-                      moved_files = True
-                  except Exception as mv_error:
-                      print(f"CRITICAL ERROR: Failed to move {node["path"]} to {box_path}: {mv_error}", flush=True)
-
-              def process_file_recursively(file_path_str):
-                  # Circular dependency check
-                  if file_path_str in processing_stack:
-                      print(f"ERROR: Circular dependency detected involving {file_path_str}. Aborting its branch.", flush=True)
-                      return False # Indicate failure
-
-                  if file_path_str in processed_files:
-                      return file_node_map.get(file_path_str, {}).get("issue_number") is not None
-
-                  node = file_node_map.get(file_path_str)
-                  if not node:
-                      print(f"ERROR: File '{file_path_str}' is referenced as a parent but was not found.", flush=True)
-                      return False
-
-                  processing_stack.add(file_path_str)
-                  
-                  # Process parent first
-                  parent_path = node.get("parent")
-                  if parent_path:
-                      if not process_file_recursively(parent_path):
-                          print(f"Failed to process parent ''{parent_path}'' for ''{file_path_str}''. Moving to fail_box.", flush=True)
-                          move_file_to_box(node, fail_box)
-                          processing_stack.remove(file_path_str)
-                          processed_files.add(file_path_str)
-                          return False
-
-                  print(f"Processing {node["path"]}...", flush=True)
-                  try:
-                      parts = node["content"].split("---", 2)
-                      if len(parts) < 3: raise ValueError("Frontmatter section is missing or incomplete")
-                      frontmatter = yaml.safe_load(parts[1]) or {}
-                      if not isinstance(frontmatter, dict): raise ValueError("Frontmatter is not a valid YAML dictionary")
-
-                      title = frontmatter.get("title")
-                      if not title: raise ValueError("''title'' is missing in frontmatter")
-
-                      body = parts[2].strip()
-                      
-                      cmd = ["gh", "issue", "create", "--title", title, "--body", body]
-                      if frontmatter.get("assignees"): cmd.extend(["--assignee", ",".join(frontmatter.get("assignees"))])
-                      if frontmatter.get("labels"):
-                          for label in frontmatter.get("labels", []):
-                              if label.strip(): cmd.extend(["--label", label.strip()])
-                      
-                      result = run_command(cmd, env=auth_env)
-                      issue_url = result.stdout.strip()
-                      
-                      issue_number_match = re.search(r"/issues/(\d+)$
-", issue_url)
-                      if not issue_number_match: raise ValueError(f"Could not extract issue number from URL: {issue_url}")
-                      issue_number = int(issue_number_match.group(1))
-
-                      node["issue_number"] = issue_number
-                      print(f"Successfully created issue #{issue_number} for {node["path"]}", flush=True)
-                      move_file_to_box(node, done_box)
-                      
-                      processing_stack.remove(file_path_str)
-                      processed_files.add(file_path_str)
-                      return True
-
-                  except Exception as e:
-                      print(f"ERROR processing {node["path"]}: {e}", flush=True)
-                      move_file_to_box(node, fail_box)
-                      processing_stack.remove(file_path_str)
-                      processed_files.add(file_path_str)
-                      return False
-
-              # Process all files if they haven''t been processed yet
-              for file_path_str in list(file_node_map.keys()):
-                  if file_path_str not in processed_files:
-                      process_file_recursively(file_path_str)
-              
-              return moved_files
-
-          # --- Phase 4: Link issues ---
-          def link_issues():
-              print("\n--- Phase 4: Linking parent and child issues ---", flush=True)
-              for parent_path_str, child_paths in parent_child_map.items():
-                  parent_node = file_node_map.get(parent_path_str)
-                  if not parent_node or not parent_node.get("issue_number"):
-                      print(f"Warning: Parent {parent_path_str} was not processed successfully. Skipping linking.", flush=True)
-                      continue
-                  
-                  parent_issue_number = parent_node["issue_number"]
-                  child_issue_body_lines = []
-                  for child_path_str in child_paths:
-                      child_node = file_node_map.get(child_path_str)
-                      if child_node and child_node.get("issue_number"):
-                          child_issue_body_lines.append(f"- [ ] #{child_node["issue_number"]}")
-                  
-                  if child_issue_body_lines:
-                      try:
-                          # First, get the current body
-                          current_body_result = run_command(["gh", "issue", "view", str(parent_issue_number), "--json", "body"], env=auth_env)
-                          current_body = json.loads(current_body_result.stdout)["body"]
-                          
-                          # Then, append the new section
-                          update_body = current_body + "\n\n## Sub-Issues\n" + "\n".join(child_issue_body_lines)
-                          
-                          run_command(["gh", "issue", "edit", str(parent_issue_number), "--body", update_body], env=auth_env)
-                          print(f"Successfully linked children to parent issue #{parent_issue_number}", flush=True)
-                      except Exception as e:
-                          print(f"ERROR: Failed to link children to parent issue #{parent_issue_number}: {e}", flush=True)
-
-          # --- Execution ---
-          build_dependency_graph()
-          if not file_node_map:
-              print("No issue files found in _in_box. Exiting.", flush=True)
-              moved_files = False
-          else:
-              ensure_labels_exist()
-              moved_files = process_files_and_create_issues()
-              link_issues()
-
-          # Requirement: Ensure _in_box directory is kept
-          gitkeep_path = in_box / ".gitkeep"
-          if not gitkeep_path.exists():
-              print("Creating .gitkeep in _in_box", flush=True)
-              gitkeep_path.touch()
-              run_command(["git", "add", str(gitkeep_path)], capture=False)
-
-          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-            f.write(f"moved_files={str(moved_files).lower()}\n")
-          '
+          moved_files_output=$(issue-creator)
+          if echo "$moved_files_output" | grep -q "moved_files=true"; then
+            echo "moved_files=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create Pull Request for file movements
         if: steps.process_issues.outputs.moved_files == 'true'

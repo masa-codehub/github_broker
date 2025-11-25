@@ -38,7 +38,10 @@ def main():
     try:
         github_service = GithubService(github_token=args.token, repo_full_name=args.repo)
         issue_creation_service = IssueCreationService(github_service)
-        issue_creation_service.create_issues_from_inbox(pull_number=args.pr_number)
+        moved_files = issue_creation_service.create_issues_from_inbox(pull_number=args.pr_number)
+
+        if moved_files:
+            print("moved_files=true")  # noqa: T201
 
     except Exception as e:
         logger.error(f"Error during Issue Creator execution: {e}", exc_info=True)

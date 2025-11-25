@@ -12,6 +12,8 @@ classifiers = [ # PyPIでの検索性を高めるための分類
     "Operating System :: OS Independent",
 ]
 dependencies = [
+    "PyYAML",
+    "PyGithub"
 ]
 
 # CLIエントリーポイントの定義
