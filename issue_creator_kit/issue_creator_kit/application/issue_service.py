@@ -34,36 +34,26 @@ class IssueCreationService:
     def __init__(self, github_service: GithubService):
         self.github_service = github_service
 
-    def create_issues_from_inbox(self, pull_number: int):
+    def create_issues_from_inbox(self, pull_number: int) -> bool:
         """
-        指定されたプルリクエスト番号（pull_number）に関連する `_in_box` ディレクトリ内のファイルを処理し、
-        各ファイルからイシューデータを抽出してGitHub Issueを作成します。
-        成功した場合はファイルを `_done_box` ディレクトリに移動し、失敗した場合は `_failed_box` ディレクトリに移動します。
+        Processes files in the `_in_box` directory for a given pull request, creates GitHub issues,
+        and moves the files to `_done_box` or `_failed_box`.
 
-        Parameters
-        ----------
-        pull_number : int
-            対象となるGitHubプルリクエストの番号。
+        Args:
+            pull_number: The number of the pull request to process.
 
-        Behavior
-        --------
-        - `_in_box` ディレクトリ内のファイルを取得し、各ファイルの内容を解析します。
-        - イシューデータ（タイトル、本文、ラベル、担当者）を抽出し、GitHub Issueを作成します。
-        - Issue作成に成功したファイルは `_done_box` に、失敗したファイルは `_failed_box` に移動します。
-
-        Exceptions
-        ----------
-        - ファイルの取得や解析、Issue作成時に例外が発生した場合は、エラーログを出力し、該当ファイルを `_failed_box` に移動します。
-        - 例外は内部で処理され、外部には送出しません。
+        Returns:
+            A boolean indicating if any files were moved.
         """
         logger.info(f"Processing _in_box for pull request #{pull_number}")
+        moved_files = False
 
         pr_files = self.github_service.get_pr_files(pull_number)
         inbox_files = [f for f in pr_files if f.filename.startswith(self.INBOX_PATH + "/")]
 
         if not inbox_files:
             logger.info("No files found in _in_box directory for this PR.")
-            return
+            return False
 
         for pr_file in inbox_files:
             file_path = pr_file.filename
@@ -89,6 +79,7 @@ class IssueCreationService:
                 new_path = get_unique_path(self.DONE_BOX_PATH, os.path.basename(file_path))
                 commit_message = f"feat: Move {file_path} to {new_path} after issue #{issue.number} creation"
                 self.github_service.move_file(file_path, new_path, commit_message, file_content)
+                moved_files = True
 
             except Exception as e:
                 logger.error(f"Failed to process {file_path}: {e}")
@@ -105,6 +96,9 @@ class IssueCreationService:
                 new_path = get_unique_path(self.FAILED_BOX_PATH, os.path.basename(file_path))
                 commit_message = f"fix: Move {file_path} to {new_path} due to error"
                 self.github_service.move_file(file_path, new_path, commit_message, file_content)
+                moved_files = True
+
+        return moved_files
 
 
 def _sanitize_string_list(data: object) -> list[str]:

@@ -24,6 +24,9 @@ jobs:
         with:
           python-version: '3.13'
 
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
       - name: Install issue_creator_kit
         run: pip install -e ./issue_creator_kit
 
@@ -40,8 +43,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          issue-creator
-          echo "moved_files=true" >> $GITHUB_OUTPUT
+          moved_files_output=$(issue-creator)
+          if echo "$moved_files_output" | grep -q "moved_files=true"; then
+            echo "moved_files=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create Pull Request for file movements
         if: steps.process_issues.outputs.moved_files == 'true'
