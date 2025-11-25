@@ -3,7 +3,7 @@ title: "【Story】Issueデータ検証ロジックの実装"
 labels:
   - "story"
   - "adr-019"
-  - "P1"
+  - "P2"
   - "PRODUCT_MANAGER"
 ---
 # 【Story】Issueデータ検証ロジックの実装
@@ -33,7 +33,7 @@ labels:
 
 ## 成果物 (Deliverables)
 - `issue_creator_kit/application/validation_service.py`
-- `tests/application/test_validation_service.py`
+- `issue_creator_kit/tests/application/test_validation_service.py`
 
 ## ブランチ戦略 (Branching Strategy)
 - **ベースブランチ (Base Branch):** `epic/implement-adr-019-validation`

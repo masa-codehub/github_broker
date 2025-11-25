@@ -3,7 +3,7 @@ title: "【Epic】ADR-019対応：コミット時Issueデータ検証の導入"
 labels:
   - "epic"
   - "adr-019"
-  - "P2"
+  - "P5"
   - "PRODUCT_MANAGER"
 ---
 # 【Epic】ADR-019対応：コミット時Issueデータ検証の導入

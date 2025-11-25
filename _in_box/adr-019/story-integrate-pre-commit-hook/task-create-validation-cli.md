@@ -6,7 +6,7 @@ labels:
   - "P2"
   - "BACKENDCODER"
 ---
-# 【Task】検証CLIの作成
+# 【Task】既存の検証CLIへの機能追加
 
 ## 親Issue (Parent Issue)
 - `story-integrate-pre-commit-hook` (起票後にIssue番号を記載)
@@ -18,17 +18,15 @@ labels:
 - `docs/adr/019-fix-issue-creator-workflow.md`
 
 ## As-is (現状)
-`ValidationService`を呼び出すためのCLIエントリーポイントが存在しない。
+`issue_creator_kit.interface.validation_cli:main`は存在するが、ADR-019で要求されるフロントマターの検証機能は実装されていない。
 
 ## To-be (あるべき姿)
-`issue_creator_kit/interface/validation_cli.py`に、コマンドラインからファイルパスを引数として受け取り、`ValidationService`の`validate_frontmatter`関数を呼び出すCLIが実装されている。検証が成功した場合は終了コード0を、失敗した場合はエラーメッセージを標準エラー出力に出力し、終了コード1を返す。
+`issue_creator_kit.interface.validation_cli.py`が修正され、既存の検証ロジックに加えて、`ValidationService`の`validate_frontmatter`関数を呼び出す処理が追加されている。検証が失敗した場合は、従来通り終了コード1で終了する。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
-1. `issue_creator_kit/interface/validation_cli.py`ファイルを作成する。
-2. `argparse`や`click`などを用いて、ファイルパスを引数として受け取るCLIを実装する。
-3. `ValidationService`をインスタンス化し、`validate_frontmatter`を呼び出す。
-4. `try...except`ブロックを使用して、`ValidationService`から送出される例外を捕捉し、標準エラーにメッセージを出力して終了コード1で終了する処理を実装する。
-5. 検証が成功した場合は、終了コード0で正常終了する。
+1. `issue_creator_kit/interface/validation_cli.py`を開く。
+2. `main`関数内に、`ValidationService`を呼び出してフロントマターを検証するロジックを追加する。
+3. `try...except`ブロックを適切に設定し、既存の検証と新しい検証のいずれかが失敗した場合でも、終了コード1で終了するようにする。
 
 ## 完了条件 (Acceptance Criteria)
 - 作成したCLIに対して、有効なファイルパスを渡すと終了コード0で終了すること。
