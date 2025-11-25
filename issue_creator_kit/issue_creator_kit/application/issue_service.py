@@ -55,7 +55,7 @@ class IssueCreationService:
             return False
 
         for pr_file in inbox_files:
-            file_path = pr_file.filename
+            file_path = pr_file.path
             file_content = None
             logger.info(f"Processing file: {file_path}")
 
