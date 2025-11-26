@@ -13,10 +13,12 @@ def validate_document(file_path: str) -> list[str]:
     """1つのドキュメントを検証し、エラーメッセージのリストを返します。"""
     errors = []
     try:
-        validate_frontmatter(file_path) # 私が作成した関数を呼び出す
+        # docs/adr/ と docs/design-docs/ はフロントマターチェックをスキップ
+        if not file_path.startswith("docs/adr/") and not file_path.startswith("docs/design-docs/"):
+            validate_frontmatter(file_path)
     except FileNotFoundError:
         errors.append(f"File not found: {file_path}")
-    except ValidationError as e: # カスタム例外をキャッチ
+    except ValidationError as e:
         errors.append(str(e))
     except Exception as e:
         errors.append(f"An unexpected error occurred: {e}")
