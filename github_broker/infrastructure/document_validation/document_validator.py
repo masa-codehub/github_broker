@@ -13,6 +13,7 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 class DocumentType(Enum):
     ADR = auto()
+
     DESIGN_DOC = auto()
     PLAN = auto()
     IN_BOX = auto()
