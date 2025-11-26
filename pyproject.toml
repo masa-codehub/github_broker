@@ -178,7 +178,7 @@ exclude = ["tests*"]  # "tests"ディレクトリはパッケージに含めな�
 python_version = "3.13"
 ignore_missing_imports = false
 packages = ["github_broker", "issue_creator_kit"]
-mypy_path = ".:issue_creator_kit"
+mypy_path = "."
 
 [[tool.mypy.overrides]]
 module = "punq"
