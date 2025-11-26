@@ -4,12 +4,16 @@ import sys
 from enum import Enum, auto
 from pathlib import Path
 from types import MappingProxyType
+from typing import Any
+
+import yaml
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 
 class DocumentType(Enum):
     ADR = auto()
+
     DESIGN_DOC = auto()
     PLAN = auto()
     IN_BOX = auto()
@@ -173,6 +177,47 @@ def validate_adr_summary_format(content: str) -> bool:
     return bool(re.search(pattern, content, re.MULTILINE | re.DOTALL))
 
 
+def validate_frontmatter(content: str) -> list[str]:
+    """
+    _in_boxファイルのフロントマターを検証します。
+    """
+    errors: list[str] = []
+    try:
+        # YAMLフロントマターを抽出
+        match = re.match(r"---\s*\n(.*?)\n---\s*\n", content, re.DOTALL)
+        if not match:
+            errors.append("No YAML front matter found.")
+            return errors
+
+        frontmatter_str = match.group(1)
+        data: dict[str, Any] = yaml.safe_load(frontmatter_str)
+
+        if not isinstance(data, dict):
+            errors.append("YAML front matter is not a valid dictionary.")
+            return errors
+
+        # 必須キーのチェック
+        required_keys = ["title", "labels", "assignees"]
+        for key in required_keys:
+            if key not in data:
+                errors.append(f"Missing required key in front matter: '{key}'")
+
+        # キーの型チェック
+        if "title" in data and not isinstance(data["title"], str):
+            errors.append("'title' must be a string.")
+        if "labels" in data and not isinstance(data["labels"], list):
+            errors.append("'labels' must be a list of strings.")
+        if "assignees" in data and not isinstance(data["assignees"], list):
+            errors.append("'assignees' must be a list of strings.")
+
+    except yaml.YAMLError as e:
+        errors.append(f"Error parsing YAML front matter: {e}")
+    except Exception as e:
+        errors.append(f"An unexpected error occurred during front matter validation: {e}")
+
+    return errors
+
+
 def get_document_type(file_path: str) -> DocumentType | None:
     """ファイルパスからドキュメントタイプを判定します。"""
     p = Path(file_path)
@@ -226,6 +271,11 @@ def main() -> int:
         elif doc_type == DocumentType.DESIGN_DOC and not validate_design_doc_overview(content):
             error_count += 1
             logging.error(f"❌ {file_path}: Invalid Design Doc overview format.")
+        elif doc_type == DocumentType.IN_BOX:
+            frontmatter_errors = validate_frontmatter(content)
+            if frontmatter_errors:
+                error_count += 1
+                logging.error(f"❌ {file_path}: Invalid front matter: {', '.join(frontmatter_errors)}")
 
     if error_count > 0:
         logging.error(f"\nFound {error_count} errors.")
