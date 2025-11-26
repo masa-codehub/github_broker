@@ -10,11 +10,22 @@ from issue_creator_kit.application.validation_service import ValidationService
 @pytest.mark.parametrize(
     "file_content, expected_exception, error_message",
     [
+        # Existing tests
         ("no frontmatter here", FrontmatterError, "Frontmatter is missing or invalid."),
         ("---\n---\nno title", FrontmatterError, "Required 'title' field is missing in frontmatter."),
         ("---\ntitle: ''\n---\nempty title", FrontmatterError, "Required 'title' field cannot be empty."),
         ("---\ntitle: 'Valid Title'\nlabels: 'not-a-list'\n---\n", FrontmatterError, "'labels' field must be a list of strings."),
         ("---\ntitle: 'Valid Title'\nrelated_issues: ['not-a-number']\n---\n", FrontmatterError, "'related_issues' field must be a list of integers."),
+
+        # New tests from review
+        ("---\ntitle: '   '\n---\nwhitespace title", FrontmatterError, "Required 'title' field cannot be empty."),
+        ("\n---\ntitle: 'Valid'\n---\n", FrontmatterError, "Frontmatter is missing or invalid."),
+        ("---\ntitle: [invalid yaml\n---\n", FrontmatterError, "Frontmatter is missing or invalid."),
+        ("---\ntitle: 'Valid'\nlabels: ['bug', 123]\n---\n", FrontmatterError, "'labels' field must be a list of strings."),
+        ("---\ntitle: 'Valid'\nrelated_issues: [123, 1.23]\n---\n", FrontmatterError, "'related_issues' field must be a list of integers."),
+        ("---\ntitle: 123\n---\n", FrontmatterError, "Required 'title' field must be a string."),
+
+        # Valid case
         ("---\ntitle: 'Valid Title'\nlabels: ['bug', 'P1']\nrelated_issues: [123, 456]\n---\nValid content", None, None),
     ],
 )

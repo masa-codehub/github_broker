@@ -23,25 +23,28 @@ class ValidationService:
         """
         p = Path(file_path)
         try:
-            # ファイルの内容を読み込み、フロントマター部分を抽出
             content = p.read_text()
             if not content.startswith('---'):
                 raise FrontmatterError("Frontmatter is missing or invalid.")
 
-            parts = content.split('---')
-            if len(parts) < 3:
+            end_idx = content.find('\n---', 3)
+            if end_idx == -1:
                 raise FrontmatterError("Frontmatter is missing or invalid.")
 
-            frontmatter_str = parts[1]
+            frontmatter_str = content[3:end_idx]
             frontmatter = yaml.safe_load(frontmatter_str) or {}
 
             if not isinstance(frontmatter, dict):
-                 raise FrontmatterError("Frontmatter is not a valid dictionary.")
+                raise FrontmatterError("Frontmatter is not a valid dictionary.")
 
             # 必須フィールド 'title' の検証
             if 'title' not in frontmatter:
                 raise FrontmatterError("Required 'title' field is missing in frontmatter.")
-            if not frontmatter['title']:
+
+            title = frontmatter['title']
+            if not isinstance(title, str):
+                raise FrontmatterError("Required 'title' field must be a string.")
+            if not title.strip():
                 raise FrontmatterError("Required 'title' field cannot be empty.")
 
             # 推奨フィールド 'labels' の型検証
