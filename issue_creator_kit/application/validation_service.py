@@ -1,92 +1,64 @@
-import os
-from typing import Any
+from pathlib import Path
 
 import yaml
 
-from issue_creator_kit.application.exceptions import ValidationError
+from .exceptions import FrontmatterError
 
 
-def _validate_optional_list_field(
-    frontmatter: dict[str, Any],
-    field_name: str,
-    element_type: type,
-    error_message_type: str,
-    error_message_element: str,
-) -> None:
-    """オプションのリストフィールドを検証するヘルパー関数"""
-    field_value = frontmatter.get(field_name)
-    if field_value is not None:
-        if not isinstance(field_value, list):
-            raise ValidationError(error_message_type)
-        for item in field_value:
-            if not isinstance(item, element_type):
-                raise ValidationError(error_message_element)
-
-def validate_frontmatter(file_path: str) -> None:
+class ValidationService:
     """
-    Markdownファイルのフロントマターを検証する。
-
-    Args:
-        file_path (str): 検証するMarkdownファイルのパス。
-
-    Returns:
-        None: 検証が成功した場合、何も返しません。
-
-    Raises:
-        FileNotFoundError: ファイルが存在しない場合。
-        ValidationError: 検証ルールに違反した場合。
+    ドキュメントの検証に関するビジネスロジックを提供するサービスクラス。
     """
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"ファイルが見つかりません: {file_path}")
 
-    with open(file_path, encoding='utf-8') as f:
-        content = f.read()
+    def validate_frontmatter(self, file_path: str):
+        """
+        指定されたMarkdownファイルのフロントマターを検証する。
 
-    # フロントマターはファイルの先頭から始まる必要がある
-    if not content.startswith('---'):
-        raise ValidationError("フロントマターはファイルの先頭から '---' で始まる必要があります。")
+        Args:
+            file_path: 検証するファイルのパス。
 
-    frontmatter_end = content.find('---', 3)
-    if frontmatter_end == -1:
-        raise ValidationError("フロントマターの終了区切りが見つかりませんでした。")
+        Raises:
+            FrontmatterError: フロントマターが存在しない、形式が不正、
+                              または必須フィールドが不足している場合に送出される。
+        """
+        p = Path(file_path)
+        try:
+            # ファイルの内容を読み込み、フロントマター部分を抽出
+            content = p.read_text()
+            if not content.startswith('---'):
+                raise FrontmatterError("Frontmatter is missing or invalid.")
 
-    frontmatter_str = content[3:frontmatter_end].strip()
+            parts = content.split('---')
+            if len(parts) < 3:
+                raise FrontmatterError("Frontmatter is missing or invalid.")
 
-    try:
-        frontmatter = yaml.safe_load(frontmatter_str)
-    except yaml.YAMLError as e:
-        raise ValidationError(f"フロントマターの解析に失敗しました: {e}") from e
+            frontmatter_str = parts[1]
+            frontmatter = yaml.safe_load(frontmatter_str) or {}
 
-    if not isinstance(frontmatter, dict):
-        # 空のフロントマター (`--- ---`) の場合、frontmatterはNoneになる
-        if frontmatter is None:
-            frontmatter = {}
-        else:
-            raise ValidationError("フロントマターはYAML形式のキーバリューペアである必要があります。")
+            if not isinstance(frontmatter, dict):
+                 raise FrontmatterError("Frontmatter is not a valid dictionary.")
 
-    # titleフィールドの検証
-    title = frontmatter.get('title')
-    if title is None:
-        raise ValidationError("titleフィールドが見つかりません。")
-    if not isinstance(title, str):
-        raise ValidationError("titleフィールドは文字列である必要があります。")
-    if not title.strip():
-        raise ValidationError("titleフィールドは空にできません。")
+            # 必須フィールド 'title' の検証
+            if 'title' not in frontmatter:
+                raise FrontmatterError("Required 'title' field is missing in frontmatter.")
+            if not frontmatter['title']:
+                raise FrontmatterError("Required 'title' field cannot be empty.")
 
-    # labelsフィールドの検証（オプション）
-    _validate_optional_list_field(
-        frontmatter,
-        'labels',
-        str,
-        "labelsフィールドは文字列のリストである必要があります。",
-        "labelsフィールドの全ての要素は文字列である必要があります。",
-    )
+            # 推奨フィールド 'labels' の型検証
+            if 'labels' in frontmatter and not (
+                isinstance(frontmatter['labels'], list) and
+                all(isinstance(label, str) for label in frontmatter['labels'])
+            ):
+                raise FrontmatterError("'labels' field must be a list of strings.")
 
-    # related_issuesフィールドの検証（オプション）
-    _validate_optional_list_field(
-        frontmatter,
-        'related_issues',
-        int,
-        "related_issuesフィールドは数値のリストである必要があります。",
-        "related_issuesフィールドの全ての要素は整数である必要があります。",
-    )
+            # 推奨フィールド 'related_issues' の型検証
+            if 'related_issues' in frontmatter and not (
+                isinstance(frontmatter['related_issues'], list) and
+                all(isinstance(issue, int) for issue in frontmatter['related_issues'])
+            ):
+                raise FrontmatterError("'related_issues' field must be a list of integers.")
+
+        except yaml.YAMLError as e:
+            raise FrontmatterError("Frontmatter is missing or invalid.") from e
+        except FileNotFoundError:
+            raise

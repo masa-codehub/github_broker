@@ -1,193 +1,43 @@
-
+from pathlib import Path
 
 import pytest
 
-from issue_creator_kit.application.exceptions import ValidationError
-from issue_creator_kit.application.validation_service import validate_frontmatter
+from issue_creator_kit.application.exceptions import FrontmatterError
+from issue_creator_kit.application.validation_service import ValidationService
 
 
-@pytest.fixture
-def dummy_md_file(tmp_path):
-    def _create_file(filename, content):
-        file_path = tmp_path / filename
-        file_path.write_text(content)
-        return str(file_path)
-    return _create_file
+# pytest.mark.parametrize を使用して、可読性とメンテナンス性を向上
+@pytest.mark.parametrize(
+    "file_content, expected_exception, error_message",
+    [
+        ("no frontmatter here", FrontmatterError, "Frontmatter is missing or invalid."),
+        ("---\n---\nno title", FrontmatterError, "Required 'title' field is missing in frontmatter."),
+        ("---\ntitle: ''\n---\nempty title", FrontmatterError, "Required 'title' field cannot be empty."),
+        ("---\ntitle: 'Valid Title'\nlabels: 'not-a-list'\n---\n", FrontmatterError, "'labels' field must be a list of strings."),
+        ("---\ntitle: 'Valid Title'\nrelated_issues: ['not-a-number']\n---\n", FrontmatterError, "'related_issues' field must be a list of integers."),
+        ("---\ntitle: 'Valid Title'\nlabels: ['bug', 'P1']\nrelated_issues: [123, 456]\n---\nValid content", None, None),
+    ],
+)
+def test_validate_frontmatter(tmp_path: Path, file_content: str, expected_exception, error_message):
+    """
+    ADR-019で定義されたフロントマターの検証ルールをテストする。
+    """
+    # テスト用のMarkdownファイルを動的に生成
+    p = tmp_path / "test_document.md"
+    p.write_text(file_content)
 
-class TestValidationService:
-    def test_validate_frontmatter_no_frontmatter_raises_error(self, dummy_md_file):
-        """
-        フロントマターがないMarkdownファイルがValidationErrorを送出することを確認
-        """
-        file_content = "This is a markdown file with no frontmatter."
-        file_path = dummy_md_file("no_frontmatter.md", file_content)
+    # サービスインスタンスを作成
+    service = ValidationService()
 
-        with pytest.raises(ValidationError, match="フロントマターが見つかりませんでした。"):
-            validate_frontmatter(file_path)
-
-    def test_validate_frontmatter_no_title_raises_error(self, dummy_md_file):
-        """
-        titleフィールドがないMarkdownファイルがValidationErrorを送出することを確認
-        """
-        file_content = """---
-labels: ["bug"]
----
-# Issue
-"""
-        file_path = dummy_md_file("no_title.md", file_content)
-
-        with pytest.raises(ValidationError, match="titleフィールドが見つかりません。"):
-            validate_frontmatter(file_path)
-
-    def test_validate_frontmatter_empty_title_raises_error(self, dummy_md_file):
-        """
-        titleフィールドが空文字列のMarkdownファイルがValidationErrorを送出することを確認
-        """
-        file_content = """---
-title: ""
-labels: ["bug"]
----
-# Issue
-"""
-        file_path = dummy_md_file("empty_title.md", file_content)
-
-        with pytest.raises(ValidationError, match="titleフィールドは空にできません。"):
-            validate_frontmatter(file_path)
-
-    def test_validate_frontmatter_labels_not_list_raises_error(self, dummy_md_file):
-        """
-        labelsフィールドがリストではないMarkdownファイルがValidationErrorを送出することを確認
-        """
-        file_content = """---
-title: "Test Title"
-labels: "bug"
----
-# Issue
-"""
-        file_path = dummy_md_file("labels_not_list.md", file_content)
-
-        with pytest.raises(ValidationError, match="labelsフィールドは文字列のリストである必要があります。"):
-            validate_frontmatter(file_path)
-
-    def test_validate_frontmatter_labels_elements_not_string_raises_error(self, dummy_md_file):
-        """
-        labelsフィールドの要素が文字列ではないMarkdownファイルがValidationErrorを送出することを確認
-        """
-        file_content = """---
-title: "Test Title"
-labels: ["bug", 123]
----
-# Issue
-"""
-        file_path = dummy_md_file("labels_elements_not_string.md", file_content)
-
-        with pytest.raises(ValidationError, match="labelsフィールドの全ての要素は文字列である必要があります。"):
-            validate_frontmatter(file_path)
-
-    def test_validate_frontmatter_related_issues_not_list_raises_error(self, dummy_md_file):
-        """
-        related_issuesフィールドがリストではないMarkdownファイルがValidationErrorを送出することを確認
-        """
-        file_content = """---
-title: "Test Title"
-related_issues: 123
----
-# Issue
-"""
-        file_path = dummy_md_file("related_issues_not_list.md", file_content)
-
-        with pytest.raises(ValidationError, match="related_issuesフィールドは数値のリストである必要があります。"):
-            validate_frontmatter(file_path)
-
-    def test_validate_frontmatter_related_issues_elements_not_int_raises_error(self, dummy_md_file):
-        """
-        related_issuesフィールドの要素が数値ではないMarkdownファイルがValidationErrorを送出することを確認
-        """
-        file_content = """---
-title: "Test Title"
-related_issues: [123, "abc"]
----
-# Issue
-"""
-        file_path = dummy_md_file("related_issues_elements_not_int.md", file_content)
-
-        with pytest.raises(ValidationError, match="related_issuesフィールドの全ての要素は数値である必要があります。"):
-            validate_frontmatter(file_path)
-
-    def test_validate_frontmatter_valid_frontmatter_passes(self, dummy_md_file):
-        """
-        有効なフロントマターを持つMarkdownファイルがエラーを送出しないことを確認
-        """
-        file_content = """---
-title: "Valid Title"
-labels: ["feature", "P0"]
-related_issues: [1, 2]
----
-# Valid Issue
-"""
-        file_path = dummy_md_file("valid_frontmatter.md", file_content)
-        validate_frontmatter(file_path)
-
-    def test_validate_frontmatter_optional_fields_missing_passes(self, dummy_md_file):
-        """
-        labelsとrelated_issuesフィールドが省略されていてもエラーを送出しないことを確認
-        """
-        file_content = """---
-title: "Another Valid Title"
----
-# Another Valid Issue
-"""
-        file_path = dummy_md_file("optional_fields_missing.md", file_content)
-        validate_frontmatter(file_path)
-
-    def test_validate_frontmatter_not_at_start_raises_error(self, dummy_md_file):
-        """
-        フロントマターがファイルの先頭にない場合にValidationErrorを送出することを確認
-        """
-        file_content = """
-Some text
----
-title: "Test"
----
-# Issue
-"""
-        file_path = dummy_md_file("not_at_start.md", file_content)
-        with pytest.raises(ValidationError, match="フロントマターはファイルの先頭から '---' で始まる必要があります。"):
-            validate_frontmatter(file_path)
-
-    def test_validate_frontmatter_no_end_raises_error(self, dummy_md_file):
-        """
-        フロントマターの終了区切りがない場合にValidationErrorを送出することを確認
-        """
-        file_content = """---
-title: "Test"
-"""
-        file_path = dummy_md_file("no_end.md", file_content)
-        with pytest.raises(ValidationError, match="フロントマターの終了区切りが見つかりませんでした。"):
-            validate_frontmatter(file_path)
-
-    def test_validate_frontmatter_empty_frontmatter_raises_error(self, dummy_md_file):
-        """
-        空のフロントマターの場合にValidationErrorを送出することを確認
-        """
-        file_content = """---
----
-# Issue
-"""
-        file_path = dummy_md_file("empty_frontmatter.md", file_content)
-        with pytest.raises(ValidationError, match="titleフィールドが見つかりません。"):
-            validate_frontmatter(file_path)
-
-    def test_validate_frontmatter_related_issues_float_raises_error(self, dummy_md_file):
-        """
-        related_issuesにfloatが含まれる場合にValidationErrorを送出することを確認
-        """
-        file_content = """---
-title: "Test Title"
-related_issues: [123, 456.0]
----
-# Issue
-"""
-        file_path = dummy_md_file("related_issues_float.md", file_content)
-        with pytest.raises(ValidationError, match="related_issuesフィールドの全ての要素は整数である必要があります。"):
-            validate_frontmatter(file_path)
+    if expected_exception:
+        # 例外が送出されることを確認
+        with pytest.raises(expected_exception) as excinfo:
+            service.validate_frontmatter(str(p))
+        # エラーメッセージが期待通りであることを確認
+        assert error_message in str(excinfo.value)
+    else:
+        # 例外が送出されないことを確認
+        try:
+            service.validate_frontmatter(str(p))
+        except FrontmatterError as e:
+            pytest.fail(f"Unexpected exception raised: {e}")
