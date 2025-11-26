@@ -3,8 +3,8 @@ import argparse
 import logging
 import sys
 
-from issue_creator_kit.application.exceptions import ValidationError
-from issue_creator_kit.application.validation_service import validate_frontmatter
+from issue_creator_kit.application.exceptions import FrontmatterError
+from issue_creator_kit.application.validation_service import ValidationService
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
@@ -12,13 +12,14 @@ logger = logging.getLogger(__name__)
 def validate_document(file_path: str) -> list[str]:
     """1つのドキュメントを検証し、エラーメッセージのリストを返します。"""
     errors = []
+    service = ValidationService()
     try:
         # docs/adr/ と docs/design-docs/ はフロントマターチェックをスキップ
         if not file_path.startswith("docs/adr/") and not file_path.startswith("docs/design-docs/"):
-            validate_frontmatter(file_path)
+            service.validate_frontmatter(file_path)
     except FileNotFoundError:
         errors.append(f"File not found: {file_path}")
-    except ValidationError as e:
+    except FrontmatterError as e:
         errors.append(str(e))
     except Exception as e:
         errors.append(f"An unexpected error occurred: {e}")

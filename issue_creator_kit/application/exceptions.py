@@ -1,2 +1,3 @@
-class ValidationError(Exception):
-    """カスタム検証エラー"""
+class FrontmatterError(Exception):
+    """フロントマターの検証中にエラーが発生した場合に送出されるカスタム例外。"""
+    pass
