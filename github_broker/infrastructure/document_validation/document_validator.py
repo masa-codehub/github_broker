@@ -13,7 +13,6 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 class DocumentType(Enum):
     ADR = auto()
-
     DESIGN_DOC = auto()
     PLAN = auto()
     IN_BOX = auto()
@@ -179,12 +178,22 @@ def validate_adr_summary_format(content: str) -> bool:
 
 def validate_frontmatter(content: str) -> list[str]:
     """
-    _in_boxファイルのフロントマターを検証します。
+    _in_boxファイルのYAMLフロントマターを検証します。
+
+    必須キー:
+        - title: string型である必要があります
+
+    任意キー:
+        - labels: 文字列のリストである必要があります
+        - assignees: 文字列のリストである必要があります
+
+    フロントマターに必須キーが存在し、各キーの型が正しいかを検証します。
+    検証に失敗した場合はエラーメッセージのリストを返します。
     """
     errors: list[str] = []
     try:
         # YAMLフロントマターを抽出
-        match = re.match(r"---\s*\n(.*?)\n---\s*\n", content, re.DOTALL)
+        match = re.match(r"^---\s*\n(.*?)\n---\s*", content, re.DOTALL)
         if not match:
             errors.append("No YAML front matter found.")
             return errors
@@ -197,7 +206,7 @@ def validate_frontmatter(content: str) -> list[str]:
             return errors
 
         # 必須キーのチェック
-        required_keys = ["title", "labels", "assignees"]
+        required_keys = ["title"]
         for key in required_keys:
             if key not in data:
                 errors.append(f"Missing required key in front matter: '{key}'")
@@ -205,9 +214,12 @@ def validate_frontmatter(content: str) -> list[str]:
         # キーの型チェック
         if "title" in data and not isinstance(data["title"], str):
             errors.append("'title' must be a string.")
-        if "labels" in data and not isinstance(data["labels"], list):
+        elif "title" in data and not data["title"].strip():
+            errors.append("'title' must be a non-empty string.")
+
+        if "labels" in data and (not isinstance(data["labels"], list) or not all(isinstance(item, str) for item in data["labels"])):
             errors.append("'labels' must be a list of strings.")
-        if "assignees" in data and not isinstance(data["assignees"], list):
+        if "assignees" in data and (not isinstance(data["assignees"], list) or not all(isinstance(item, str) for item in data["assignees"])):
             errors.append("'assignees' must be a list of strings.")
 
     except yaml.YAMLError as e:
