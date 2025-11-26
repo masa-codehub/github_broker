@@ -1,11 +1,11 @@
 
+
 import pytest
 
 from issue_creator_kit.application.exceptions import ValidationError
 from issue_creator_kit.application.validation_service import validate_frontmatter
 
 
-# テスト用のダミーファイルを作成するフィクスチャ
 @pytest.fixture
 def dummy_md_file(tmp_path):
     def _create_file(filename, content):
@@ -126,11 +126,7 @@ related_issues: [1, 2]
 # Valid Issue
 """
         file_path = dummy_md_file("valid_frontmatter.md", file_content)
-
-        try:
-            validate_frontmatter(file_path)
-        except ValidationError as e:
-            pytest.fail(f"ValidationError was raised unexpectedly: {e}")
+        validate_frontmatter(file_path)
 
     def test_validate_frontmatter_optional_fields_missing_passes(self, dummy_md_file):
         """
@@ -142,8 +138,56 @@ title: "Another Valid Title"
 # Another Valid Issue
 """
         file_path = dummy_md_file("optional_fields_missing.md", file_content)
+        validate_frontmatter(file_path)
 
-        try:
+    def test_validate_frontmatter_not_at_start_raises_error(self, dummy_md_file):
+        """
+        フロントマターがファイルの先頭にない場合にValidationErrorを送出することを確認
+        """
+        file_content = """
+Some text
+---
+title: "Test"
+---
+# Issue
+"""
+        file_path = dummy_md_file("not_at_start.md", file_content)
+        with pytest.raises(ValidationError, match="フロントマターはファイルの先頭から '---' で始まる必要があります。"):
             validate_frontmatter(file_path)
-        except ValidationError as e:
-            pytest.fail(f"ValidationError was raised unexpectedly: {e}")
+
+    def test_validate_frontmatter_no_end_raises_error(self, dummy_md_file):
+        """
+        フロントマターの終了区切りがない場合にValidationErrorを送出することを確認
+        """
+        file_content = """---
+title: "Test"
+"""
+        file_path = dummy_md_file("no_end.md", file_content)
+        with pytest.raises(ValidationError, match="フロントマターの終了区切りが見つかりませんでした。"):
+            validate_frontmatter(file_path)
+
+    def test_validate_frontmatter_empty_frontmatter_raises_error(self, dummy_md_file):
+        """
+        空のフロントマターの場合にValidationErrorを送出することを確認
+        """
+        file_content = """---
+---
+# Issue
+"""
+        file_path = dummy_md_file("empty_frontmatter.md", file_content)
+        with pytest.raises(ValidationError, match="titleフィールドが見つかりません。"):
+            validate_frontmatter(file_path)
+
+    def test_validate_frontmatter_related_issues_float_raises_error(self, dummy_md_file):
+        """
+        related_issuesにfloatが含まれる場合にValidationErrorを送出することを確認
+        """
+        file_content = """---
+title: "Test Title"
+related_issues: [123, 456.0]
+---
+# Issue
+"""
+        file_path = dummy_md_file("related_issues_float.md", file_content)
+        with pytest.raises(ValidationError, match="related_issuesフィールドの全ての要素は整数である必要があります。"):
+            validate_frontmatter(file_path)
