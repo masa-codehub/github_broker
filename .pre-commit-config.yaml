@@ -25,22 +25,22 @@ repos:
 
     -   id: doc-validation-adr
         name: Document Validation (ADRs)
-        entry: doc-validator
+        entry: python -c "import sys; sys.path.insert(0, '.'); from issue_creator_kit.interface.validation_cli import main; main()"
         language: system
         files: ^docs/adr/.*\.md$
-        pass_filenames: true
+        pass_filenames: false
     -   id: doc-validation-design-docs
         name: Document Validation (Design Docs)
-        entry: doc-validator
+        entry: python -c "import sys; sys.path.insert(0, '.'); from issue_creator_kit.interface.validation_cli import main; main()"
         language: system
         files: ^docs/design-docs/.*\.md$
-        pass_filenames: true
+        pass_filenames: false
     -   id: doc-validation-plans
         name: Document Validation (Plans)
-        entry: doc-validator
+        entry: python -c "import sys; sys.path.insert(0, '.'); from issue_creator_kit.interface.validation_cli import main; main()"
         language: system
         files: ^plans/.*\.md$
-        pass_filenames: true
+        pass_filenames: false
     -   id: doc-validation-in-box
         name: Document Validation (In Box)
         entry: doc-validator
