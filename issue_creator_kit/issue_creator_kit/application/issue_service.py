@@ -34,16 +34,27 @@ class IssueCreationService:
     def __init__(self, github_service: GithubService):
         self.github_service = github_service
 
+    def _move_file_locally(self, old_path: str, new_path: str, content: str):
+        """Moves a file locally within the runner's workspace."""
+        try:
+            # Ensure the destination directory exists
+            os.makedirs(os.path.dirname(new_path), exist_ok=True)
+
+            # Write the content to the new file
+            with open(new_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+
+            # Remove the old file
+            os.remove(old_path)
+            logger.info(f"Successfully moved file locally from {old_path} to {new_path}")
+        except OSError as e:
+            logger.error(f"Error moving file locally from {old_path} to {new_path}: {e}")
+            raise
+
     def create_issues_from_inbox(self, pull_number: int) -> bool:
         """
-        Processes files in the `_in_box` directory for a given pull request, creates GitHub issues,
-        and moves the files to `_done_box` or `_failed_box`.
-
-        Args:
-            pull_number: The number of the pull request to process.
-
-        Returns:
-            A boolean indicating if any files were moved.
+        Processes files in the `_in_box` directory from the repo, creates GitHub issues,
+        and moves the files locally to `_done_box` or `_failed_box`.
         """
         logger.info(f"Scanning _in_box directory after merge to pull request #{pull_number}")
         moved_files = False
@@ -54,21 +65,22 @@ class IssueCreationService:
             logger.info("No files found in _in_box directory.")
             return False
 
-        for pr_file in inbox_files:
-            file_path = pr_file.path
-            file_content = None
+        for file_obj in inbox_files:
+            file_path = file_obj.path
+            file_content = None  # Initialize for the error handling block
             logger.info(f"Processing file: {file_path}")
 
             try:
-                file_content = self.github_service.get_file_content(file_path, pr_file.sha)
+                # Directly decode content from the fetched file object
+                file_content = file_obj.decoded_content.decode('utf-8')
                 if file_content is None:
-                    raise ValueError(f"Could not retrieve content for file: {file_path}")
+                    raise ValueError(f"Could not decode content for file: {file_path}")
 
                 issue_details = parse_issue_content(file_content)
                 if issue_details is None:
                     raise ValueError(f"Failed to parse issue file, title might be missing or format is invalid: {file_path}")
 
-                issue = self.github_service.create_issue(
+                self.github_service.create_issue(
                     title=issue_details.title,
                     body=issue_details.body,
                     labels=issue_details.labels,
@@ -76,28 +88,19 @@ class IssueCreationService:
                 )
 
                 new_path = get_unique_path(self.DONE_BOX_PATH, os.path.basename(file_path))
-                commit_message = f"feat: Move {file_path} to {new_path} after issue #{issue.number} creation"
-                self.github_service.move_file(file_path, new_path, commit_message, file_content)
+                self._move_file_locally(file_path, new_path, file_content)
                 moved_files = True
 
             except Exception as e:
                 logger.error(f"Failed to process {file_path}: {e}")
 
-                # If content couldn't be fetched initially, try one more time.
-                if file_content is None:
-                    try:
-                        file_content = self.github_service.get_file_content(file_path, pr_file.sha)
-                    except Exception as fetch_err:
-                        logger.warning(f"Could not re-fetch content for failed file {file_path}. Error: {fetch_err}")
-
-                # If still no content, default to an empty string for the move.
+                # Ensure content is a string for the move operation, even in case of failure
                 if file_content is None:
                     file_content = ""
-                    logger.warning(f"Moving an empty file to {self.FAILED_BOX_PATH}.")
+                    logger.warning(f"File content was not available for {file_path}. Moving an empty file to {self.FAILED_BOX_PATH}.")
 
                 new_path = get_unique_path(self.FAILED_BOX_PATH, os.path.basename(file_path))
-                commit_message = f"fix: Move {file_path} to {new_path} due to error"
-                self.github_service.move_file(file_path, new_path, commit_message, file_content)
+                self._move_file_locally(file_path, new_path, file_content)
                 moved_files = True
 
         return moved_files
