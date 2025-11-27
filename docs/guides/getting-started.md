@@ -57,6 +57,7 @@ cd github_broker
 
 ```bash
 pip install -e .[dev]
+pip install -e ./issue_creator_kit
 pre-commit install
 ```
 
