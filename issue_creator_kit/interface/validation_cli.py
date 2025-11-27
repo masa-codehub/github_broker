@@ -13,7 +13,9 @@ def validate_document(file_path: str) -> list[str]:
     errors = []
     service = ValidationService()
     try:
-        service.validate_frontmatter(file_path)
+        # docs/adr/ はフロントマターチェックをスキップ
+        if not file_path.startswith("docs/adr/"):
+            service.validate_frontmatter(file_path)
     except FileNotFoundError:
         errors.append(f"File not found: {file_path}")
     except FrontmatterError as e:
