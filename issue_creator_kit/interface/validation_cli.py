@@ -13,8 +13,8 @@ def validate_document(file_path: str) -> list[str]:
     errors = []
     service = ValidationService()
     try:
-        # docs/adr/ はフロントマターチェックをスキップ
-        if not file_path.startswith("docs/adr/"):
+        # docs/adr/ と .pre-commit-config.yaml はフロントマターチェックをスキップ
+        if not file_path.startswith("docs/adr/") and file_path != ".pre-commit-config.yaml":
             service.validate_frontmatter(file_path)
     except FileNotFoundError:
         errors.append(f"File not found: {file_path}")

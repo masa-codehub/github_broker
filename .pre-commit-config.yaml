@@ -28,19 +28,22 @@ repos:
         name: Document Validation (ADRs)
         entry: scripts/validate_docs.sh
         language: script
-        files: ^docs/adr/.*\.md$
+        files: 'docs/adr/.*\.md$'
+        stages: [commit]
         pass_filenames: true
     -   id: doc-validation-design-docs
         name: Document Validation (Design Docs)
         entry: scripts/validate_docs.sh
         language: script
-        files: ^docs/design-docs/.*\.md$
+        files: 'docs/design-docs/.*\.md$'
+        stages: [commit]
         pass_filenames: true
     -   id: doc-validation-in-box
         name: Document Validation (In Box)
         entry: scripts/validate_docs.sh
         language: script
-        files: ^_in_box/.*\.md$
+        files: '_in_box/.*\.md$'
+        stages: [commit]
         pass_filenames: true
 
 -   repo: https://github.com/commitizen-tools/commitizen
