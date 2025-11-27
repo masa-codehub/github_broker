@@ -1,5 +1,5 @@
 # 概要 / Overview
-デザインドキュメント: Geminiモデルの更新とレビューIssueの処理
+デザインドキュメント: Geminiモデルの更新とレビューIssueハンドリング
 
 - **Author(s)**: SYSTEM_ARCHITECT
 - **Status**: 承認済み
