@@ -32,6 +32,7 @@ dependencies = [
     "pydantic",
     "PyGithub",
     "pyyaml",
+    "python-frontmatter",
     "redis",
     "requests",
     "uvicorn[standard]",
