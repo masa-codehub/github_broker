@@ -41,12 +41,12 @@ repos:
         language: system
         files: ^plans/.*\.md$
         pass_filenames: true
-    -   id: doc-validation-in-box
-        name: Document Validation (In Box)
+    -   id: in-box-validation
+        name: In-Box Document Validation
         entry: doc-validator
-        language: system
-        files: ^_in_box/.*\.md$
-        pass_filenames: true
+        language: python
+        types: [markdown]
+        files: ^_in_box/
 
 -   repo: https://github.com/commitizen-tools/commitizen
     rev: 'v3.27.0'
