@@ -24,20 +24,6 @@ repos:
 
 
 
-    -   id: doc-validation-adr
-        name: Document Validation (ADRs)
-        entry: scripts/validate_docs.sh
-        language: script
-        files: 'docs/adr/.*\.md$'
-        stages: [pre-commit]
-        pass_filenames: true
-    -   id: doc-validation-design-docs
-        name: Document Validation (Design Docs)
-        entry: scripts/validate_docs.sh
-        language: script
-        files: 'docs/design-docs/.*\.md$'
-        stages: [pre-commit]
-        pass_filenames: true
     -   id: doc-validation-in-box
         name: Document Validation (In Box)
         entry: scripts/validate_docs.sh
