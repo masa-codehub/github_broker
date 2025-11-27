@@ -11,7 +11,7 @@ class DocumentType(Enum):
 
 PLAN_HEADERS = [
     "## 親Issue (Parent Issue)",
-    "## 子Issue (Sub-Issues)",
+    "## 子Issue (Sub- इश्यू)",
     "## As-is (現状)",
     "## To-be (あるべき姿)",
     "## 完了条件 (Acceptance Criteria)",
