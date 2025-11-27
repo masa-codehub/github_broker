@@ -1,6 +1,3 @@
----
-title: "Geminiモデルの更新とレビューIssueハンドリング"
----
 # 概要 / Overview
 デザインドキュメント: Geminiモデルの更新とレビューIssueハンドリング
 
