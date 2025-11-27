@@ -23,30 +23,13 @@ repos:
         language: system
         types: [python]
 
-    -   id: doc-validation-adr
-        name: Document Validation (ADRs)
-        entry: doc-validator
-        language: system
-        files: ^docs/adr/.*\.md$
-        pass_filenames: true
-    -   id: doc-validation-design-docs
-        name: Document Validation (Design Docs)
-        entry: doc-validator
-        language: system
-        files: ^docs/design-docs/.*\.md$
-        pass_filenames: true
-    -   id: doc-validation-plans
-        name: Document Validation (Plans)
-        entry: doc-validator
-        language: system
-        files: ^plans/.*\.md$
-        pass_filenames: true
-    -   id: in-box-validation
-        name: In-Box Document Validation
+    -   id: doc-validation
+        name: Document Validation
         entry: doc-validator
         language: python
         types: [markdown]
-        files: ^_in_box/
+        files: ^(docs/adr/|docs/design-docs/|plans/|_in_box/).*\\.md$
+        additional_dependencies: ['-e', '/app/issue_creator_kit']
 
 -   repo: https://github.com/commitizen-tools/commitizen
     rev: 'v3.27.0'
