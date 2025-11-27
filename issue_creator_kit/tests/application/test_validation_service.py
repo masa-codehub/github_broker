@@ -25,6 +25,13 @@ from issue_creator_kit.application.validation_service import ValidationService
         ("---\ntitle: 'Valid'\nrelated_issues: [123, 1.23]\n---\n", FrontmatterError, "'related_issues' field must be a list of integers."),
         ("---\ntitle: 123\n---\n", FrontmatterError, "Required 'title' field must be a string."),
 
+        # Test case for frontmatter as a list
+        (
+            "---\n- item1\n- item2\n---\n",
+            FrontmatterError,
+            "Frontmatter is not a valid dictionary.",
+        ),
+
         # Valid case
         ("---\ntitle: 'Valid Title'\nlabels: ['bug', 'P1']\nrelated_issues: [123, 456]\n---\nValid content", None, None),
     ],

@@ -1,4 +1,3 @@
-
 import argparse
 import logging
 import sys
@@ -14,9 +13,7 @@ def validate_document(file_path: str) -> list[str]:
     errors = []
     service = ValidationService()
     try:
-        # docs/adr/ と docs/design-docs/ はフロントマターチェックをスキップ
-        if not file_path.startswith("docs/adr/") and not file_path.startswith("docs/design-docs/"):
-            service.validate_frontmatter(file_path)
+        service.validate_frontmatter(file_path)
     except FileNotFoundError:
         errors.append(f"File not found: {file_path}")
     except FrontmatterError as e:
@@ -43,9 +40,10 @@ def main():
 
     if error_count == 0:
         logger.info("✅ All documents are valid.")
-        return 0
-    logger.error(f"Found {error_count} errors.")
-    return 1
+        sys.exit(0)
+    else:
+        logger.error(f"Found {error_count} errors.")
+        sys.exit(1)
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

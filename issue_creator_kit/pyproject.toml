@@ -13,7 +13,8 @@ classifiers = [ # PyPIでの検索性を高めるための分類
 ]
 dependencies = [
     "PyYAML",
-    "PyGithub"
+    "PyGithub",
+    "python-frontmatter"
 ]
 
 # CLIエントリーポイントの定義

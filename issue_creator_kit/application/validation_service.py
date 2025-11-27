@@ -1,6 +1,4 @@
-from pathlib import Path
-
-import yaml
+import frontmatter
 
 from .exceptions import FrontmatterError
 
@@ -21,47 +19,36 @@ class ValidationService:
             FrontmatterError: フロントマターが存在しない、形式が不正、
                               または必須フィールドが不足している場合に送出される。
         """
-        p = Path(file_path)
         try:
-            content = p.read_text()
-            if not content.startswith('---'):
-                raise FrontmatterError("Frontmatter is missing or invalid.")
+            post = frontmatter.load(file_path)
+        except Exception as e:
+            raise FrontmatterError(f"Frontmatter is missing or invalid in {file_path}.") from e
 
-            end_idx = content.find('\n---', 3)
-            if end_idx == -1:
-                raise FrontmatterError("Frontmatter is missing or invalid.")
+        if not isinstance(post.metadata, dict):
+            raise FrontmatterError("Frontmatter is not a valid dictionary.")
 
-            frontmatter_str = content[3:end_idx]
-            frontmatter = yaml.safe_load(frontmatter_str) or {}
+        metadata = post.metadata
 
-            if not isinstance(frontmatter, dict):
-                raise FrontmatterError("Frontmatter is not a valid dictionary.")
+        # 必須フィールド 'title' の検証
+        if 'title' not in metadata:
+            raise FrontmatterError("Required 'title' field is missing in frontmatter.")
 
-            # 必須フィールド 'title' の検証
-            if 'title' not in frontmatter:
-                raise FrontmatterError("Required 'title' field is missing in frontmatter.")
+        title = metadata['title']
+        if not isinstance(title, str):
+            raise FrontmatterError("Required 'title' field must be a string.")
+        if not title.strip():
+            raise FrontmatterError("Required 'title' field cannot be empty.")
 
-            title = frontmatter['title']
-            if not isinstance(title, str):
-                raise FrontmatterError("Required 'title' field must be a string.")
-            if not title.strip():
-                raise FrontmatterError("Required 'title' field cannot be empty.")
+        # 推奨フィールド 'labels' の型検証
+        if 'labels' in metadata and not (
+            isinstance(metadata['labels'], list) and
+            all(isinstance(label, str) for label in metadata['labels'])
+        ):
+            raise FrontmatterError("'labels' field must be a list of strings.")
 
-            # 推奨フィールド 'labels' の型検証
-            if 'labels' in frontmatter and not (
-                isinstance(frontmatter['labels'], list) and
-                all(isinstance(label, str) for label in frontmatter['labels'])
-            ):
-                raise FrontmatterError("'labels' field must be a list of strings.")
-
-            # 推奨フィールド 'related_issues' の型検証
-            if 'related_issues' in frontmatter and not (
-                isinstance(frontmatter['related_issues'], list) and
-                all(isinstance(issue, int) for issue in frontmatter['related_issues'])
-            ):
-                raise FrontmatterError("'related_issues' field must be a list of integers.")
-
-        except yaml.YAMLError as e:
-            raise FrontmatterError("Frontmatter is missing or invalid.") from e
-        except FileNotFoundError:
-            raise
+        # 推奨フィールド 'related_issues' の型検証
+        if 'related_issues' in metadata and not (
+            isinstance(metadata['related_issues'], list) and
+            all(isinstance(issue, int) for issue in metadata['related_issues'])
+        ):
+            raise FrontmatterError("'related_issues' field must be a list of integers.")

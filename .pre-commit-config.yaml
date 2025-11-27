@@ -26,20 +26,20 @@ repos:
 
     -   id: doc-validation-adr
         name: Document Validation (ADRs)
-        entry: bash -c 'PYTHONPATH=. python -m issue_creator_kit.interface.validation_cli "$@"' --
-        language: system
+        entry: scripts/validate_docs.sh
+        language: script
         files: ^docs/adr/.*\.md$
         pass_filenames: true
     -   id: doc-validation-design-docs
         name: Document Validation (Design Docs)
-        entry: bash -c 'PYTHONPATH=. python -m issue_creator_kit.interface.validation_cli "$@"' --
-        language: system
+        entry: scripts/validate_docs.sh
+        language: script
         files: ^docs/design-docs/.*\.md$
         pass_filenames: true
     -   id: doc-validation-in-box
         name: Document Validation (In Box)
-        entry: bash -c 'PYTHONPATH=. python -m issue_creator_kit.interface.validation_cli "$@"' --
-        language: system
+        entry: scripts/validate_docs.sh
+        language: script
         files: ^_in_box/.*\.md$
         pass_filenames: true
 
