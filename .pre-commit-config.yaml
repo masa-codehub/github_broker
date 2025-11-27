@@ -21,30 +21,13 @@ repos:
         language: system
         types: [python]
 
-
-
-
-    -   id: doc-validation-adr
-        name: Document Validation (ADRs)
-        entry: scripts/validate_docs.sh
-        language: script
-        files: 'docs/adr/.*\.md$'
-        stages: [pre-commit]
-        pass_filenames: true
-    -   id: doc-validation-design-docs
-        name: Document Validation (Design Docs)
-        entry: scripts/validate_docs.sh
-        language: script
-        files: 'docs/design-docs/.*\.md$'
-        stages: [pre-commit]
-        pass_filenames: true
-    -   id: doc-validation-in-box
-        name: Document Validation (In Box)
-        entry: scripts/validate_docs.sh
-        language: script
-        files: '_in_box/.*\.md$'
-        stages: [pre-commit]
-        pass_filenames: true
+    -   id: doc-validation
+        name: Document Validation
+        entry: python -m issue_creator_kit.interface.validation_cli
+        language: python
+        types: [markdown]
+        files: ^(docs/adr/|docs/design-docs/|plans/|_in_box/).*\.md$
+        additional_dependencies: ['PyYAML', 'PyGithub', 'python-frontmatter']
 
 -   repo: https://github.com/commitizen-tools/commitizen
     rev: 'v3.27.0'
