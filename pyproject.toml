@@ -62,7 +62,6 @@ dev = [
     "commitizen",
     "python-semantic-release",
     "build",
-    "issue_creator_kit @ file:./issue_creator_kit",
 ]
 ml = [
     "scikit-learn",  # 機械学習ライブラリ
