@@ -53,10 +53,11 @@ cd github_broker
 
 ## 4. Python 依存関係のインストール
 
-プロジェクトの Python 依存関係と開発ツールをインストールし、コミット前のチェックを有効化します。
+プロジェクトの Python 依存関係と開発ツールをインストールし、コミット前のチェックを有効化します。この手順には、ドキュメントの品質と一貫性を保証するための自動検証フックも含まれます（詳細は[ADR-019](../adr/019-fix-issue-creator-workflow.md)を参照してください）。
 
 ```bash
 pip install -e .[dev]
+pip install -e ./issue_creator_kit
 pre-commit install
 ```
 
