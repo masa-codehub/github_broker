@@ -24,18 +24,22 @@ class ValidationService:
              raise FrontmatterError(f"Frontmatter is missing or invalid in {file_path}.")
 
         if not isinstance(post.metadata, dict):
-            raise FrontmatterError("Frontmatter is not a valid dictionary.")
+            raise FrontmatterError(f"Frontmatter is not a valid dictionary in {file_path}.")
 
         metadata = post.metadata
         if 'title' not in metadata:
-            raise FrontmatterError("Required 'title' field is missing in frontmatter.")
+            raise FrontmatterError(f"Required 'title' field is missing in frontmatter in {file_path}.")
+
         title = metadata['title']
-        if not isinstance(title, str) or not title.strip():
-            raise FrontmatterError("Required 'title' field cannot be empty.")
+        if not isinstance(title, str):
+            raise FrontmatterError(f"Required 'title' field must be a string in {file_path}.")
+        if not title.strip():
+            raise FrontmatterError(f"Required 'title' field cannot be empty in {file_path}.")
+
         if 'labels' in metadata and not (isinstance(metadata['labels'], list) and all(isinstance(label, str) for label in metadata['labels'])):
-            raise FrontmatterError("'labels' field must be a list of strings.")
+            raise FrontmatterError(f"'labels' field must be a list of strings in {file_path}.")
         if 'related_issues' in metadata and not (isinstance(metadata['related_issues'], list) and all(isinstance(issue, int) for issue in metadata['related_issues'])):
-            raise FrontmatterError("'related_issues' field must be a list of integers.")
+            raise FrontmatterError(f"'related_issues' field must be a list of integers in {file_path}.")
 
     def _extract_headers_from_content(self, content: str) -> list[str]:
         """Markdownコンテンツから `#`, `##`, `###` で始まるヘッダーを抽出します。"""

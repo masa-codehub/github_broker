@@ -177,10 +177,14 @@ exclude = ["tests*"]  # "tests"ディレクトリはパッケージに含めな�
 # --- mypyの設定 ---
 [tool.mypy]
 python_version = "3.13"
-ignore_missing_imports = true
+ignore_missing_imports = false
 packages = ["github_broker", "issue_creator_kit"]
 mypy_path = "."
 
 [[tool.mypy.overrides]]
 module = "punq"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "frontmatter"
 ignore_missing_imports = true

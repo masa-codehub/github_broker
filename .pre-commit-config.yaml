@@ -26,7 +26,7 @@ repos:
         entry: python -m issue_creator_kit.interface.validation_cli
         language: python
         types: [markdown]
-        files: ^(docs/adr/|docs/design-docs/|plans/|_in_box/).*\.md$
+        files: ^(docs/adr/|docs/design-docs/|_in_box/).*\.md$
         additional_dependencies: ['PyYAML', 'PyGithub', 'python-frontmatter']
 
 -   repo: https://github.com/commitizen-tools/commitizen

@@ -51,7 +51,7 @@ def validate_document(file_path: str, service: ValidationService) -> list[str]:
     except FrontmatterError as e:
         errors.append(str(e))
     except Exception as e:
-        errors.append(f"An unexpected error occurred: {e}")
+        errors.append(f"An unexpected error of type {type(e).__name__} occurred: {e}")
 
     return errors
 
