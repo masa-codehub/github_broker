@@ -1,0 +1,104 @@
+---
+title: "【Task】`issue_creator_kit/docs/validation-rules.md`を新規作成"
+labels: ["task", "documentation", "P2", "TECHNICAL_DESIGNER"]
+---
+# 【Task】`issue_creator_kit/docs/validation-rules.md`を新規作成
+
+## 親Issue (Parent Issue)
+- (Story: `issue_creator_kit`ドキュメントの整備)
+
+## 子Issue (Sub-Issues)
+- (なし)
+
+## 参照元の意思決定 (Source Decision Document)
+- (なし)
+
+## As-is (現状)
+- `issue_creator_kit`の`validation_service.py`で実装されている、計画ファイルの検証ルール（必須セクション、ラベル規約など）がドキュメント化されていない。
+- `PRODUCT_MANAGER`が正しい計画ファイルを作成するための制約条件を知るすべが、コードを読む以外にない。
+
+## To-be (あるべき姿)
+- `issue_creator_kit/docs/validation-rules.md`が新規作成される。
+- このドキュメントには、`validation_service.py`で実行される全ての検証ルールが、その目的や具体例と共に明記されている。
+- `PRODUCT_MANAGER`がこのドキュメントを読むだけで、検証エラーを未然に防ぎ、正しい計画ファイルを作成できるようになる。
+
+## ユーザーの意図と背景の明確化
+- ユーザーは、計画作成のルールを明確にドキュメント化することで、`PRODUCT_MANAGER`の作業効率を向上させ、手戻りをなくしたいと考えている。検証ロジックをブラックボックスではなく、参照可能な「仕様」として扱うことを意図している。
+
+## **具体的な修正内容**
+- **対象ファイル:** `issue_creator_kit/docs/validation-rules.md` (新規作成)
+- **修正方法:** 以下の内容でファイルを**新規作成**する。
+
+```markdown
+# 計画ファイル検証ルール一覧
+
+このドキュメントは、`validation_cli.py`実行時に適用される、計画ファイル（`.md`）の検証ルールについて説明します。
+`PRODUCT_MANAGER`は、計画ファイル作成時にこれらのルールを遵守する必要があります。
+
+## 1. ファイル全体に対するルール
+
+-   **エンコーディング:** ファイルは `UTF-8` である必要があります。
+
+## 2. フロントマター (YAMLヘッダー) に対するルール
+
+ファイルの先頭は `---` で囲まれたYAMLフロントマターである必要があります。
+
+-   **`title`:** (必須) Issueのタイトルとなる文字列。
+-   **`labels`:** (必須) ラベルのリスト。以下のルールに従う必要があります。
+    -   `epic`, `story`, `task` のいずれか一つを必ず含むこと。
+    -   担当エージェントの役割ラベル（例: `PRODUCT_MANAGER`, `TECHNICAL_DESIGNER`）を必ず含むこと。
+    -   作業順序を示すラベル (`P0`~`P4`) を必ず含むこと。
+
+## 3. 本文 (Markdown) に対するルール
+
+以下の見出し（セクション）が、この順序で存在する必要があります。
+
+-   **`# (Issueタイトル)`**: H1見出し。フロントマターの`title`と一致している必要があります。
+-   **`## 親Issue (Parent Issue)`**: (必須)
+-   **`## 子Issue (Sub-Issues)`**: (必須)
+-   **`## 参照元の意思決定 (Source Decision Document)`**: (必須)
+-   **`## As-is (現状)`**: (必須)
+-   **`## To-be (あるべき姿)`**: (必須)
+-   **`## ユーザーの意図と背景の明確化`**: (任意) `PRODUCT_MANAGER.md`で必須化されているため、実質的には必須。
+-   **`## 目標達成までの手順 (Steps to Achieve Goal)`**: (必須)
+-   **`## 完了条件 (Acceptance Criteria)`**: (必須)
+-   **`## 成果物 (Deliverables)`**: (必須)
+-   **`## ブランチ戦略 (Branching Strategy)`**: (必須)
+
+### `完了条件` セクション内のルール
+
+-   `Epic` の場合:
+    -   「このEpicを構成する全てのStoryの実装が完了していること。」で始まるテキストを含む必要があります。
+-   `Story` の場合:
+    -   「このStoryを構成する全てのTaskの実装が完了していること。」で始まるテキストを含む必要があります。
+-   `Task` の場合:
+    -   「TDD（テスト駆動開発）のサイクル（Red-Green-Refactor）に従って実装と単体テストが完了していること。」で始まるテキストを含む必要があります。
+
+### `ブランチ戦略` セクション内のルール
+
+-   `ベースブランチ (Base Branch):` という項目を含む必要があります。
+-   `作業ブランチ (Feature Branch):` という項目を含む必要があります。この項目から、Issueに対応するブランチ名が抽出されます。ブランチ名が不正な形式（例: スペースを含む）の場合、検証は失敗します。
+
+### ADRドキュメント固有のルール (ADR-014)
+
+ADRドキュメント (`adr-XXX.md`) の場合、以下のセクションも必須です。
+
+-   **`## Implementation Status`**: (必須)
+    -   以下のいずれかの値を持ちます。
+        -   `検討中`
+        -   `承認済み`
+        -   `拒否済み`
+        -   `完了`
+    -   `承認済み` または `完了` の場合、`## 決定事項` セクションも必須です。
+```
+```
+
+## 完了条件 (Acceptance Criteria)
+- `issue_creator_kit/docs/validation-rules.md` が、上記の「具体的な修正内容」で新規作成されていること。
+
+## 成果物 (Deliverables)
+- 新規作成された `issue_creator_kit/docs/validation-rules.md`
+
+## ブランチ戦略 (Branching Strategy)
+- **ベースブランチ (Base Branch):** `story/document-issue-creator-kit`
+- **作業ブランチ (Feature Branch):** `task/create-ick-validation-rules-doc`

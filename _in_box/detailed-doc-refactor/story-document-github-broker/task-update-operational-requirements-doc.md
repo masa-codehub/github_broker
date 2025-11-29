@@ -1,0 +1,99 @@
+---
+title: "【Task】`operational-requirements.md`を`github_broker`の実装に合わせて更新"
+labels: ["task", "documentation", "refactoring", "P2", "TECHNICAL_DESIGNER"]
+---
+# 【Task】`operational-requirements.md`を`github_broker`の実装に合わせて更新
+
+## 親Issue (Parent Issue)
+- (Story: `github_broker`ドキュメントの整備)
+
+## 子Issue (Sub-Issues)
+- (なし)
+
+## 参照元の意思決定 (Source Decision Document)
+- (なし)
+
+## As-is (現状)
+- `docs/architecture/operational-requirements.md`が一般的な運用要件のリストであり、`github_broker`の実際の実装に合わせた具体的な内容になっていない。
+- ロギング、エラーハンドリング、ヘルスチェック、設定管理に関する具体的な実装と運用上の考慮事項が欠落している。
+
+## To-be (あるべき姿)
+- `operational-requirements.md`が、`github_broker`のロギング設定、カスタム例外によるエラーハンドリング、`/health`エンドポイントの挙動、設定管理の概要など、運用に直結する具体的な情報で更新される。
+- ドキュメントを読むだけで、`github_broker`を本番環境で運用する上で必要な技術的詳細を理解できるようになる。
+
+## ユーザーの意図と背景の明確化
+- ユーザーは、開発と運用（DevOps）の連携を強化するため、運用チームが必要とする情報がドキュメントとして明確に提供されている状態を求めている。これにより、本番環境での安定稼働と迅速なトラブルシューティングを可能にすることを意図している。
+
+## **具体的な修正内容**
+- **対象ファイル:** `docs/architecture/operational-requirements.md`
+- **修正方法:** ファイル全体を以下の内容で**上書き**する。
+
+```markdown
+# 運用要件 (`github_broker`)
+
+このドキュメントは、`github_broker`アプリケーションを本番環境で運用するために必要な技術的な考慮事項と要件について説明します。
+
+## 1. ロギング
+
+`github_broker`はPythonの標準ロギングモジュールを使用しています。
+
+-   **ログレベル:**
+    -   `DEBUG`: 開発時および詳細な問題追跡用。
+    -   `INFO`: 通常のアプリケーションの挙動を追跡。タスクの割り当て、Issueのポーリングなど。
+    -   `WARNING`: 潜在的な問題や予期せぬ状態。ロックの取得失敗など。
+    -   `ERROR`: アプリケーションの機能に影響を与えるエラー。GitHub APIエラー、Redis接続エラーなど。
+    -   `CRITICAL`: アプリケーションが動作を継続できない致命的なエラー。
+-   **出力先:**
+    標準出力（`stdout`）にログを出力します。コンテナ環境での運用を想定しており、ログ集約システム（例: Fluentd, Logstash）がこれらのログを収集することを前提としています。
+-   **ログフォーマット:**
+    JSON形式またはプレーンテキスト形式で設定可能です。デフォルトはプレーンテキストですが、環境変数でJSONフォーマットに切り替えることも可能です（未実装だが考慮すべき点）。
+-   **収集と分析:**
+    ログは運用環境で適切なログ集約ツール（Datadog, Grafana Lokiなど）によって収集され、監視および分析されます。
+
+## 2. エラーハンドリング
+
+`github_broker`は、外部サービスとの連携で発生しうるエラーを捕捉し、ロギングします。
+
+-   **カスタム例外:** アプリケーション固有のエラー（例: `LockAcquisitionError`）は、`github_broker/application/exceptions.py`で定義されています。
+-   **エラーハンドリング戦略:**
+    主要なエラーシナリオごとの具体的なフォールバック動作や、将来的なリトライ戦略については、以下のドキュメントで詳細に定義しています。
+    -   **参照:** [`error-handling-and-retry-strategy.md`](./error-handling-and-retry-strategy.md)
+
+
+## 3. 監視とヘルスチェック
+
+アプリケーションの健全性とパフォーマンスを監視するための仕組みを提供します。
+
+-   **ヘルスチェックエンドポイント:**
+    `/health`エンドポイントが提供されており、アプリケーションが正常に動作しているかを確認できます。このエンドポイントは、以下の条件が満たされている場合に `200 OK` を返します。
+    -   アプリケーションが起動していること。
+    -   主要な依存サービス（GitHub, Redis）への接続が確認できること。（現状は未実装、今後の改善点）
+    -   **エンドポイント:** `/health`
+    -   **メソッド:** `GET`
+    -   **レスポンス:** `{"status": "ok"}`
+-   **メトリクス:**
+    現在のところ、詳細なアプリケーションメトリクス（例: タスク処理時間、API応答時間）の収集は実装されていません。PrometheusやGrafanaなどのツールと連携するためのメトリクスエクスポート機能は、今後の機能拡張として検討します。
+
+## 4. 設定管理
+
+アプリケーションの設定は、環境変数を通じて行われます。詳細は `configuration.md` を参照してください。
+
+-   **環境変数:**
+    `GITHUB_TOKEN`, `REDIS_URL`, `GEMINI_API_KEY` など、重要な設定は環境変数として渡す必要があります。
+-   **シークレット管理:**
+    `GITHUB_TOKEN` や `GEMINI_API_KEY` のような機密情報は、運用環境で適切なシークレット管理サービス（例: Kubernetes Secrets, AWS Secrets Manager）を使用して安全に管理されるべきです。
+
+## 5. データベース
+
+Redisはキーバリューストアとして利用されており、永続化目的のRDBMSは使用していません。Redisのキースキーマについては `redis-schema.md` を参照してください。
+```
+
+## 完了条件 (Acceptance Criteria)
+- `docs/architecture/operational-requirements.md` が、上記の「具体的な修正内容」で上書きされていること。
+
+## 成果物 (Deliverables)
+- 更新された `docs/architecture/operational-requirements.md`
+
+## ブランチ戦略 (Branching Strategy)
+- **ベースブランチ (Base Branch):** `story/document-github-broker`
+- **作業ブランチ (Feature Branch):** `task/update-operational-requirements-doc`
