@@ -43,7 +43,7 @@ labels: ["task", "documentation", "refactoring", "P2", "TECHNICAL_DESIGNER"]
 C4Component
   title コンポーネント図 for Github Broker System
 
-  Boundary(c1, "Github Broker System", "Node.js/TypeScript") {
+  Boundary(c1, "Github Broker System", "Python") {
     Component(api, "FastAPI Interface", "FastAPI", "エージェントからのタスク要求を受け付けるAPIエンドポイントを提供")
     Component(task_service, "Task Service", "Python", "タスクの選択、割り当て、プロンプト生成など、主要なビジネスロジックを担う")
     Component(di_container, "DI Container", "punq", "各コンポーネントの依存関係を解決・注入する")
