@@ -19,21 +19,21 @@ labels:
 - story/optimize-file-placement
 
 ## As-is (現状)
-- ドキュメント形式の検証を決定した`ADR-012`が、`docs/adr/`に配置されている。
+- ドキュメント形式の検証を決定した`ADR-012`が、`reqs/adr/`に配置されている。
 
 ## To-be (あるべき姿)
-- `docs/adr/012-document-format-validation.md`が、`issue_creator_kit/reqs/adr/`配下に移動されている。
+- `reqs/adr/012-document-format-validation.md`が、`issue_creator_kit/reqs/adr/`配下に移動されている。
 
 ## ユーザーの意図と背景の明確化
 - ADR-012は`issue_creator_kit`の検証機能の中核をなすため、そのコンポーネントの要求仕様として管理されるべきである。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
-1. `git mv docs/adr/012-document-format-validation.md issue_creator_kit/reqs/adr/012-document-format-validation.md` を実行する。
+1. `git mv reqs/adr/012-document-format-validation.md issue_creator_kit/reqs/adr/012-document-format-validation.md` を実行する。
 2. 変更をコミットする。
 
 ## 完了条件 (Acceptance Criteria)
 - 対象ファイルが`issue_creator_kit/reqs/adr/`に存在すること。
-- 対象ファイルが元の`docs/adr/`に存在しないこと。
+- 対象ファイルが元の`reqs/adr/`に存在しないこと。
 
 ## 成果物 (Deliverables)
 - ファイル移動を行ったコミット
