@@ -19,21 +19,21 @@ labels:
 - story/optimize-file-placement
 
 ## As-is (現状)
-- Issue作成と検証ロジックの分離を決定した`ADR-018`が、`reqs/adr/`に配置されている。
+- Issue作成と検証ロジックの分離を決定した`ADR-018`が、`docs/adr/`に配置されている。
 
 ## To-be (あるべき姿)
-- `reqs/adr/018-decouple-issue-creation-and-validation-logic.md`が、`issue_creator_kit/reqs/adr/`配下に移動されている。
+- `docs/adr/018-decouple-issue-creation-and-validation-logic.md`が、`issue_creator_kit/reqs/adr/`配下に移動されている。
 
 ## ユーザーの意図と背景の明確化
 ユーザーは、ADRの内容と、それが主管するコンポーネントの物理的な配置を一致させたい。ADR-018は`issue_creator_kit`の核心的な責務を定義するものであるため、そのディレクトリ配下で管理されるべきである。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
-1. `git mv reqs/adr/018-decouple-issue-creation-and-validation-logic.md issue_creator_kit/reqs/adr/018-decouple-issue-creation-and-validation-logic.md` を実行する。
+1. `git mv docs/adr/018-decouple-issue-creation-and-validation-logic.md issue_creator_kit/reqs/adr/` を実行する。
 2. 変更をコミットする。
 
 ## 完了条件 (Acceptance Criteria)
 - 対象ファイルが`issue_creator_kit/reqs/adr/`に存在すること。
-- 対象ファイルが元の`reqs/adr/`に存在しないこと。
+- 対象ファイルが元の`docs/adr/`に存在しないこと。
 
 ## 成果物 (Deliverables)
 - ファイル移動を行ったコミット
