@@ -35,6 +35,10 @@ mkdir -p issue_creator_kit/docs
 # 2. ディレクトリを移動
 git mv docs/architecture/adr-017-issue-creator-workflow issue_creator_kit/docs/adr-017-workflow
 
+## 完了条件 (Acceptance Criteria)
+- `docs/architecture/adr-017-issue-creator-workflow/` が存在しないこと。
+- `issue_creator_kit/docs/adr-017-workflow/` ディレクトリと、その配下のファイルが存在すること。
+
 ## 成果物 (Deliverables)
 - ファイル移動を行ったコミット
 

@@ -38,11 +38,9 @@ jobs:
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
       - name: Validate Markdown files before creating issues
-        id: validate_markdown
         run: python -m issue_creator_kit.interface.validation_cli --repo ${{ github.repository }}
 
       - name: Create issues from Markdown files
-        id: create_issues
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_OWNER: ${{ github.repository_owner }}
