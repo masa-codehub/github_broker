@@ -28,7 +28,11 @@ labels:
 - ADR-017は`issue_creator_kit`の主要なユースケースを定義するため、そのコンポーネントの要求仕様として管理されるべきである。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
+<<<<<<< HEAD
 1. `git mv docs/adr/017-commit-triggered-issue-creation.md issue_creator_kit/reqs/adr/` を実行する。
+=======
+1. `git mv docs/adr/017-commit-triggered-issue-creation.md issue_creator_kit/reqs/adr/017-commit-triggered-issue-creation.md` を実行する。
+>>>>>>> 1513999 (feat(plan): Refine plan to eliminate document content duplication)
 2. 変更をコミットする。
 
 ## 完了条件 (Acceptance Criteria)

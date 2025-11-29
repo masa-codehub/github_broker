@@ -28,7 +28,11 @@ labels:
 - このADRは`github_broker`の基本的な動作アーキテクチャに関する決定であり、`github_broker`の要求仕様として管理されるべきである。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
+<<<<<<< HEAD
 1. `git mv docs/adr/003-polling-only-architecture.md reqs/adr/` を実行する。
+=======
+1. `git mv docs/adr/003-polling-only-architecture.md reqs/adr/003-polling-only-architecture.md` を実行する。
+>>>>>>> 1513999 (feat(plan): Refine plan to eliminate document content duplication)
 2. 変更をコミットする。
 
 ## 完了条件 (Acceptance Criteria)

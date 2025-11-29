@@ -28,7 +28,11 @@ labels:
 - ADR-014は`issue_creator_kit`のADR検証機能に直接関連するため、そのコンポーネントの要求仕様として管理されるべきである。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
+<<<<<<< HEAD
 1. `git mv docs/adr/014-improve-adr-validation-rules.md issue_creator_kit/reqs/adr/` を実行する。
+=======
+1. `git mv docs/adr/014-improve-adr-validation-rules.md issue_creator_kit/reqs/adr/014-improve-adr-validation-rules.md` を実行する。
+>>>>>>> 1513999 (feat(plan): Refine plan to eliminate document content duplication)
 2. 変更をコミットする。
 
 ## 完了条件 (Acceptance Criteria)

@@ -28,7 +28,11 @@ labels:
 - このADRは`github_broker`のタスク割り当てロジックに関する決定であり、`github_broker`の要求仕様として管理されるべきである。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
+<<<<<<< HEAD
 1. `git mv docs/adr/016-fix-review-issue-assignment-logic.md reqs/adr/` を実行する。
+=======
+1. `git mv docs/adr/016-fix-review-issue-assignment-logic.md reqs/adr/016-fix-review-issue-assignment-logic.md` を実行する。
+>>>>>>> 1513999 (feat(plan): Refine plan to eliminate document content duplication)
 2. 変更をコミットする。
 
 ## 完了条件 (Acceptance Criteria)

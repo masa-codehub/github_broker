@@ -28,7 +28,11 @@ labels:
 - このADRは`github_broker`の主要機能に関する決定であり、`github_broker`の要求仕様として管理されるべきである。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
+<<<<<<< HEAD
 1. `git mv docs/adr/005-multi-repository-support.md reqs/adr/` を実行する。
+=======
+1. `git mv docs/adr/005-multi-repository-support.md reqs/adr/005-multi-repository-support.md` を実行する。
+>>>>>>> 1513999 (feat(plan): Refine plan to eliminate document content duplication)
 2. 変更をコミットする。
 
 ## 完了条件 (Acceptance Criteria)

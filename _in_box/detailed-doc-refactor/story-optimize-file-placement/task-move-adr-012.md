@@ -28,7 +28,11 @@ labels:
 - ADR-012は`issue_creator_kit`の検証機能の中核をなすため、そのコンポーネントの要求仕様として管理されるべきである。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
+<<<<<<< HEAD
 1. `git mv docs/adr/012-document-format-validation.md issue_creator_kit/reqs/adr/` を実行する。
+=======
+1. `git mv docs/adr/012-document-format-validation.md issue_creator_kit/reqs/adr/012-document-format-validation.md` を実行する。
+>>>>>>> 1513999 (feat(plan): Refine plan to eliminate document content duplication)
 2. 変更をコミットする。
 
 ## 完了条件 (Acceptance Criteria)

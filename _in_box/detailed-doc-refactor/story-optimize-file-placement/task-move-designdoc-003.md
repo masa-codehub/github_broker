@@ -28,7 +28,11 @@ labels:
 - このドキュメントは`github_broker`のエージェントが使用するプロンプトに関するものであり、その要求仕様として管理されるべきである。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
+<<<<<<< HEAD
 1. `git mv docs/design-docs/003-prompt-template-updates.md reqs/design-docs/` を実行する。
+=======
+1. `git mv docs/design-docs/003-prompt-template-updates.md reqs/design-docs/003-prompt-template-updates.md` を実行する。
+>>>>>>> 1513999 (feat(plan): Refine plan to eliminate document content duplication)
 2. 変更をコミットする。
 
 ## 完了条件 (Acceptance Criteria)

@@ -28,7 +28,11 @@ labels:
 - このドキュメントは`github_broker`のエージェント実行基盤とタスク管理ロジックに直接関連するため、その要求仕様として管理されるべきである。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
+<<<<<<< HEAD
 1. `git mv docs/design-docs/001-update-gemini-model-and-review-issue-handling.md reqs/design-docs/` を実行する。
+=======
+1. `git mv docs/design-docs/001-update-gemini-model-and-review-issue-handling.md reqs/design-docs/001-update-gemini-model-and-review-issue-handling.md` を実行する。
+>>>>>>> 1513999 (feat(plan): Refine plan to eliminate document content duplication)
 2. 変更をコミットする。
 
 ## 完了条件 (Acceptance Criteria)

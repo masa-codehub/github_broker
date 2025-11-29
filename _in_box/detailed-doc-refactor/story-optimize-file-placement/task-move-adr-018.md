@@ -28,7 +28,11 @@ labels:
 ユーザーは、ADRの内容と、それが主管するコンポーネントの物理的な配置を一致させたい。ADR-018は`issue_creator_kit`の核心的な責務を定義するものであるため、そのディレクトリ配下で管理されるべきである。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
+<<<<<<< HEAD
 1. `git mv docs/adr/018-decouple-issue-creation-and-validation-logic.md issue_creator_kit/reqs/adr/` を実行する。
+=======
+1. `git mv docs/adr/018-decouple-issue-creation-and-validation-logic.md issue_creator_kit/reqs/adr/018-decouple-issue-creation-and-validation-logic.md` を実行する。
+>>>>>>> 1513999 (feat(plan): Refine plan to eliminate document content duplication)
 2. 変更をコミットする。
 
 ## 完了条件 (Acceptance Criteria)

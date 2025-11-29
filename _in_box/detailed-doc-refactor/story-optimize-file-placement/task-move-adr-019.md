@@ -28,7 +28,11 @@ labels:
 - ADR-019は`issue_creator_kit`の核心機能であるIssue作成ワークフローを定義するものであるため、そのコンポーネントの要求仕様として管理されるべきである。
 
 ## 目標達成までの手順 (Steps to Achieve Goal)
+<<<<<<< HEAD
 1. `git mv docs/adr/019-fix-issue-creator-workflow.md issue_creator_kit/reqs/adr/` を実行する。
+=======
+1. `git mv docs/adr/019-fix-issue-creator-workflow.md issue_creator_kit/reqs/adr/019-fix-issue-creator-workflow.md` を実行する。
+>>>>>>> 1513999 (feat(plan): Refine plan to eliminate document content duplication)
 2. 変更をコミットする。
 
 ## 完了条件 (Acceptance Criteria)
