@@ -18,11 +18,7 @@ labels: ["task", "documentation", "refactoring", "P2", "TECHNICAL_DESIGNER"]
 - これらのドキュメントは`issue_creator_kit`コンポーネントの核心的な仕様を記述しているが、コンポーネントの外部に置かれているため、発見やメンテナンスが困難になっている。
 
 ## To-be (あるべき姿)
-<<<<<<< HEAD
-- `docs/architecture/adr-017-issue-creator-workflow/` ディレクトリ全体が、`issue_creator_kit/docs/` 配下に移動される。
-=======
-- `docs/architecture/adr-017-issue-creator-workflow/` ディレクトリ全体が、`issue_creator_kit/docs/adr-017-workflow/` に移動される。
->>>>>>> 1513999 (feat(plan): Refine plan to eliminate document content duplication)
+- `issue_creator_kit/docs/adr-017-workflow/` ディレクトリ全体が、`issue_creator_kit/docs/adr-017-workflow/` に移動される。
 - `issue_creator_kit`に関する全てのドキュメントが、コンポーネント内に集約され、管理しやすくなる。
 
 ## ユーザーの意図と背景の明確化
@@ -37,20 +33,7 @@ labels: ["task", "documentation", "refactoring", "P2", "TECHNICAL_DESIGNER"]
 mkdir -p issue_creator_kit/docs
 
 # 2. ディレクトリを移動
-<<<<<<< HEAD
-git mv docs/architecture/adr-017-issue-creator-workflow issue_creator_kit/docs/
-=======
 git mv docs/architecture/adr-017-issue-creator-workflow issue_creator_kit/docs/adr-017-workflow
->>>>>>> 1513999 (feat(plan): Refine plan to eliminate document content duplication)
-```
-
-## 完了条件 (Acceptance Criteria)
-- `docs/architecture/adr-017-issue-creator-workflow/` が存在しないこと。
-<<<<<<< HEAD
-- `issue_creator_kit/docs/adr-017-issue-creator-workflow/` ディレクトリと、その配下のファイルが存在すること。
-=======
-- `issue_creator_kit/docs/adr-017-workflow/` ディレクトリと、その配下のファイルが存在すること。
->>>>>>> 1513999 (feat(plan): Refine plan to eliminate document content duplication)
 
 ## 成果物 (Deliverables)
 - ファイル移動を行ったコミット
