@@ -38,7 +38,30 @@ jobs:
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
       - name: Validate Markdown files before creating issues
-        run: python -m issue_creator_kit.interface.validation_cli --repo ${{ github.repository }}
+        id: validate
+        run: |
+          # The base SHA and head SHA are available from the pull request context
+          base_sha="${{ github.event.pull_request.base.sha }}"
+          head_sha="${{ github.event.pull_request.head.sha }}"
+
+          echo "Base SHA: $base_sha"
+          echo "Head SHA: $head_sha"
+
+          # Get the list of changed markdown files between the base and head of the PR
+          changed_files=$(git diff --name-only "$base_sha" "$head_sha" | grep '\.md$' || true)
+
+          if [ -z "$changed_files" ]; then
+            echo "No markdown files changed in this PR. Skipping validation."
+            exit 0
+          fi
+
+          echo "Found changed markdown files:"
+          echo "$changed_files"
+
+          # Run the validation script with the list of changed files
+          # The script expects file paths as arguments
+          echo "$changed_files" | xargs python -m issue_creator_kit.interface.validation_cli
+
 
       - name: Create issues from Markdown files
         env:
