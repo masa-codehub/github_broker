@@ -51,7 +51,7 @@
 
 ADRドキュメント (`adr-XXX.md`) の場合、以下のセクションも必須です。
 
--   **`## Implementation Status`**: (必須)
+-   **`## 実装状況 / Implementation Status`**: (必須)
     -   以下のいずれかの値を持ちます。
         -   `検討中`
         -   `承認済み`
