@@ -28,19 +28,21 @@ The `create-issues` command allows you to create GitHub issues from Markdown fil
 **Command:**
 
 ```bash
-create-issues --repo <repository_name> --owner <repository_owner>
+create-issues --repo <owner>/<repository_name>
 ```
 
 **Arguments:**
 
-*   `--repo`: The name of the GitHub repository where the issues will be created.
-*   `--owner`: The owner of the GitHub repository.
+*   `--repo`: The full name of the GitHub repository (e.g., `owner/repo`) where issues will be created. Can also be set via the `GITHUB_REPOSITORY` environment variable.
+*   `--token`: A GitHub token for authentication. Can also be set via the `GITHUB_TOKEN` environment variable.
+
+**Note:** This command is intended for use in a CI environment and requires the `PR_NUMBER` environment variable to be set.
 
 **Workflow:**
 
-1.  Place the Markdown files you want to convert into issues in the `_in_box` directory.
-2.  Run the `create-issues` command with the appropriate repository and owner.
-3.  The tool will process each Markdown file, create a corresponding GitHub issue, and then move the processed file to the `_done_box` directory.
+1.  Commit and push the Markdown files to the `_in_box` directory on the repository's default branch.
+2.  Run the `create-issues` command in your CI environment with the necessary arguments and environment variables.
+3.  The tool will process each Markdown file from the repository, create a corresponding GitHub issue, and then move the processed file to the `_done_box` directory in the CI runner's local workspace.
 
 ### Validating Documents
 
@@ -49,12 +51,12 @@ The `validate-docs` command allows you to check your Markdown files against a se
 **Command:**
 
 ```bash
-validate-docs <path_to_file_or_directory>
+validate-docs <path_to_file...>
 ```
 
 **Arguments:**
 
-*   `<path_to_file_or_directory>`: The path to a single Markdown file or a directory containing Markdown files to be validated.
+*   `<path_to_file...>`: One or more paths to Markdown files to be validated. To process all files in a directory, use shell globbing (e.g., `validate-docs _in_box/*.md`).
 
 **Workflow:**
 
@@ -62,4 +64,4 @@ validate-docs <path_to_file_or_directory>
 2.  The tool will check the file(s) against the validation rules.
 3.  If any errors are found, they will be displayed in the console.
 
-For more details on the specific validation rules, please refer to the [Validation Rules Document](issue_creator_kit/docs/validation-rules.md).
+For more details on the specific validation rules, please refer to the [Validation Rules Document](../../issue_creator_kit/docs/validation-rules.md).
