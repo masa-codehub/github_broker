@@ -11,7 +11,7 @@ class ValidationService:
     ドキュメントの検証に関するビジネスロジックを提供するサービスクラス。
     """
 
-    def validate_frontmatter(self, file_path: str):
+    def validate_frontmatter(self, file_path: str) -> dict:
         """
         指定されたMarkdownファイルのフロントマターを検証する。
         """
@@ -21,7 +21,7 @@ class ValidationService:
             raise FrontmatterError(f"Frontmatter is missing or invalid in {file_path}.") from e
 
         if not post.metadata:
-             raise FrontmatterError(f"Frontmatter is missing or invalid in {file_path}.")
+            raise FrontmatterError(f"Frontmatter is missing or invalid in {file_path}.")
 
         if not isinstance(post.metadata, dict):
             raise FrontmatterError(f"Frontmatter is not a valid dictionary in {file_path}.")
@@ -36,10 +36,56 @@ class ValidationService:
         if not title.strip():
             raise FrontmatterError(f"Required 'title' field cannot be empty in {file_path}.")
 
-        if 'labels' in metadata and not (isinstance(metadata['labels'], list) and all(isinstance(label, str) for label in metadata['labels'])):
-            raise FrontmatterError(f"'labels' field must be a list of strings in {file_path}.")
+        if 'labels' in metadata:
+            labels = metadata['labels']
+            if not (isinstance(labels, list) and all(isinstance(label, str) for label in labels)):
+                raise FrontmatterError(f"'labels' field must be a list of strings in {file_path}.")
+
+            if not any(label in labels for label in ['epic', 'story', 'task']):
+                raise FrontmatterError(f"'labels' must contain one of 'epic', 'story', 'task' in {file_path}.")
+
+            if not any(re.match(r'^P[0-4]$', label) for label in labels):
+                raise FrontmatterError(f"'labels' must contain a priority label (P0-P4) in {file_path}.")
+
+            valid_roles = {
+                'PRODUCT_MANAGER', 'TECHNICAL_DESIGNER', 'BACKENDCODER', 'FRONTENDCODER',
+                'UIUX_DESIGNER', 'CODE_REVIEWER', 'CONTENTS_WRITER', 'MARKET_RESEARCHER',
+                'PEST_ANALYST', 'SYSTEM_ARCHITECT'
+            }
+            if not any(label in valid_roles for label in labels):
+                raise FrontmatterError(f"'labels' must contain a valid agent role label (e.g., BACKENDCODER) in {file_path}.")
+
         if 'related_issues' in metadata and not (isinstance(metadata['related_issues'], list) and all(isinstance(issue, int) for issue in metadata['related_issues'])):
             raise FrontmatterError(f"'related_issues' field must be a list of integers in {file_path}.")
+
+        return metadata
+
+    def validate_plan_content(self, content: str, metadata: dict) -> list[str]:
+        """計画ファイルのコンテンツ内容を検証します。"""
+        errors = []
+        labels = metadata.get('labels', [])
+
+        # Branch Strategy check
+        branch_section = re.search(r"## ブランチ戦略 \(Branching Strategy\)(.*?)(\n## |$)", content, re.DOTALL)
+        if branch_section:
+            section_text = branch_section.group(1)
+            if "ベースブランチ (Base Branch):" not in section_text:
+                errors.append("Branching Strategy section must contain 'ベースブランチ (Base Branch):'")
+            if "作業ブランチ (Feature Branch):" not in section_text:
+                errors.append("Branching Strategy section must contain '作業ブランチ (Feature Branch):'")
+
+        # Completion Criteria check
+        criteria_section = re.search(r"## 完了条件 \(Acceptance Criteria\)(.*?)(\n## |$)", content, re.DOTALL)
+        if criteria_section:
+            section_text = criteria_section.group(1)
+            if 'epic' in labels and "このEpicを構成する全てのStoryの実装が完了していること。" not in section_text:
+                errors.append("Epic completion criteria must contain 'このEpicを構成する全てのStoryの実装が完了していること。'")
+            if 'story' in labels and "このStoryを構成する全てのTaskの実装が完了していること。" not in section_text:
+                errors.append("Story completion criteria must contain 'このStoryを構成する全てのTaskの実装が完了していること。'")
+            if 'task' in labels and "TDD（テスト駆動開発）のサイクル（Red-Green-Refactor）に従って実装と単体テストが完了していること。" not in section_text:
+                errors.append("Task completion criteria must contain 'TDD（テスト駆動開発）のサイクル（Red-Green-Refactor）に従って実装と単体テストが完了していること。'")
+
+        return errors
 
     def _extract_headers_from_content(self, content: str) -> list[str]:
         """Markdownコンテンツから `#`, `##`, `###` で始まるヘッダーを抽出します。"""
