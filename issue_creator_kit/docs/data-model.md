@@ -4,43 +4,44 @@
 
 ## ドメインモデル
 
-### `Document`
+### `DocumentType`
 
 -   **定義場所:** `issue_creator_kit/domain/document.py`
--   **責務:** `_in_box`に配置された単一のMarkdown計画ファイル（`.md`）を表現するドメインエンティティです。このモデルは、ファイルの内容を構造化データとして保持し、検証の対象となります。
--   **主要プロパティ:**
-    -   `path`: `Path` - ファイルへのパス。
-    -   `front_matter`: `dict` - YAMLフロントマターをパースした辞書。
-    -   `content`: `str` - Markdownの本文。
-    -   `issue_type`: `IssueType` (Enum) - `epic`, `story`, `task` のいずれか。
-    -   `parent_path`: `Path | None` - 親となる計画ファイルのパス。階層構造の解析に使用されます。
+-   **責務:** ドキュメントの種類を識別する列挙型です。バリデーション時のヘッダー定義のキーとして使用されます。
+-   **メンバー:**
+    -   `ADR`
+    -   `DESIGN_DOC`
+    -   `PLAN`
+    -   `IN_BOX`
 
-### `Issue`
+### `IssueData`
 
 -   **定義場所:** `issue_creator_kit/domain/issue.py`
--   **責務:** `Document`モデルから変換された、GitHubに起票されるべき単一のIssueの情報を表現するドメインエンティティです。
+-   **責務:** GitHubに起票されるIssueのデータを保持するデータクラスです。ファイルコンテンツのYAML Front Matterと本文から生成されます。
 -   **主要プロパティ:**
     -   `title`: `str` - Issueのタイトル。
-    -   `body`: `str` - Issueの本文。
-    -   `labels`: `list[str]` - Issueに付与されるラベル。
-    -   `issue_type`: `IssueType` (Enum)
-    -   `parent`: `Issue | None` - 親Issueへの参照。
+    -   `body`: `str` - Issueの本文（Markdown形式）。
+    -   `labels`: `list[str]` - Issueに付与されるラベルのリスト。
+    -   `assignees`: `list[str]` - アサイン先ユーザー名のリスト。
 
 ## モデル間の関係とデータフロー
 
-ツールの主要なデータフローは、`Document`から`Issue`への変換です。
+ツールの主要なデータフローは、`_in_box`内のファイルから`IssueData`への変換、そしてGitHub Issueの作成です。
 
 ```mermaid
 graph TD
-    A["_in_box内の.mdファイル"] -->|FileSystemServiceが読み込み| B(Document オブジェクト);
-    B -->|ValidationServiceが検証| C{検証OK?};
-    C -- Yes --> D[Issue オブジェクト];
-    C -- No --> E[エラー出力];
-    D -->|IssueServiceが処理| F(GitHubService);
-    F -->|PyGithubを利用| G[GitHub API];
+    A["_in_box内のファイル"] -->|GithubServiceが取得| B(ファイルコンテンツ str);
+    B -->|parse_issue_content| C[IssueData オブジェクト];
+    C -->|IssueCreationServiceが利用| D(GithubService.create_issue);
+    D -->|PyGithubを利用| E[GitHub API (Issue作成)];
+    D -->|成功時| F[_done_boxへ移動];
+    D -->|失敗時| G[_failed_boxへ移動];
 ```
 
-1.  `FileSystemService`が`_in_box`から`.md`ファイルを探索し、それぞれを`Document`オブジェクトとしてインスタンス化します。
-2.  `ValidationService`が各`Document`オブジェクトを検証します。
-3.  `IssueService`が検証済みの`Document`オブジェクトを受け取り、`Issue`オブジェクトへと変換します。この際、親子関係も解決されます。
-4.  最終的に、`IssueService`は`GitHubService`を呼び出し、`Issue`オブジェクトの情報に基づいてGitHub API経由で実際のIssueを作成します。
+1.  `IssueCreationService`が`GithubService`を使用して`_in_box`ディレクトリ内のファイルを取得します。
+2.  各ファイルの内容（文字列）は、`parse_issue_content`関数によって解析されます。
+    - YAML Front Matterから`title`, `labels`, `assignees`を抽出します。
+    - 残りの部分を`body`として抽出します。
+3.  解析結果は`IssueData`オブジェクトとしてインスタンス化されます。
+4.  `IssueCreationService`は`IssueData`の情報を用いて`GithubService.create_issue`を呼び出し、GitHub Issueを作成します。
+5.  処理結果に応じて、ファイルは`_done_box`または`_failed_box`に移動されます。
