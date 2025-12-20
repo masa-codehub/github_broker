@@ -28,20 +28,22 @@ pip install -e ./issue_creator_kit
 
 Issueを作成する前に、計画ファイルが正しいフォーマットに準拠しているかを検証します。
 
-```
-python -m issue_creator_kit.interface.validation_cli
+```bash
+doc-validator path/to/your/document.md
 ```
 
 ### 2. Issueの作成
 
 検証済みの計画ファイルから、実際にGitHub Issueを作成します。
+このコマンドは、環境変数 `GITHUB_TOKEN`, `GITHUB_REPOSITORY`, `PR_NUMBER` が設定されていることを前提としています。
 
-```
-# ドライランモードで実行（実際にはIssueを作成しない）
-python -m issue_creator_kit.interface.cli --dry-run
+```bash
+# 環境変数を設定して実行する例
+export GITHUB_TOKEN="your_github_token"
+export GITHUB_REPOSITORY="owner/repo"
+export PR_NUMBER="123"
 
-# 実際にIssueを作成
-python -m issue_creator_kit.interface.cli
+issue-creator
 ```
 
 詳細なコマンドオプションについては、`docs/usage.md`を参照してください。
