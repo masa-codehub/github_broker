@@ -17,7 +17,7 @@ Issue Creator Kitは、`_in_box`ディレクトリに配置されたMarkdown形�
 
 プロジェクトのルートディレクトリで、Poetryを使用してインストールします。
 
-```
+```bash
 # 仮想環境に入った後
 pip install -e ./issue_creator_kit
 ```
@@ -29,21 +29,19 @@ pip install -e ./issue_creator_kit
 Issueを作成する前に、計画ファイルが正しいフォーマットに準拠しているかを検証します。
 
 ```bash
-doc-validator path/to/your/document.md
+python -m issue_creator_kit.interface.validation_cli
 ```
 
 ### 2. Issueの作成
 
 検証済みの計画ファイルから、実際にGitHub Issueを作成します。
-このコマンドは、環境変数 `GITHUB_TOKEN`, `GITHUB_REPOSITORY`, `PR_NUMBER` が設定されていることを前提としています。
 
 ```bash
-# 環境変数を設定して実行する例
-export GITHUB_TOKEN="your_github_token"
-export GITHUB_REPOSITORY="owner/repo"
-export PR_NUMBER="123"
+# ドライランモードで実行（実際にはIssueを作成しない）
+python -m issue_creator_kit.interface.cli --dry-run
 
-issue-creator
+# 実際にIssueを作成
+python -m issue_creator_kit.interface.cli
 ```
 
 詳細なコマンドオプションについては、`docs/usage.md`を参照してください。
