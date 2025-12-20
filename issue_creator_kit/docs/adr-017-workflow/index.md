@@ -2,11 +2,11 @@
 
 ## 目的
 
-本ドキュメントは、[ADR-017: _in_box方式によるIssue自動起票ワークフローの導入](../adr/017-commit-triggered-issue-creation.md)で決定された、コミットトリガーによるIssue自動起票ワークフローの全体像を記述します。これにより、開発チームがこのワークフローを理解し、利用・運用するために必要な情報を提供することを目的とします。
+本ドキュメントは、[ADR-017: _in_box方式によるIssue自動起票ワークフローの導入](../../reqs/adr/017-commit-triggered-issue-creation.md)で決定された、コミットトリガーによるIssue自動起票ワークフローの全体像を記述します。これにより、開発チームがこのワークフローを理解し、利用・運用するために必要な情報を提供することを目的とします。
 
 ## 背景
 
-従来のIssue作成プロセスは、GitHubのWeb UIやテンプレートに依存していました。しかし、開発プロセスをより効率化し、コミット内容に基づいてIssueを自動的に生成するニーズが高まりました。本ワークフローは、特定のGitリポジトリ（`/_in_box`フォルダ）にIssueファイルを配置することで、GitHub Actionsを通じてIssueを自動的に起票する「GitOps」的なアプローチを採用しています。
+従来のIssue作成プロセスは、GitHubのWeb UIやテンプレートに依存していました。しかし、開発プロセスをより効率化し、コミット内容に基づいてIssueを自動的に生成するニーズが高まりました。本ワークフローは、特定のGitリポジトリ（`_in_box/`フォルダ）にIssueファイルを配置することで、GitHub Actionsを通じてIssueを自動的に起票する「GitOps」的なアプローチを採用しています。
 
 ## 全体構成と主要コンポーネント
 
@@ -24,6 +24,7 @@ Issue自動起票ワークフローは、以下の主要なコンポーネント
 ```mermaid
 graph TD
     subgraph 開発プロセス
+        direction LR
         Developer -- 1. Issueファイル作成 --> LocalRepo
         LocalRepo -- 2. コミット & 検証 --> Validation["pre-commitフック (doc-validation)"]
         Validation -- 3. (成功) --> PR["Pull Request (to main)"]
@@ -45,7 +46,7 @@ graph TD
         IssueCreationLogic -- 9. ファイル移動コミット --> GitHub_Main
     end
 
-    GitHub_Main -- 10. 更新 --> Developer
+    GitHub_Main -- 10. ファイル移動コミットの反映 --> Developer
 ```
 
 ## ワークフローの動作シーケンス
@@ -79,4 +80,4 @@ graph TD
 
 ## 関連ドキュメント
 
-*   [ADR-017: _in_box方式によるIssue自動起票ワークフローの導入](../adr/017-commit-triggered-issue-creation.md)
+*   [ADR-017: _in_box方式によるIssue自動起票ワークフローの導入](../../reqs/adr/017-commit-triggered-issue-creation.md)

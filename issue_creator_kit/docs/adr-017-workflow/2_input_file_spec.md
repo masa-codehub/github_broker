@@ -1,6 +1,6 @@
 # 入力ファイル仕様 / Input File Specification
 
-このドキュメントは、`/_in_box` ディレクトリに配置されるIssueファイルの厳密なフォーマットを定義します。
+このドキュメントは、`_in_box/` ディレクトリに配置されるIssueファイルの厳密なフォーマットを定義します。
 IssueファイルはYAML Front MatterとMarkdown本文で構成され、GitHub Issueの自動起票に使用されます。
 
 ## 1. ファイル名規則
