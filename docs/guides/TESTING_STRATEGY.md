@@ -54,7 +54,7 @@
 
 CIで実行される内容と等価なチェックを、以下のコマンドで実行できます。
 
-```
+```bash
 pre-commit run --all-files
 ```
 
@@ -62,7 +62,7 @@ pre-commit run --all-files
 
 `pytest`コマンドを直接使用して、特定のテストのみを実行することも可能です。
 
-```
+```bash
 # github_brokerの全テストを実行
 pytest tests/
 
@@ -80,6 +80,6 @@ pytest tests/application/test_task_service.py::test_request_task_returns_none
 
 テストカバレッジを計測し、レポートを生成します。
 
-```
+```bash
 pytest --cov=github_broker --cov=issue_creator_kit
 ```
