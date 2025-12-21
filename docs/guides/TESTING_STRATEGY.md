@@ -5,7 +5,7 @@
 本プロジェクトでは、品質と開発速度を両立させるため、**テストピラミッド**の考え方を採用します。テストは自動化され、CI/CDパイプラインに組み込まれることを前提とします。
 
 - **テストフレームワーク:** `pytest` を標準とします。
-- **CIでの実行:** CIでは`pre-commit`フックを通じて、常に**全てのテスト**が実行されます。
+- **CI/CDパイプラインでの実行:** CIでは`pre-commit`フックを通じて、主要な自動テスト（主に単体テスト）が実行されます。統合テスト（`@pytest.mark.integration`）は将来的に実行を制御（スキップ）可能にしますが、現状は全て実行されます。
 
 ## 2. ディレクトリ構成と命名規則
 
@@ -44,7 +44,11 @@
 - **種類:** 単体テスト と 統合テスト
 - **方針:**
     - **単体テスト:** 外部ライブラリ（`PyGithub`, `redis-py`等）をモックし、クライアントクラスの内部ロジックが正しいことを検証します。
-    - **統合テスト:** （限定的に）実際に外部サービスと通信し、連携が正しく機能することを確認します。これらのテストは `@pytest.mark.integration` マーカーを付与し、通常はスキップされるように設定することも検討します（現状は全実行）。
+    - **統合テスト:** （限定的に）実際に外部サービスと通信し、連携が正しく機能することを確認します。これらのテストには `@pytest.mark.integration` マーカーを付与し、将来的に統合テストのみ／統合テストを除外して実行できるようにします。現時点では CI を含め、全てのテストが実行されます。
+
+### 3.5. E2E (End-to-End) Layer
+- **種類:** システムテスト
+- **方針:** 現状ではE2Eテストは実装スコープ外としています。将来的には、実際のGitHubリポジトリとエージェントを使用したE2Eテストの導入を検討します。
 
 ## 4. ローカルでのテスト実行
 
@@ -73,7 +77,7 @@ pytest issue_creator_kit/tests/
 pytest tests/application/test_task_service.py
 
 # 特定のテスト関数のみ実行
-pytest tests/application/test_task_service.py::test_request_task_returns_none
+pytest tests/application/test_task_service.py::test_request_task_returns_none_immediately_if_no_task_available
 ```
 
 ### カバレッジの計測
