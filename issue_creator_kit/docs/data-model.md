@@ -4,6 +4,16 @@
 
 ## ドメインモデル
 
+### `PlanFile` (Conceptual)
+
+-   **概要:** `_in_box`に配置されるMarkdown形式の計画ファイルです。コード上は明示的なクラスとして定義されていませんが、`ValidationService`によって厳密に構造が検証されます。
+-   **構成要素:**
+    -   **YAML Front Matter:**
+        -   `title`: `str` (必須)
+        -   `labels`: `list[str]` (必須) - Issueタイプ、優先度、担当者を含みます。
+        -   `related_issues`: `list[int]` (任意) - 関連するIssue番号。検証対象ですが、`IssueData`には直接マッピングされません（将来的な拡張用）。
+    -   **Body:** Markdownテキスト。
+
 ### `DocumentType`
 
 -   **定義場所:** `issue_creator_kit/domain/document.py`

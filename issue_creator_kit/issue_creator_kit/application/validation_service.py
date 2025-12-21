@@ -11,6 +11,18 @@ class ValidationService:
     ドキュメントの検証に関するビジネスロジックを提供するサービスクラス。
     """
 
+    VALID_ROLES = {
+        'PRODUCT_MANAGER', 'TECHNICAL_DESIGNER', 'BACKENDCODER', 'FRONTENDCODER',
+        'UIUX_DESIGNER', 'CODE_REVIEWER', 'CONTENTS_WRITER', 'MARKET_RESEARCHER',
+        'PEST_ANALYST', 'SYSTEM_ARCHITECT'
+    }
+
+    MSG_BRANCH_BASE_MISSING = "Branching Strategy section must contain 'ベースブランチ (Base Branch):'"
+    MSG_BRANCH_FEATURE_MISSING = "Branching Strategy section must contain '作業ブランチ (Feature Branch):'"
+    MSG_EPIC_CRITERIA_MISSING = "Epic completion criteria must contain 'このEpicを構成する全てのStoryの実装が完了していること。'"
+    MSG_STORY_CRITERIA_MISSING = "Story completion criteria must contain 'このStoryを構成する全てのTaskの実装が完了していること。'"
+    MSG_TASK_CRITERIA_MISSING = "Task completion criteria must contain 'TDD（テスト駆動開発）のサイクル（Red-Green-Refactor）に従って実装と単体テストが完了していること。'"
+
     def validate_frontmatter(self, file_path: str) -> dict:
         """
         指定されたMarkdownファイルのフロントマターを検証する。
@@ -47,12 +59,7 @@ class ValidationService:
             if not any(re.match(r'^P[0-4]$', label) for label in labels):
                 raise FrontmatterError(f"'labels' must contain a priority label (P0-P4) in {file_path}.")
 
-            valid_roles = {
-                'PRODUCT_MANAGER', 'TECHNICAL_DESIGNER', 'BACKENDCODER', 'FRONTENDCODER',
-                'UIUX_DESIGNER', 'CODE_REVIEWER', 'CONTENTS_WRITER', 'MARKET_RESEARCHER',
-                'PEST_ANALYST', 'SYSTEM_ARCHITECT'
-            }
-            if not any(label in valid_roles for label in labels):
+            if not any(label in self.VALID_ROLES for label in labels):
                 raise FrontmatterError(f"'labels' must contain a valid agent role label (e.g., BACKENDCODER) in {file_path}.")
 
         if 'related_issues' in metadata and not (isinstance(metadata['related_issues'], list) and all(isinstance(issue, int) for issue in metadata['related_issues'])):
@@ -70,20 +77,20 @@ class ValidationService:
         if branch_section:
             section_text = branch_section.group(1)
             if "ベースブランチ (Base Branch):" not in section_text:
-                errors.append("Branching Strategy section must contain 'ベースブランチ (Base Branch):'")
+                errors.append(self.MSG_BRANCH_BASE_MISSING)
             if "作業ブランチ (Feature Branch):" not in section_text:
-                errors.append("Branching Strategy section must contain '作業ブランチ (Feature Branch):'")
+                errors.append(self.MSG_BRANCH_FEATURE_MISSING)
 
         # Completion Criteria check
         criteria_section = re.search(r"## 完了条件 \(Acceptance Criteria\)(.*?)(\n## |$)", content, re.DOTALL)
         if criteria_section:
             section_text = criteria_section.group(1)
             if 'epic' in labels and "このEpicを構成する全てのStoryの実装が完了していること。" not in section_text:
-                errors.append("Epic completion criteria must contain 'このEpicを構成する全てのStoryの実装が完了していること。'")
+                errors.append(self.MSG_EPIC_CRITERIA_MISSING)
             if 'story' in labels and "このStoryを構成する全てのTaskの実装が完了していること。" not in section_text:
-                errors.append("Story completion criteria must contain 'このStoryを構成する全てのTaskの実装が完了していること。'")
+                errors.append(self.MSG_STORY_CRITERIA_MISSING)
             if 'task' in labels and "TDD（テスト駆動開発）のサイクル（Red-Green-Refactor）に従って実装と単体テストが完了していること。" not in section_text:
-                errors.append("Task completion criteria must contain 'TDD（テスト駆動開発）のサイクル（Red-Green-Refactor）に従って実装と単体テストが完了していること。'")
+                errors.append(self.MSG_TASK_CRITERIA_MISSING)
 
         return errors
 

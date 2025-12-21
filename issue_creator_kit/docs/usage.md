@@ -12,6 +12,12 @@
 python -m issue_creator_kit.interface.validation_cli [OPTIONS]
 ```
 
+または、パッケージインストール後は以下のコマンドも利用可能です:
+
+```bash
+doc-validator [OPTIONS]
+```
+
 ### オプション
 
 -   **`--repo <owner>/<repo_name>`**:
@@ -26,6 +32,12 @@ python -m issue_creator_kit.interface.validation_cli [OPTIONS]
 
 ```bash
 python -m issue_creator_kit.interface.cli [OPTIONS]
+```
+
+または、パッケージインストール後は以下のコマンドも利用可能です:
+
+```bash
+issue-creator [OPTIONS]
 ```
 
 ### オプション
