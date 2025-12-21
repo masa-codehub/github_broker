@@ -25,6 +25,7 @@
 
 - [依存性注入(DI)コンテナ 設計書](./di-container.md)
 - [Redisキースキーマ 設計書](./redis-schema.md)
+- [エラーハンドリングとリトライ戦略 設計書](./error-handling-and-retry-strategy.md)
 
 -----
 
