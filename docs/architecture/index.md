@@ -23,6 +23,7 @@
 
 より詳細なアーキテクチャ上の決定については、以下のドキュメントを参照してください。
 
+- [C4コンポーネント図](./c4-component-diagram.md)
 - [依存性注入(DI)コンテナ 設計書](./di-container.md)
 - [Redisキースキーマ 設計書](./redis-schema.md)
 - [エラーハンドリングとリトライ戦略 設計書](./error-handling-and-retry-strategy.md)
