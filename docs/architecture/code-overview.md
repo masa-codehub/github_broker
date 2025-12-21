@@ -1,8 +1,34 @@
-# `github_broker` コードドキュメント
+# コードの概要 (Code Overview)
 
-このドキュメントは、`github_broker` プロジェクトのコードベースにおける各ファイルの機能と役割を可視化することを目的としています。クリーンアーキテクチャの原則に基づき、各レイヤー（Domain, Application, Interface, Infrastructure）に分割して説明します。
+このドキュメントは、本プロジェクトのコードベースにおける各コンポーネントの機能と役割、および詳細な構造を説明します。
 
-## フォルダ構成
+## コンポーネントの責務 (Component Responsibilities)
+
+本システムは、大きく以下の2つのコンポーネントで構成されています。
+
+### 1. `github_broker`
+**コア機能・エージェント実行基盤**
+-   **役割**: システムの中核として機能し、GitHubからのタスク（Issue）のポーリング、AIエージェントへのタスク割り当て、および実行管理を担います。
+-   **主な機能**:
+    -   GitHub APIを通じたIssueの監視と取得
+    -   Redisを使用したタスクの優先度管理と分散ロック
+    -   Gemini APIを使用したAIエージェントによるタスク実行（コード生成、レビュー修正など）
+    -   APIエンドポイントの提供（エージェントからのリクエスト受付）
+
+### 2. `issue_creator_kit`
+**Issue作成・検証CLIツール**
+-   **役割**: ドキュメントベースの開発フローを支えるユーティリティツール群です。ドキュメントの検証や、定義ファイルからのIssue自動作成を行います。
+-   **主な機能**:
+    -   **Issue作成**: `_in_box` ディレクトリ内のMarkdownファイルを解析し、GitHub Issueを自動作成します。作成後はファイルを `_done_box` 等へ移動させます。
+    -   **ドキュメント検証**: ADRやデザインドキュメントなどのMarkdownファイルが、所定のフォーマットや必須項目（Frontmatterなど）を満たしているかを検証します。
+
+---
+
+## `github_broker` コードドキュメント
+
+このセクションでは、`github_broker` ディレクトリ内のコード構成について説明します。クリーンアーキテクチャの原則に基づき、各レイヤー（Domain, Application, Interface, Infrastructure）に分割されています。
+
+### フォルダ構成
 
 ```
 github_broker/
@@ -31,9 +57,9 @@ github_broker/
     └── models.py
 ```
 
-## 各レイヤーの概要とファイル詳細
+### 各レイヤーの概要とファイル詳細
 
-### 1. Domain Layer (ドメイン層)
+#### 1. Domain Layer (ドメイン層)
 
 エンタープライズ全体のビジネスルールを定義します。この層は他のどの層にも依存しません。
 
@@ -48,7 +74,7 @@ github_broker/
         -   `is_assignable()`: Issueがアサイン可能かどうかをチェックします。（TODO: ロジック移動予定）
         -   `extract_branch_name()`: Issueの本文からブランチ名を抽出します。
 
-### 2. Application Layer (アプリケーション層)
+#### 2. Application Layer (アプリケーション層)
 
 アプリケーション固有のビジネスルール（ユースケース）を定義します。ドメイン層に依存しますが、インターフェース層やインフラストラクチャ層には依存しません。
 
@@ -70,7 +96,7 @@ github_broker/
             -   **レビュー修正タスク:** `GitHubClient`でPR情報とレビューコメントを取得し、`GeminiExecutor`でレビュー修正専用のプロンプトを生成します。
         4.  **タスクの割り当てと状態管理:** 選択したタスクをロックし、エージェントに割り当て、その状態をRedisとGitHub上で更新します。
 
-### 3. Interface Layer (インターフェース層)
+#### 3. Interface Layer (インターフェース層)
 
 外部とのインターフェース（APIエンドポイント、データモデル）を定義します。アプリケーション層に依存しますが、インフラストラクチャ層には直接依存しません。
 
@@ -92,7 +118,7 @@ github_broker/
         -   `AgentTaskRequest` (BaseModel): エージェントからのタスクリクエストのデータ構造（agent_id, capabilities）。
         -   `TaskResponse` (BaseModel): 割り当てられたタスク情報のレスポンスデータ構造（issue_id, issue_url, title, body, labels, branch_name）。
 
-### 4. Infrastructure Layer (インフラストラクチャ層)
+#### 4. Infrastructure Layer (インフラストラクチャ層)
 
 フレームワークやドライバ（DB、Web、UIなど）といった技術的な詳細を扱います。ドメイン層やアプリケーション層に依存されますが、これらの層はインフラストラクチャ層に依存しません。
 
@@ -152,3 +178,88 @@ github_broker/
             -   `__init__()`: プロンプトテンプレートのパスなどを設定し初期化します。
             -   `build_prompt()`: 開発タスクの情報に基づいてプロンプトを構築します。
             -   `build_code_review_prompt()`: レビュー修正タスクの情報（PRのURL、レビューコメント）に基づいてプロンプトを構築します。
+
+---
+
+## `issue_creator_kit` コードドキュメント
+
+このセクションでは、`issue_creator_kit` ディレクトリ内のコード構成について説明します。こちらもクリーンアーキテクチャの影響を受けた構成となっています。
+
+### フォルダ構成
+
+```
+issue_creator_kit/
+├── application/    # Application-specific business rules (Use Cases)
+│   ├── __init__.py
+│   ├── issue_service.py      # Issue作成ロジック
+│   ├── validation_service.py # ドキュメント検証ロジック
+│   └── utils.py
+├── domain/         # Enterprise-wide business rules
+│   ├── __init__.py
+│   ├── issue.py     # Issueデータモデル
+│   └── document.py  # ドキュメント定義
+├── infrastructure/ # Frameworks, Drivers
+│   ├── __init__.py
+│   ├── github_service.py      # GitHub API操作
+│   └── file_system_service.py # ファイル操作
+└── interface/      # Adapters (CLI)
+    ├── __init__.py
+    ├── cli.py            # Issue作成CLIのエントリーポイント
+    └── validation_cli.py # バリデーションCLIのエントリーポイント
+```
+
+### 各レイヤーの概要とファイル詳細
+
+#### 1. Domain Layer (ドメイン層)
+
+ビジネスルールやデータ構造を定義します。
+
+-   **`domain/issue.py`**
+    -   **概要**: GitHub Issueのデータを表現するデータクラスです。
+    -   **主要なクラス**:
+        -   `IssueData`: タイトル、本文、ラベル、アサイン情報を保持します。
+
+-   **`domain/document.py`**
+    -   **概要**: ドキュメントの種類や検証ルール（必須ヘッダーなど）を定義します。
+    -   **主要なクラス/定数**:
+        -   `DocumentType`: ドキュメントの種類（ADR, DESIGN_DOCなど）を定義するEnum。
+        -   `REQUIRED_HEADERS`: 各ドキュメントタイプに必要なヘッダー定義。
+
+#### 2. Application Layer (アプリケーション層)
+
+具体的なユースケースを実装します。
+
+-   **`application/issue_service.py`**
+    -   **概要**: `_in_box` 内のファイルからIssueを作成し、ファイルを移動させる一連のフローを制御します。
+    -   **主要なクラス**:
+        -   `IssueCreationService`:
+            -   `create_issues_from_inbox(pull_number)`: 指定されたPRに関連するInboxファイルを処理し、Issueを作成します。成功・失敗に応じてファイルを移動します。
+
+-   **`application/validation_service.py`**
+    -   **概要**: ドキュメントのフォーマット検証ロジックを提供します。
+    -   **主要なクラス**:
+        -   `ValidationService`:
+            -   `validate_frontmatter(file_path)`: MarkdownファイルのFrontmatter（メタデータ）を検証します。
+            -   `validate_sections(content, doc_type)`: 必須セクションが含まれているか検証します。
+
+#### 3. Interface Layer (インターフェース層)
+
+CLIツールとしてのエントリーポイントを提供します。
+
+-   **`interface/cli.py`**
+    -   **概要**: Issue作成ツールのエントリーポイントです。環境変数や引数から設定を読み込み、`IssueCreationService`を実行します。
+
+-   **`interface/validation_cli.py`**
+    -   **概要**: ドキュメント検証ツールのエントリーポイントです。指定されたディレクトリ内のファイルをスキャンし、`ValidationService`を使って検証を実行します。
+
+#### 4. Infrastructure Layer (インフラストラクチャ層)
+
+外部システム（GitHub API、ファイルシステム）との連携を扱います。
+
+-   **`infrastructure/github_service.py`**
+    -   **概要**: `PyGithub` を使用してGitHub APIを操作します。
+    -   **主要なクラス**:
+        -   `GithubService`: Issueの作成、リポジトリ内のファイル取得などを行います。
+
+-   **`infrastructure/file_system_service.py`**
+    -   **概要**: ローカルファイルシステムの操作（ファイルの探索、読み込みなど）を行います。
