@@ -1,10 +1,10 @@
-# タスク要求シーケンス図
+# /request-task エンドポイント処理フロー
 
 ## 概要
 
-このドキュメントは、エージェントが `/request-task` エンドポイントを呼び出してから、最適なタスクが割り当てられるまでの、サーバーサイド (`TaskService`) の一連の処理フローをシーケンス図として示します。
+このドキュメントは、エージェントが `/request-task` エンドポイント を呼び出してから、最適なタスクが割り当てられるまでの、サーバーサイド (`TaskService`) の一連の処理フローをシーケンス図として示します 。
 
-このフローは、以下のADRで定義された重要なビジネスルールに基づいています。
+このフローは、以下のADRで定義された重要なビジネスルールに基づいて います。
 - **ADR-015:** 厳格な優先度に基づくタスク選択
 - **ADR-016:** レビュー修正タスクのプロンプト生成
 
@@ -21,10 +21,10 @@ sequenceDiagram
     Agent->>+API: タスクをリクエスト (agent_id)
     API->>+TaskService: request_task(agent_id)
 
-    %% フェーズ1: 全Issueから最高優先度を特定 (ADR-015)
+    %% フェーズ1: Redisキャッシュから全Issueを取得し、最高優先度を特定 (ADR-015)
     TaskService->>+Redis: 全Issueキャッシュを取得 (issue:*)
     Redis-->>-TaskService: Issueリスト(JSON)
-    TaskService->>TaskService: 全ラベルから最高優先度を決定 (例: 'P0')
+    TaskService->>TaskService: 全Issueキャッシュのラベルから最高優先度を決定 (例: 'P0')
 
     %% フェーズ2: 候補タスクのフィルタリング
     TaskService->>TaskService: 候補Issueをフィルタリング
@@ -48,7 +48,7 @@ sequenceDiagram
         end
 
         %% フェーズ4: ロック取得とタスク割り当て
-        TaskService->>+Redis: 分散ロックを取得 (acquire_lock issue_lock:{issue_id})
+        TaskService->>+Redis: 分散ロックを取得 (acquire_lock issue_lock_{issue_id})
         alt ロック取得失敗
             Redis-->>-TaskService: 失敗
             TaskService->>TaskService: 次の候補へ
