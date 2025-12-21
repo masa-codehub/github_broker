@@ -3,86 +3,98 @@
 ## 1. 概要
 
 このドキュメントは、`github_broker`プロジェクトにおける依存性注入（DI）の設計と実装について説明します。
-本プロジェクトでは、コンポーネント間の依存関係を疎結合に保ち、テスト容易性を向上させる目的で、軽量なDIコンテナライブラリ `punq` を採用しています。
+本プロジェクトでは、コンポーネント間の依存関係を疎結合に保ち、テスト容易性を向上させる目的で、軽量なDIコンテナライブラリ `punq` を採用しています (ADR-004)。
 
 依存関係の定義は、すべて `/github_broker/infrastructure/di_container.py` に一元管理されています。
 
-## 2. `punq` の役割
+## 2. 設計思想と登録方針
 
-`punq` は、アプリケーションの起動時に各コンポーネント（サービスやクライアント）のインスタンスを生成し、必要な場所に注入（inject）する役割を担います。
+### コンポーネント単位での登録
 
-- **一元管理:** コンポーネントの生成方法とライフサイクル（例: シングルトン）を1つのファイルで管理できます。
-- **疎結合:** コンポーネントは、自身が依存する他のコンポーネントの具体的な生成方法を知る必要がなくなります。インターフェース（抽象）に依存し、具体的な実装はDIコンテナが提供します。
-- **テスト容易性:** 単体テストの際に、本物のコンポーネントの代わりにモックやスタブを容易に差し替えることができます。
+`di_container.py` では、`register_broker_service()` や `register_issue_creator_kit()` といった関数を通じて、コンポーネント単位で依存性を登録する方針を採っています。
 
-## 3. 登録済みサービス
+これは、各コンポーネントが必要とする依存性を一つの関数内にカプセル化することで、見通しを良くし、関心事の分離を徹底するためです。将来的に特定のコンポーネントを無効化したり、別の実装に差し替える際に、この関数単位での操作が可能となり、メンテナンス性が向上します。
 
-現在、以下のコンポーネントがシングルトン（アプリケーション全体で唯一のインスタンス）として登録されています。
+### ライフサイクル
 
-- `RedisClient`: Redisサーバーとの通信を担当します。
-- `GitHubClient`: GitHub APIとの通信を担当します。
-- `TaskService`: タスクの取得や割り当てといったコアなビジネスロジックを担当します。
-- `GeminiExecutor`: Gemini APIとの通信を担当し、プロンプトの実行を行います。
+- **`scope="singleton"`**: アプリケーション全体で単一のインスタンスを共有するサービス（例: `Settings`, `GithubClient`, `RedisClient`）に対して使用します。
+- **`scope="transient"`** (または指定なし): リクエストごと、または呼び出しごとに新しいインスタンスが必要なサービス（例: `TaskService`）に対して使用します。
 
-```python
+原則として、ステートレスなサービスは `singleton`、状態を持つ可能性があるサービスは `transient` とすることを推奨します。
+
+## 3. 登録済みサービスと実装例
+
+以下は、`di_container.py` における主要なサービスの登録例です。
+
+```
 # /github_broker/infrastructure/di_container.py (抜粋)
 
-# DIコンテナの初期化
+import punq
+
+from github_broker.application.task_service import TaskService
+from github_broker.infrastructure.config import Settings
+from github_broker.infrastructure.gemini_client import GeminiClient
+from github_broker.infrastructure.github_client import GitHubClient
+from github_broker.infrastructure.redis_client import RedisClient
+
+def register_broker_service(container: punq.Container) -> None:
+    """github_brokerのコアサービスの依存性を登録します。"""
+
+    # 設定クラスは最初にシングルトンで登録
+    container.register(Settings, scope=punq.Scope.singleton)
+    settings = container.resolve(Settings)
+
+    # 各種クライアントをシングルトンで登録
+    container.register(
+        GitHubClient,
+        instance=GitHubClient(settings.github_token),
+        scope=punq.Scope.singleton,
+    )
+    container.register(
+        RedisClient,
+        instance=RedisClient(settings.redis_url),
+        scope=punq.Scope.singleton,
+    )
+    container.register(
+        GeminiClient,
+        instance=GeminiClient(settings.gemini_api_key),
+        scope=punq.Scope.singleton,
+    )
+
+    # TaskServiceはリクエストごとに生成
+    container.register(TaskService)
+
+# DIコンテナの初期化と登録の実行
 container = punq.Container()
-
-# RedisClientの登録
-# ...
-container.register(RedisClient, instance=RedisClient(redis_instance))
-
-# GitHubClientの登録
-container.register(GitHubClient, scope=punq.Scope.singleton)
-
-# GeminiExecutorの登録
-container.register(GeminiExecutor, scope=punq.Scope.singleton)
-
-# TaskServiceの登録
-container.register(
-    TaskService,
-    instance=TaskService(
-        redis_client=container.resolve(RedisClient),
-        github_client=container.resolve(GitHubClient),
-        gemini_executor=container.resolve(GeminiExecutor),
-    ),
-)
+register_broker_service(container)
 ```
 
-## 4. 新しいサービスの追加・変更方法
+## 4. 開発ガイドライン：新しいサービスの追加方法
 
-新しいサービスやクライアント（例: `NewApiClient`）を追加する場合、以下の手順で `di_container.py` を編集します。
+新しいサービス（例: `NewAnalyticsService`）を追加し、それを `TaskService` に注入する場合、以下の手順に従ってください。
 
-### 手順
+1.  **サービスの登録:**
+    `github_broker/infrastructure/di_container.py` の `register_broker_service()` 関数内に、`NewAnalyticsService` の登録処理を追記します。シングルトンが適切であれば `scope` を指定します。
 
-1.  **インポート:** 新しいクラスをインポートします。
-2.  **登録:** `container.register()` を使って、新しいクラスをコンテナに登録します。多くの場合、ライフサイクルは `scope=punq.Scope.singleton` となります。
-3.  **依存の注入:** 新しいクラスが他のコンポーネントに依存している場合は、`container.resolve()` を使って依存性を解決し、コンストラクタに渡します。
+    ```
+    # github_broker/infrastructure/di_container.py
 
-### 例: `GeminiExecutor` を追加する場合
+    def register_broker_service(container: punq.Container) -> None:
+        ...
+        container.register(NewAnalyticsService, scope=punq.Scope.singleton) # この行を追加
+        ...
+    ```
 
-```python
-# 1. GeminiExecutorをインポート
-from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
+2.  **依存性の注入:**
+    `TaskService` のコンストラクタで、`NewAnalyticsService` を型ヒントと共に引数として受け取ります。DIコンテナが自動的にインスタンスを注入します。
 
-# ... (既存のコード)
+    ```
+    # github_broker/application/task_service.py
 
-# 2. GeminiExecutorをシングルトンとして登録
-container.register(GeminiExecutor, scope=punq.Scope.singleton)
-
-# TaskServiceがGeminiExecutorに依存するようになった場合
-container.register(
-    TaskService,
-    instance=TaskService(
-        redis_client=container.resolve(RedisClient),
-        github_client=container.resolve(GitHubClient),
-        # 3. 新しい依存性を解決して注入
-        gemini_executor=container.resolve(GeminiExecutor),
-    ),
-    scope=punq.Scope.singleton,
-)
-```
-
-このように、依存関係の変更はすべてこのファイル内で完結するため、アプリケーションの他の部分への影響を最小限に抑えることができます。
+    class TaskService:
+        def __init__(self, github_client: GitHubClient, ..., new_service: NewAnalyticsService) -> None:
+            self._github_client = github_client
+            ...
+            self._new_service = new_service
+    ```
+このように、依存関係の変更は `di_container.py` 内で完結するため、アプリケーションの他の部分への影響を最小限に抑えることができます。
