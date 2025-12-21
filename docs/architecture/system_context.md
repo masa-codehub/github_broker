@@ -197,7 +197,7 @@ sequenceDiagram
     Redis-->>ApiServer: Issue List from Cache
 
     alt キャッシュから割り当て可能なタスクが見つかった場合
-        ApiServer->>Redis: SETNX issue_lock (個別Issueロック)
+        ApiServer->>Redis: SETNX issue_lock_{issue_id} (個別Issueロック)
         Redis-->>ApiServer: OK
         ApiServer->>GitHub: PATCH /issues/{new_id} (ラベル更新)
         GitHub-->>ApiServer: OK
