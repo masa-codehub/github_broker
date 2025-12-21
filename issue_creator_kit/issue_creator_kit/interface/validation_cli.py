@@ -32,10 +32,14 @@ def validate_document(file_path: str, service: ValidationService) -> list[str]:
         content = Path(file_path).read_text(encoding="utf-8")
 
         if doc_type == DocumentType.IN_BOX:
-            service.validate_frontmatter(file_path)
+            metadata = service.validate_frontmatter(file_path)
             missing_sections = service.validate_sections(content, doc_type)
             if missing_sections:
                 errors.append(f"Missing sections: {', '.join(missing_sections)}")
+
+            content_errors = service.validate_plan_content(content, metadata)
+            if content_errors:
+                errors.extend(content_errors)
 
         elif doc_type in [DocumentType.ADR, DocumentType.DESIGN_DOC]:
             missing_sections = service.validate_sections(content, doc_type)

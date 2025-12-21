@@ -28,6 +28,5 @@ issue-creator = "issue_creator_kit.interface.cli:main"
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["issue_creator_kit*"]
+[tool.setuptools]
+packages = ["issue_creator_kit"]
