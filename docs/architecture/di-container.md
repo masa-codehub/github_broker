@@ -3,86 +3,128 @@
 ## 1. 概要
 
 このドキュメントは、`github_broker`プロジェクトにおける依存性注入（DI）の設計と実装について説明します。
-本プロジェクトでは、コンポーネント間の依存関係を疎結合に保ち、テスト容易性を向上させる目的で、軽量なDIコンテナライブラリ `punq` を採用しています。
+本プロジェクトでは、コンポーネント間の依存関係を疎結合に保ち、テスト容易性を向上させる目的で、軽量なDIコンテナライブラリ `punq` を採用しています (ADR-004)。
 
 依存関係の定義は、すべて `/github_broker/infrastructure/di_container.py` に一元管理されています。
 
-## 2. `punq` の役割
+## 2. 設計思想と登録方針
 
-`punq` は、アプリケーションの起動時に各コンポーネント（サービスやクライアント）のインスタンスを生成し、必要な場所に注入（inject）する役割を担います。
+### 依存関係の一元管理
 
-- **一元管理:** コンポーネントの生成方法とライフサイクル（例: シングルトン）を1つのファイルで管理できます。
-- **疎結合:** コンポーネントは、自身が依存する他のコンポーネントの具体的な生成方法を知る必要がなくなります。インターフェース（抽象）に依存し、具体的な実装はDIコンテナが提供します。
-- **テスト容易性:** 単体テストの際に、本物のコンポーネントの代わりにモックやスタブを容易に差し替えることができます。
+`di_container.py` の `create_container()` 関数内で、アプリケーションが必要とするすべての依存性をコンテナに登録します。
 
-## 3. 登録済みサービス
+これにより、コンポーネントが自身の依存関係を直接生成（インスタンス化）するのではなく、コンテナから注入される形となり、モックへの差し替えが容易になります。
 
-現在、以下のコンポーネントがシングルトン（アプリケーション全体で唯一のインスタンス）として登録されています。
+### ライフサイクル
 
-- `RedisClient`: Redisサーバーとの通信を担当します。
-- `GitHubClient`: GitHub APIとの通信を担当します。
-- `TaskService`: タスクの取得や割り当てといったコアなビジネスロジックを担当します。
-- `GeminiExecutor`: Gemini APIとの通信を担当し、プロンプトの実行を行います。
+本プロジェクトでは、以下の登録パターンを主に使用しています。
+
+- **`instance=` (事前生成インスタンス)**: `Settings` や各種クライアントなど、初期化時に設定値が必要なオブジェクトは、コンテナ登録前にインスタンス化し、`instance` パラメータで登録します。これにより、実質的なシングルトンとして振る舞います。
+- **`factory=` (ファクトリ関数)**: 依存関係の解決が必要なサービス（例: `TaskService`）は、`factory` パラメータにラムダ関数などを渡して登録します。解決時にコンテナから必要な依存性が注入されます。
+
+## 3. 登録済みサービスと実装例
+
+以下は、`di_container.py` における主要なサービスの登録例です。
 
 ```python
 # /github_broker/infrastructure/di_container.py (抜粋)
 
-# DIコンテナの初期化
-container = punq.Container()
+from __future__ import annotations
 
-# RedisClientの登録
-# ...
-container.register(RedisClient, instance=RedisClient(redis_instance))
+from typing import cast
 
-# GitHubClientの登録
-container.register(GitHubClient, scope=punq.Scope.singleton)
+import punq
+import redis
 
-# GeminiExecutorの登録
-container.register(GeminiExecutor, scope=punq.Scope.singleton)
+from github_broker.application.task_service import TaskService
+from github_broker.domain.agent_config import AgentConfigList
+from github_broker.infrastructure.agent.loader import AgentConfigLoader
+from github_broker.infrastructure.config import Settings, get_settings
+from github_broker.infrastructure.github_client import GitHubClient
+from github_broker.infrastructure.redis_client import RedisClient
 
-# TaskServiceの登録
-container.register(
-    TaskService,
-    instance=TaskService(
-        redis_client=container.resolve(RedisClient),
-        github_client=container.resolve(GitHubClient),
-        gemini_executor=container.resolve(GeminiExecutor),
-    ),
-)
+
+def create_container(settings: Settings | None = None) -> punq.Container:
+    s = settings or get_settings()
+
+    # Parse owner and repo from repository string
+    try:
+        owner, repo_name = s.github_agent_repository.split("/")
+    except ValueError:
+        raise ValueError(
+            "github_agent_repository must be in the format 'owner/repo_name'"
+        ) from None
+
+    # 各種クライアントのインスタンス化
+    github_client = GitHubClient(
+        github_repository=s.github_agent_repository,
+        github_token=s.github_personal_access_token,
+    )
+    redis_instance = redis.from_url(s.redis_url, decode_responses=True)
+    redis_client = RedisClient(redis=redis_instance, owner=owner, repo_name=repo_name)
+
+    # エージェント設定のロード
+    agent_config_loader = AgentConfigLoader()
+    agent_definitions = agent_config_loader.load_from_file(s.github_agent_config_file)
+
+    # コンテナの構築と登録
+    container = punq.Container()
+    container.register(Settings, instance=s)
+    container.register(GitHubClient, instance=github_client)
+    container.register(RedisClient, instance=redis_client)
+    container.register(AgentConfigLoader, instance=agent_config_loader)
+    container.register(AgentConfigList, instance=cast(AgentConfigList, agent_definitions))
+
+    # TaskServiceはファクトリを用いて登録
+    container.register(
+        TaskService,
+        factory=lambda: TaskService(
+            github_client=container.resolve(GitHubClient),
+            redis_client=container.resolve(RedisClient),
+            agent_configs=container.resolve(AgentConfigList),
+        ),
+    )
+    return container
 ```
 
-## 4. 新しいサービスの追加・変更方法
+## 4. 開発ガイドライン：新しいサービスの追加方法
 
-新しいサービスやクライアント（例: `NewApiClient`）を追加する場合、以下の手順で `di_container.py` を編集します。
+新しいサービス（例: `NewAnalyticsService`）を追加し、それを `TaskService` に注入する場合、以下の手順に従ってください。
 
-### 手順
+1.  **サービスの登録:**
+    `github_broker/infrastructure/di_container.py` の `create_container()` 関数内で、`NewAnalyticsService` の登録処理を追記します。
+    事前にインスタンス化して `instance=` で登録するパターンを推奨します。
 
-1.  **インポート:** 新しいクラスをインポートします。
-2.  **登録:** `container.register()` を使って、新しいクラスをコンテナに登録します。多くの場合、ライフサイクルは `scope=punq.Scope.singleton` となります。
-3.  **依存の注入:** 新しいクラスが他のコンポーネントに依存している場合は、`container.resolve()` を使って依存性を解決し、コンストラクタに渡します。
+    ```python
+    # github_broker/infrastructure/di_container.py
+    # 必要なインポートを追加
+    from github_broker.application.analytics_service import NewAnalyticsService
 
-### 例: `GeminiExecutor` を追加する場合
+    def create_container(settings: Settings | None = None) -> punq.Container:
+        ...
+        # サービスをコンテナに登録（インスタンスを生成して登録するパターン）
+        new_analytics_service = NewAnalyticsService(...)
+        container.register(NewAnalyticsService, instance=new_analytics_service)
+        ...
+    ```
 
-```python
-# 1. GeminiExecutorをインポート
-from github_broker.infrastructure.executors.gemini_executor import GeminiExecutor
+2.  **依存性の注入:**
+    `TaskService` のコンストラクタで、`NewAnalyticsService` を引数として受け取るように修正し、`create_container` 内の `TaskService` 登録時のファクトリ関数（lambda）を更新します。
 
-# ... (既存のコード)
+    ```python
+    # github_broker/application/task_service.py
+    class TaskService:
+        def __init__(self, ..., new_service: NewAnalyticsService):
+            self._new_service = new_service
 
-# 2. GeminiExecutorをシングルトンとして登録
-container.register(GeminiExecutor, scope=punq.Scope.singleton)
+    # github_broker/infrastructure/di_container.py
+    container.register(
+        TaskService,
+        factory=lambda: TaskService(
+            ...,
+            new_service=container.resolve(NewAnalyticsService),
+        ),
+    )
+    ```
 
-# TaskServiceがGeminiExecutorに依存するようになった場合
-container.register(
-    TaskService,
-    instance=TaskService(
-        redis_client=container.resolve(RedisClient),
-        github_client=container.resolve(GitHubClient),
-        # 3. 新しい依存性を解決して注入
-        gemini_executor=container.resolve(GeminiExecutor),
-    ),
-    scope=punq.Scope.singleton,
-)
-```
-
-このように、依存関係の変更はすべてこのファイル内で完結するため、アプリケーションの他の部分への影響を最小限に抑えることができます。
+このように、依存関係の変更は `di_container.py` 内で完結するため、アプリケーションの他の部分への影響を最小限に抑えることができます。
