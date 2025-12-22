@@ -234,54 +234,123 @@ issue_creator_kit/
 
 #### 1. Domain Layer (ドメイン層)
 
+
+
 ビジネスルールやデータ構造を定義します。
 
--   **`domain/issue.py`**
-    -   **概要**: GitHub Issueのデータを表現するデータクラスです。
-    -   **主要なクラス**:
-        -   `IssueData`: タイトル、本文、ラベル、アサイン情報を保持します。
 
--   **`domain/document.py`**
+
+-   **`issue_creator_kit/domain/issue.py`**
+
+    -   **概要**: GitHub Issueのデータを表現するデータクラスです。
+
+    -   **主要なクラス**:
+
+        -   `IssueData`: タイトル、本文、ラベル、アサイン情報を保 持します。
+
+
+
+-   **`issue_creator_kit/domain/document.py`**
+
     -   **概要**: ドキュメントの種類や検証ルール（必須ヘッダーなど）を定義します。
+
     -   **主要なクラス/定数**:
-        -   `DocumentType`: ドキュメントの種類（ADR, DESIGN_DOCなど）を定義するEnum。
+
+        -   `DocumentType`: ドキュメントの種類（ADR, DESIGN_DOCな ど）を定義するEnum。
+
         -   `REQUIRED_HEADERS`: 各ドキュメントタイプに必要なヘッダー定義。
+
+
+
+-   **`issue_creator_kit/domain/in_box_file_filter.py`**
+
+    -   **概要**: `_in_box` ディレクトリ内のファイルをフィルタリングする機能を提供します。
+
+    -   **主要なクラス/関数**:
+
+        -   `filter_in_box_files(file_list: list[str]) -> list[str]`: ファイルリストから `_in_box/` で始まるパスのみを抽出して返します。
 
 #### 2. Application Layer (アプリケーション層)
 
+
+
 具体的なユースケースを実装します。
 
--   **`application/issue_service.py`**
-    -   **概要**: `_in_box` 内のファイルからIssueを作成し、ファイルを移動させる一連のフローを制御します。
-    -   **主要なクラス**:
-        -   `IssueCreationService`:
-            -   `create_issues_from_inbox(pull_number)`: 指定されたPRに関連するInboxファイルを処理し、Issueを作成します。成功・失敗に応じてファイルを移動します。
 
--   **`application/validation_service.py`**
-    -   **概要**: ドキュメントのフォーマット検証ロジックを提供します。
+
+-   **`issue_creator_kit/application/exceptions.py`**
+
+    -   **概要**: アプリケーション固有のカスタム例外を定義します。
+
     -   **主要なクラス**:
+
+        -   `FrontmatterError`: フロントマターの検証中にエラーが発生した場合に送出されるカスタム例外。
+
+
+
+-   **`issue_creator_kit/application/issue_service.py`**
+
+    -   **概要**: `_in_box` 内のファイルからIssueを作成し、ファイ ルを移動させる一連のフローを制御します。
+
+    -   **主要なクラス**:
+
+        -   `IssueCreationService`:
+
+            -   `create_issues_from_inbox(pull_number)`: 指定され たPRに関連するInboxファイルを処理し、Issueを作成します。成功・失敗に応じてファイルを移動します。
+
+
+
+-   **`issue_creator_kit/application/validation_service.py`**
+
+    -   **概要**: ドキュメントのフォーマット検証ロジックを提供します。
+
+    -   **主要なクラス**:
+
         -   `ValidationService`:
-            -   `validate_frontmatter(file_path)`: MarkdownファイルのFrontmatter（メタデータ）を検証します。
+
+            -   `validate_frontmatter(file_path)`: Markdownファイ ルのFrontmatter（メタデータ）を検証します。
+
             -   `validate_sections(content, doc_type)`: 必須セクションが含まれているか検証します。
+
+
+
+-   **`issue_creator_kit/application/utils.py`**
+
+    -   **概要**: ファイルパス生成などのユーティリティ関数を提供し ます。
+
+    -   **主要なクラス/関数**:
+
+        -   `get_unique_path(base_path: str, file_name: str) -> str`: ファイル名にタイムスタンプを付与して一意のファイルパスを生成 します。
 
 #### 3. Interface Layer (インターフェース層)
 
+
+
 CLIツールとしてのエントリーポイントを提供します。
 
--   **`interface/cli.py`**
-    -   **概要**: Issue作成ツールのエントリーポイントです。環境変数や引数から設定を読み込み、`IssueCreationService`を実行します。
 
--   **`interface/validation_cli.py`**
+
+-   **`issue_creator_kit/interface/cli.py`**
+
+    -   **概要**: Issue作成ツールのエントリーポイントです。環境変 数や引数から設定を読み込み、`IssueCreationService`を実行します。
+
+
+
+-   **`issue_creator_kit/interface/validation_cli.py`**
+
     -   **概要**: ドキュメント検証ツールのエントリーポイントです。指定されたディレクトリ内のファイルをスキャンし、`ValidationService`を使って検証を実行します。
 
 #### 4. Infrastructure Layer (インフラストラクチャ層)
 
 外部システム（GitHub API、ファイルシステム）との連携を扱います。
 
--   **`infrastructure/github_service.py`**
+-   **`issue_creator_kit/infrastructure/github_service.py`**
     -   **概要**: `PyGithub` を使用してGitHub APIを操作します。
     -   **主要なクラス**:
         -   `GithubService`: Issueの作成、リポジトリ内のファイル取得などを行います。
 
--   **`infrastructure/file_system_service.py`**
+-   **`issue_creator_kit/infrastructure/file_system_service.py`**
     -   **概要**: ローカルファイルシステムの操作（ファイルの探索、読み込みなど）を行います。
+    -   **主要な関数**:
+        -   `find_target_files(base_path: str) -> list[str]`: ADR-012で定義された対象ファイルを探索し、絶対パスのリストを返します。
+        -   `read_file_content(file_path: str) -> str`: 指定されたファイルの内容を読み込んで返します。
