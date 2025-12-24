@@ -9,9 +9,9 @@
 
 ```mermaid
 C4Component
-  title コンポーネント図 for Github Broker System
+  title コンポーネント図 for GitHub Broker System
 
-  Boundary(c1, "Github Broker System", "Python") {
+  Boundary(c1, "GitHub Broker System", "Python") {
     Component(api, "FastAPI Interface", "FastAPI", "エージェントからのタスク要求を受け付けるAPIエンドポイントを提供")
     Component(task_service, "Task Service", "Python", "タスクの選択、割り当て、プロンプト生成など、主要なビジネスロジックを担う")
     Component(di_container, "DI Container", "punq", "各コンポーネントの依存関係を解決・注入する")
@@ -19,7 +19,7 @@ C4Component
     Boundary(c2, "Infrastructure Clients") {
       Component(github_client, "GitHub Client", "PyGithub", "GitHub APIとの通信を担う")
       Component(redis_client, "Redis Client", "redis-py", "Redisとの通信（キャッシュ、ロック）を担う")
-      Component(gemini_client, "Gemini Client", "requests", "Google Gemini APIとの通信を担う")
+      Component(gemini_client, "Gemini Client", "google.generativeai", "Google Gemini APIとの通信を担う")
     }
   }
 
@@ -30,11 +30,9 @@ C4Component
 
   Rel(agent_system, api, "タスクを要求する", "HTTPS/JSON")
   Rel(api, task_service, "ビジネスロジックの実行を依頼する")
-  Rel(task_service, di_container, "依存関係の解決を要求")
 
   Rel(task_service, github_client, "IssueやPRの情報を取得・更新")
   Rel(task_service, redis_client, "Issueのキャッシュや分散ロックを操作")
-  Rel(task_service, gemini_client, "プロンプトを送信し、結果を受け取る")
 
   Rel(github_client, github, "Read/Write")
   Rel(redis_client, redis, "Read/Write")
