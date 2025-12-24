@@ -30,9 +30,11 @@ C4Component
 
   Rel(agent_system, api, "タスクを要求する", "HTTPS/JSON")
   Rel(api, task_service, "ビジネスロジックの実行を依頼する")
+  Rel(task_service, di_container, "依存関係の解決を要求")
 
   Rel(task_service, github_client, "IssueやPRの情報を取得・更新")
   Rel(task_service, redis_client, "Issueのキャッシュや分散ロックを操作")
+  Rel(task_service, gemini_client, "プロンプトを送信し、結果を受け取る")
 
   Rel(github_client, github, "Read/Write")
   Rel(redis_client, redis, "Read/Write")

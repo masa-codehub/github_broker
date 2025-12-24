@@ -1,103 +1,108 @@
-# GitHub Broker API Specification
+# GitHub Broker API 仕様書
 
-This document defines the API specification for the `github_broker` service. It follows the OpenAPI Specification (OAS) v3 concepts.
+このドキュメントは、`github_broker` が提供する RESTful API の仕様を定義します。
+APIは [OpenAPI Specification (OAS) v3](https://spec.openapis.org/oas/v3.0.0) に準拠する形で記述されています。
 
-## General Information
+## 基本情報
 
-- **Version:** 1.0.0
-- **Base URL:** `/` (Relative to the application root)
+- **ベースURL:** `/` (ローカル開発環境では `http://localhost:8000`)
+- **コンテンツタイプ:** リクエストおよびレスポンスは、特に指定がない限り `application/json` を使用します。
 
-## Endpoints
+## エンドポイント
 
-### 1. Health Check
+### 1. ヘルスチェック
 
-Checks the health status of the service.
+アプリケーションの稼働状態を確認します。
 
-- **Method:** `GET`
-- **Path:** `/health`
-- **Summary:** Health Check
+- **パス:** `/health`
+- **メソッド:** `GET`
 
-#### Responses
+#### レスポンス
 
-| Status Code | Description | Content-Type | Body |
+- **200 OK**: 正常に稼働中。
+
+  ```json
+  {
+    "status": "ok"
+  }
+  ```
+
+### 2. タスクリクエスト
+
+エージェントが実行可能なタスクをリクエストします。
+
+- **パス:** `/request-task`
+- **メソッド:** `POST`
+
+#### リクエストボディ
+
+`AgentTaskRequest` オブジェクト。
+
+```json
+{
+  "agent_id": "string"
+}
+```
+
+| フィールド | 型     | 必須 | 説明 |
 | :--- | :--- | :--- | :--- |
-| `200` | OK | `application/json` | `{"status": "ok"}` |
+| `agent_id` | `string` | Yes  | リクエストを行うエージェントの一意識別子。 |
 
----
+#### レスポンス
 
-### 2. Request Task
+- **200 OK**: タスクが割り当てられた場合。
 
-Agents use this endpoint to request a new task to work on.
+  **レスポンスボディ (`TaskResponse`):**
 
-- **Method:** `POST`
-- **Path:** `/request-task`
-- **Summary:** Request a Task
+  ```json
+  {
+    "issue_id": 123,
+    "issue_url": "https://github.com/owner/repo/issues/123",
+    "title": "Issue Title",
+    "body": "Issue Body Content...",
+    "labels": ["label1", "label2"],
+    "branch_name": "feature/issue-123",
+    "prompt": "Generated prompt for the agent...",
+    "required_role": "BACKEND_CODER",
+    "task_type": "development",
+    "gemini_response": null
+  }
+  ```
 
-#### Request Body
+  | フィールド | 型 | 説明 |
+  | :--- | :--- | :--- |
+  | `issue_id` | `integer` | GitHub Issue番号。 |
+  | `issue_url` | `string` | IssueへのURL。 |
+  | `title` | `string` | Issueのタイトル。 |
+  | `body` | `string` | Issueの本文。 |
+  | `labels` | `array[string]` | Issueに付与されているラベルのリスト。 |
+  | `branch_name` | `string` | 作業用ブランチ名。 |
+  | `prompt` | `string` | エージェントへの指示プロンプト。 |
+  | `required_role` | `string` | このタスクを実行するために必要な役割。 |
+  | `task_type` | `string` | タスクの種類 (`development`, `review`, `fix`)。 |
+  | `gemini_response` | `string` | (Optional) Geminiからの応答が含まれる場合。 |
 
-- **Content-Type:** `application/json`
-- **Schema:** [AgentTaskRequest](#agenttaskrequest)
-> **Note:** The implementation currently stubs this endpoint and always returns `204 No Content` while refactoring is in progress.
+- **204 No Content**: 現在割り当て可能なタスクがない場合。
 
-#### Responses
+- **422 Unprocessable Entity**: リクエストボディのバリデーションエラー。
 
-| Status Code | Description | Content-Type | Body |
-| :--- | :--- | :--- | :--- |
-| `200` | Task assigned successfully | `application/json` | [TaskResponse](#taskresponse) |
-| `204` | No task available | N/A | (Empty) |
-| `422` | Validation Error | `application/json` | Validation Error Details |
+### 3. 修正タスク作成
 
----
+プルリクエストのレビューコメントに基づき、修正タスクを作成します。
 
-### 3. Create Fix Task
+- **パス:** `/tasks/fix`
+- **メソッド:** `POST`
 
-Triggers the creation of a fix task (e.g., from a failed CI or review).
+#### リクエストボディ
 
-- **Method:** `POST`
-- **Path:** `/tasks/fix`
-- **Summary:** Create Fix Task
+**(注: 現在の実装ではスタブ状態であり、スキーマは完全に定義されていません)**
 
-#### Request Body
+#### レスポンス
 
-- **Content-Type:** `application/json`
-- **Schema:** [CreateFixTaskRequest](#createfixtaskrequest)
-> **Note:** The implementation currently stubs this endpoint. The `CreateFixTaskRequest` schema is defined for future use, but the live `/tasks/fix` endpoint does not currently validate or make use of the request body model.
+- **202 Accepted**: リクエストが受け付けられた場合。
 
-#### Responses
-
-| Status Code | Description | Content-Type | Body |
-| :--- | :--- | :--- | :--- |
-| `202` | Task creation accepted | `application/json` | `{"message": "string"}` |
-| `422` | Validation Error | `application/json` | Validation Error Details |
-
----
-
-## Schemas
-
-### AgentTaskRequest
-
-| Field | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `agent_id` | `string` | Yes | The ID of the agent requesting the task. |
-
-### TaskResponse
-
-| Field | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `issue_id` | `integer` | Yes | The GitHub Issue ID. |
-| `issue_url` | `string` (URL) | Yes | The URL of the GitHub Issue. |
-| `title` | `string` | Yes | The title of the task (issue). |
-| `body` | `string` | Yes | The description of the task. |
-| `labels` | `array<string>` | Yes | List of labels associated with the issue. |
-| `branch_name` | `string` | Yes | The branch name to be used for the task. |
-| `prompt` | `string` | Yes | The instruction prompt for the agent. |
-| `required_role` | `string` | Yes | The role required to perform the task. |
-| `task_type` | `string` (Enum `TaskType`) | Yes | Serialized enum value of `TaskType`: `development`, `review`, `fix`. Defaults to `development`. |
-| `gemini_response` | `string` | No | Optional response from Gemini. |
-
-### CreateFixTaskRequest
-
-| Field | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `pull_request_number` | `integer` | Yes | The number of the PR that requires fixing. |
-| `review_comments` | `array<string>` | Yes | List of review comments or error messages. |
+  ```json
+  {
+    "message": "Fix task creation has been accepted (stubbed)."
+  }
+  ```
