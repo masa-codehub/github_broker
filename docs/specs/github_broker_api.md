@@ -37,6 +37,7 @@ Agents use this endpoint to request a new task to work on.
 
 - **Content-Type:** `application/json`
 - **Schema:** [AgentTaskRequest](#agenttaskrequest)
+> **Note:** The implementation currently stubs this endpoint and always returns `204 No Content` while refactoring is in progress.
 
 #### Responses
 
@@ -60,7 +61,7 @@ Triggers the creation of a fix task (e.g., from a failed CI or review).
 
 - **Content-Type:** `application/json`
 - **Schema:** [CreateFixTaskRequest](#createfixtaskrequest)
-> **Note:** The implementation currently stubs this endpoint.
+> **Note:** The implementation currently stubs this endpoint. The `CreateFixTaskRequest` schema is defined for future use, but the live `/tasks/fix` endpoint does not currently validate or make use of the request body model.
 
 #### Responses
 
@@ -91,7 +92,7 @@ Triggers the creation of a fix task (e.g., from a failed CI or review).
 | `branch_name` | `string` | Yes | The branch name to be used for the task. |
 | `prompt` | `string` | Yes | The instruction prompt for the agent. |
 | `required_role` | `string` | Yes | The role required to perform the task. |
-| `task_type` | `string` (Enum) | Yes | Type of task: `development`, `review`, `fix`. |
+| `task_type` | `string` (Enum `TaskType`) | Yes | Serialized enum value of `TaskType`: `development`, `review`, `fix`. Defaults to `development`. |
 | `gemini_response` | `string` | No | Optional response from Gemini. |
 
 ### CreateFixTaskRequest
