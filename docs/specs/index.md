@@ -13,3 +13,6 @@ This directory contains detailed specifications for various components and featu
 
 ## 4. Issue Creator Workflow
 - [Issue Creator Workflow Overview](./issue-creator-workflow/index.md)
+
+## 5. API Specifications
+- [GitHub Broker API](./github_broker_api.md)
