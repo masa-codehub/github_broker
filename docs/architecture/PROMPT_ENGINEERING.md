@@ -21,8 +21,8 @@
 
 **例: `gemini_executor.yml`**
 ```
-role_play: '"あなたは、シニアソフトウェアエンジニアです。"'
-mission: '"以下のタスクを実行してください。"'
+role_play: 'あなたは、シニアソフトウェアエンジニアです。'
+mission: '以下のタスクを実行してください。'
 task_format: |
   # タスク情報
   - Issue URL: {issue_url}
@@ -30,7 +30,7 @@ task_format: |
   - タイトル: {title}
   - 本文:
   {body}
-instruction: '"上記のタスク情報に基づき、成果物を作成してください。"'
+instruction: '上記のタスク情報に基づき、成果物を作成してください。'
 ```
 
 ### 変数の埋め込み

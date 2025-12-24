@@ -234,11 +234,7 @@ issue_creator_kit/
 
 #### 1. Domain Layer (ドメイン層)
 
-
-
 ビジネスルールやデータ構造を定義します。
-
-
 
 -   **`issue_creator_kit/domain/issue.py`**
 
@@ -247,8 +243,6 @@ issue_creator_kit/
     -   **主要なクラス**:
 
         -   `IssueData`: タイトル、本文、ラベル、アサイン情報を保 持します。
-
-
 
 -   **`issue_creator_kit/domain/document.py`**
 
@@ -260,8 +254,6 @@ issue_creator_kit/
 
         -   `REQUIRED_HEADERS`: 各ドキュメントタイプに必要なヘッダー定義。
 
-
-
 -   **`issue_creator_kit/domain/in_box_file_filter.py`**
 
     -   **概要**: `_in_box` ディレクトリ内のファイルをフィルタリングする機能を提供します。
@@ -272,11 +264,7 @@ issue_creator_kit/
 
 #### 2. Application Layer (アプリケーション層)
 
-
-
 具体的なユースケースを実装します。
-
-
 
 -   **`issue_creator_kit/application/exceptions.py`**
 
@@ -285,8 +273,6 @@ issue_creator_kit/
     -   **主要なクラス**:
 
         -   `FrontmatterError`: フロントマターの検証中にエラーが発生した場合に送出されるカスタム例外。
-
-
 
 -   **`issue_creator_kit/application/issue_service.py`**
 
@@ -297,8 +283,6 @@ issue_creator_kit/
         -   `IssueCreationService`:
 
             -   `create_issues_from_inbox(pull_number)`: 指定され たPRに関連するInboxファイルを処理し、Issueを作成します。成功・失敗に応じてファイルを移動します。
-
-
 
 -   **`issue_creator_kit/application/validation_service.py`**
 
@@ -312,8 +296,6 @@ issue_creator_kit/
 
             -   `validate_sections(content, doc_type)`: 必須セクションが含まれているか検証します。
 
-
-
 -   **`issue_creator_kit/application/utils.py`**
 
     -   **概要**: ファイルパス生成などのユーティリティ関数を提供し ます。
@@ -324,17 +306,11 @@ issue_creator_kit/
 
 #### 3. Interface Layer (インターフェース層)
 
-
-
 CLIツールとしてのエントリーポイントを提供します。
-
-
 
 -   **`issue_creator_kit/interface/cli.py`**
 
     -   **概要**: Issue作成ツールのエントリーポイントです。環境変 数や引数から設定を読み込み、`IssueCreationService`を実行します。
-
-
 
 -   **`issue_creator_kit/interface/validation_cli.py`**
 

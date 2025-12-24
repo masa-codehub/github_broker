@@ -28,6 +28,9 @@
 | `REDIS_URL`          | `str`       | 接続先のRedisサーバーのURL。                                 | `redis://localhost:6379/0`               |
 | `GEMINI_API_KEY`     | `SecretStr` | Google Gemini APIを利用するためのAPIキー。                   | `AIzaSyxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`    |
 | `GITHUB_REPOSITORY`  | `str`       | 操作対象のGitHubリポジトリ名 (`owner/repo`形式)。現状では単一リポジトリのみサポート。将来的に複数リポジトリ対応 (`ADR-005`) のための拡張が可能です。 | `masa-codehub/github_broker`               |
+| `GITHUB_APP_ID`      | `str`       | GitHub AppのApp ID。                                         | `123456`                                 |
+| `GITHUB_APP_PRIVATE_KEY` | `SecretStr` | GitHub AppのPrivate Key（PEM形式の文字列。改行はエスケープして格納）。 | `-----BEGIN PRIVATE KEY-----\n...`       |
+| `GITHUB_WEBHOOK_SECRET` | `SecretStr` | GitHub Webhookの署名検証に利用するシークレット。             | `xxxxxxxxxxxxxxxxxxxxxxxxxxxx`           |
 
 ### 3.2. `agents.yml`
 
