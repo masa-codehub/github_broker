@@ -17,40 +17,29 @@ GitHub Brokerは、人間とAI（特にPRODUCT_MANAGERエージェント）と�
 
 人間はより創造的で戦略的な意思決定に集中し、AIは具体的な実装タスクを効率的に処理することで、プロダクトの価値を最大化し、市場投入までの時間を劇的に短縮します。
 
-## 登場人物
+## リポジトリ構造
 
-本プロジェクトにおける主要な役割です。
+このリポジトリは、モノレポ構成となっており、主に以下の2つのコンポーネントが含まれています。
 
--   **人間 (Human):** プロダクトの全体的なビジョンやビジネス目標を提示し、AIとの対話を通じて戦略を洗練させます。
--   **PRODUCT_MANAGER (AI):** 人間との対話を通じて戦略を理解し、具体的な開発タスク（GitHub Issues）に分解します。プロジェクト全体の進捗を管理する役割も担います。
--   **開発エージェントチーム (AI):** 各Issueに対して、設計、コーディング、テスト、プルリクエスト作成までを自律的に行います。
+-   **`github_broker/`**:
+    本プロジェクトのコアエンジン。GitHubリポジトリを監視し、タスクを自律型AIエージェントに割り当てる責務を持つ、常時稼働のバックエンドサービスです。
+-   **`issue_creator_kit/`**:
+    `_in_box` ディレクトリに置かれたMarkdown形式の計画ファイルから、GitHub Issueを自動生成するためのコマンドラインツール（CLI）です。`github_broker`への主要な入力を作成する役割を担います。
 
-## 主要なユースケース（ワークフロー）
+## アーキテクチャとドキュメント
 
-GitHub Brokerは以下のワークフローを通じて、アイデアをコードに変換します。特に、人間がプルリクエストをレビューする際に、そのコメントに基づいてAIへコードの修正を依頼する協調的なプロセスが加わりました。
+本システムのアーキテクチャ、設計思想、および仕様は、以下のドキュメントにまとめられています。
 
-```mermaid
-graph TD
-    A[1. 現状分析と戦略立案] -->|人間とAIの対話| B(2. Issueの自動生成);
-    B -->|Brokerがタスクを割り当て| C{3. 自律的な開発サイクル};
-    C -->|設計・実装| D[4. コード生成];
-    D -->|テスト・検証| E[5. プルリクエスト作成];
-    E --> F{6. レビューサイクル};
-    F -->|人間 or 自動で 'review-done' ラベル付与| G[7. レビュータスク化];
-    G -- レビューコメントに基づき修正 --> C;
-    F -- 承認 & マージ --> H(8. デプロイ);
-    H --> A;
-```
+-   **要求仕様 (ADRなど):**
+    -   [`/reqs`](./reqs): `github_broker`のアーキテクチャ決定記録 (ADR) など。
+    -   [`/issue_creator_kit/reqs`](./issue_creator_kit/reqs): `issue_creator_kit`のADRなど。
+-   **設計ドキュメント:**
+    -   [`/docs/architecture`](./docs/architecture): システム全体のアーキテクチャ概要、C4モデル、各種設計書。
+    -   [`/issue_creator_kit/docs`](./issue_creator_kit/docs): `issue_creator_kit`の詳細な使い方や仕様。
 
-このサイクルを通じて、継続的なプロダクト改善が自律的に行われます。人間は戦略的な判断と最終承認を行い、AIは実装と修正のサイクルを高速で回すことで、開発プロセス全体の効率と品質を向上させます。
-
-## アーキテクチャ概要
-
-本システムは、Clean Architectureに基づいた疎結合なコンポーネントで構成されています。全体のシステム構成やコンポーネント間の連携については、以下のC4モデル図を参照してください。
-
--   [**System Context Diagram**](./docs/design-docs/system_context.md)
-
-詳細なコードの構成については、[Code Overview](./docs/design-docs/code-overview.md)をご覧ください。
+**主要なドキュメント:**
+-   [**System Context Diagram**](./docs/architecture/system_context.md)
+-   [**Code Overview**](./docs/architecture/code-overview.md)
 
 ## Getting Started
 

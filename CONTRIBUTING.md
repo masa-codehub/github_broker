@@ -61,7 +61,7 @@ docker-compose up --build -d
 
 ## Issueの起票
 
-- 新しいIssueを作成する際は、必ず担当すべきエージェントの役割ラベル（例: `BACKENDCODER`, `STRATEGIST`）を一つ付与してください。
+- 新しいIssueを作成する際は、必ず担当すべきエージェントの役割ラベル（例: `BACKENDCODER`, `PRODUCT_MANAGER`）を一つ付与してください。
 - Issueのタイトルは、`【P<優先度>/<type>】<内容>` の形式で記述してください。（例: `【P0/feature】役割ベースのタスク割り当てロジックへの全面的な仕様変更`）
 
 ### `<type>`の種類
