@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 
 def get_document_type(file_path: str) -> DocumentType | None:
     """ファイルパスからドキュメントタイプを判定します。"""
-    if file_path.startswith("docs/adr/"):
+    if "reqs/adr/" in file_path or "docs/adr/" in file_path: # Backward compatibility or new structure
         return DocumentType.ADR
-    if file_path.startswith("docs/design-docs/"):
+    if "reqs/design-docs/" in file_path or "docs/design-docs/" in file_path:
         return DocumentType.DESIGN_DOC
     if file_path.startswith("_in_box/"):
         return DocumentType.IN_BOX
@@ -32,10 +32,14 @@ def validate_document(file_path: str, service: ValidationService) -> list[str]:
         content = Path(file_path).read_text(encoding="utf-8")
 
         if doc_type == DocumentType.IN_BOX:
-            service.validate_frontmatter(file_path)
+            metadata = service.validate_frontmatter(file_path)
             missing_sections = service.validate_sections(content, doc_type)
             if missing_sections:
                 errors.append(f"Missing sections: {', '.join(missing_sections)}")
+
+            content_errors = service.validate_plan_content(content, metadata)
+            if content_errors:
+                errors.extend(content_errors)
 
         elif doc_type in [DocumentType.ADR, DocumentType.DESIGN_DOC]:
             missing_sections = service.validate_sections(content, doc_type)

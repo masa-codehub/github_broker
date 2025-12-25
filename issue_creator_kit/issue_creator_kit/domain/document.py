@@ -12,8 +12,10 @@ class DocumentType(Enum):
 PLAN_HEADERS = [
     "## 親Issue (Parent Issue)",
     "## 子Issue (Sub-Issues)",
+    "## 参照元の意思決定 (Source Decision Document)",
     "## As-is (現状)",
     "## To-be (あるべき姿)",
+    "## 目標達成までの手順 (Steps to Achieve Goal)",
     "## 完了条件 (Acceptance Criteria)",
     "## 成果物 (Deliverables)",
     "## ブランチ戦略 (Branching Strategy)",
