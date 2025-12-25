@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 
 def get_document_type(file_path: str) -> DocumentType | None:
     """ファイルパスからドキュメントタイプを判定します。"""
-    if file_path.startswith("docs/adr/"):
+    if "reqs/adr/" in file_path or "docs/adr/" in file_path: # Backward compatibility or new structure
         return DocumentType.ADR
-    if file_path.startswith("docs/design-docs/"):
+    if "reqs/design-docs/" in file_path or "docs/design-docs/" in file_path:
         return DocumentType.DESIGN_DOC
     if file_path.startswith("_in_box/"):
         return DocumentType.IN_BOX

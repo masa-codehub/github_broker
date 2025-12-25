@@ -23,11 +23,10 @@ repos:
 
     -   id: doc-validation
         name: Document Validation
-        entry: python -m issue_creator_kit.interface.validation_cli
-        language: python
+        entry: ./scripts/validate_docs.sh
+        language: system
         types: [markdown]
-        files: ^(docs/adr/|docs/design-docs/|_in_box/).*\.md$
-        additional_dependencies: ['PyYAML', 'PyGithub', 'python-frontmatter']
+        files: ^(docs/adr/|docs/design-docs/|reqs/adr/|reqs/design-docs/|_in_box/).*\.md$
 
 -   repo: https://github.com/commitizen-tools/commitizen
     rev: 'v3.27.0'

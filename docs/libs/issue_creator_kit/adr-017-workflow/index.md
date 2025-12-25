@@ -2,7 +2,7 @@
 
 ## 目的
 
-本ドキュメントは、[ADR-017: _in_box方式によるIssue自動起票ワークフローの導入](../../reqs/adr/017-commit-triggered-issue-creation.md)で決定された、コミットトリガーによるIssue自動起票ワークフローの全体像を記述します。これにより、開発チームがこのワークフローを理解し、利用・運用するために必要な情報を提供することを目的とします。
+本ドキュメントは、[ADR-017: _in_box方式によるIssue自動起票ワークフローの導入](../../../../reqs/libs/issue_creator_kit/adr/017-commit-triggered-issue-creation.md)で決定された、コミットトリガーによるIssue自動起票ワークフローの全体像を記述します。これにより、開発チームがこのワークフローを理解し、利用・運用するために必要な情報を提供することを目的とします。
 
 ## 背景
 
@@ -80,4 +80,4 @@ graph TD
 
 ## 関連ドキュメント
 
-*   [ADR-017: _in_box方式によるIssue自動起票ワークフローの導入](../../reqs/adr/017-commit-triggered-issue-creation.md)
+*   [ADR-017: _in_box方式によるIssue自動起票ワークフローの導入](../../../../reqs/libs/issue_creator_kit/adr/017-commit-triggered-issue-creation.md)

@@ -1,6 +1,6 @@
 # 3. 実装上の考慮事項 (Implementation Notes)
 
-本ドキュメントは、[ADR-017](../../reqs/adr/017-commit-triggered-issue-creation.md) Commit-triggered Issue Creation ワークフローの実装における技術的な詳細と考慮事項をまとめたものです。
+本ドキュメントは、[ADR-017](../../../../reqs/libs/issue_creator_kit/adr/017-commit-triggered-issue-creation.md) Commit-triggered Issue Creation ワークフローの実装における技術的な詳細と考慮事項をまとめたものです。
 
 ## 1. ワークフローのトリガーと実行条件
 
